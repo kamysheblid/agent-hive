@@ -6,6 +6,8 @@ import { getFilteredSkills, loadBuiltinSkill } from './skills/builtin.js';
 import { loadFileSkill } from './skills/file-loader.js';
 import { BUILTIN_SKILLS } from './skills/registry.generated.js';
 import type { SkillDefinition } from './skills/types.js';
+// Tools
+import { gitingestTool } from './tools/gitingest.js';
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -13,6 +15,8 @@ import { SWARM_BEE_PROMPT } from './agents/swarm.js';
 import { SCOUT_BEE_PROMPT } from './agents/scout.js';
 import { FORAGER_BEE_PROMPT } from './agents/forager.js';
 import { HYGIENIC_BEE_PROMPT } from './agents/hygienic.js';
+import { CODE_REVIEWER_PROMPT } from './agents/code-reviewer.js';
+import { CODE_SIMPLIFIER_PROMPT } from './agents/code-simplifier.js';
 import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
 
@@ -829,6 +833,8 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
     mcp: builtinMcps,
 
     tool: {
+      gitingest: gitingestTool,
+
       hive_skill: createHiveSkillTool(filteredSkills),
 
       hive_feature_create: tool({

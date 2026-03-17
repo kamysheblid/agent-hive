@@ -8,6 +8,10 @@
  * - Scout (Research/Collector): Explores codebase and external docs
  * - Forager (Worker/Coder): Executes tasks in isolation
  * - Hygienic (Consultant/Reviewer): Reviews plan quality
+ * 
+ * Additional Agents (from opencode-froggy):
+ * - Code Reviewer: Reviews code for quality, correctness, security
+ * - Code Simplifier: Simplifies code for clarity while preserving behavior
  */
 
 // Bee agents (lean, focused)
@@ -17,6 +21,10 @@ export { swarmBeeAgent, SWARM_BEE_PROMPT } from './swarm';
 export { scoutBeeAgent, SCOUT_BEE_PROMPT } from './scout';
 export { foragerBeeAgent, FORAGER_BEE_PROMPT } from './forager';
 export { hygienicBeeAgent, HYGIENIC_BEE_PROMPT } from './hygienic';
+
+// Froggy agents
+export { codeReviewerAgent, CODE_REVIEWER_PROMPT } from './code-reviewer';
+export { codeSimplifierAgent, CODE_SIMPLIFIER_PROMPT } from './code-simplifier';
 
 
 /**
@@ -29,6 +37,10 @@ export { hygienicBeeAgent, HYGIENIC_BEE_PROMPT } from './hygienic';
  * - scout: Research/collection (codebase + external docs/data)
  * - forager: Worker/coder (executes tasks in worktrees)
  * - hygienic: Consultant/reviewer (plan quality)
+ * 
+ * Froggy Agents:
+ * - code-reviewer: Reviews code for quality, correctness, security
+ * - code-simplifier: Simplifies code for clarity while preserving behavior
  */
 export const hiveAgents = {
   // Bee Agents (lean, focused - recommended)
@@ -60,6 +72,17 @@ export const hiveAgents = {
   hygienic: {
     name: 'Hygienic (Consultant/Reviewer/Debugger)',
     description: 'Reviews plan documentation quality. OKAY/REJECT verdict.',
+    mode: 'subagent' as const,
+  },
+  // Froggy agents
+  'code-reviewer': {
+    name: 'Code Reviewer',
+    description: 'Reviews code for quality, correctness, and security.',
+    mode: 'subagent' as const,
+  },
+  'code-simplifier': {
+    name: 'Code Simplifier',
+    description: 'Simplifies recently modified code for clarity and maintainability while strictly preserving behavior.',
     mode: 'subagent' as const,
   },
 };
