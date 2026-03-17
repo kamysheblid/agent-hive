@@ -34,9 +34,6 @@ bun run test              # Run hive-core tests
 # From packages/opencode-hive/
 bun run build             # Build opencode-hive plugin
 bun run dev               # Watch mode
-
-# From packages/vscode-hive/
-bun run build             # Build VS Code extension
 ```
 
 ## Code Style
@@ -95,7 +92,6 @@ packages/
 │       ├── tools/       # Hive tool implementations
 │       ├── hooks/       # Event hooks
 │       └── skills/      # Skill definitions
-└── vscode-hive/         # VS Code extension
 ```
 
 ### Tests
@@ -236,7 +232,6 @@ This is a **bun workspaces** monorepo:
 
 - Dependencies are hoisted to root `node_modules/`
 - Each package has its own `package.json`
-- Run package scripts from the package directory (for example, `packages/vscode-hive/` → `bun run build`)
 
 ## Hive - Feature Development System
 

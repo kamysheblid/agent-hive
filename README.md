@@ -2,8 +2,7 @@
 
 **From Vibe Coding to Hive Coding** — Plan first. Execute with trust. Context persists.
 
-[![npm version](https://img.shields.io/npm/v/opencode-hive.svg)](https://www.npmjs.com/package/opencode-hive)
-[![VS Code Marketplace](https://img.shields.io/visual-studio-marketplace/v/tctinh.vscode-hive.svg)](https://marketplace.visualstudio.com/items?itemName=tctinh.vscode-hive)
+[![npm version](https://img.shields.io/npm/v/@hung319/opencode-hive.svg)](https://www.npmjs.com/package/@hung319/opencode-hive)
 [![License: MIT with Commons Clause](https://img.shields.io/badge/License-MIT%20with%20Commons%20Clause-blue.svg)](LICENSE)
 
 ---
@@ -65,32 +64,14 @@ See [PHILOSOPHY.md](PHILOSOPHY.md) for the full breakdown of what we learned fro
 
 ## Quick Start
 
-### Option A: GitHub Copilot
+### OpenCode
 
-1. Install the **Agent Hive** extension:
-   ```bash
-   code --install-extension tctinh.vscode-hive
-   ```
-
-2. Create `.github/agents/Hive.agent.md` in your repository (copy from this repo or see the [GitHub Copilot Guide](docs/GITHUB-COPILOT-GUIDE.md))
-
-3. In Copilot Chat, invoke your agent:
-   ```
-   I want to hive plan add user authentication
-   ```
-
-The extension provides Hive tools for plan-first development. The agent file teaches Copilot how to use them.
-
-See the full [GitHub Copilot Guide](docs/GITHUB-COPILOT-GUIDE.md) for creating and customizing your agent.
-
-### Option B: OpenCode
-
-Add `opencode-hive` to your `opencode.json`:
+Add `@hung319/opencode-hive` to your `opencode.json`:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-hive"]
+  "plugin": ["@hung319/opencode-hive"]
 }
 ```
 
@@ -98,9 +79,9 @@ OpenCode handles the rest — no manual npm install needed.
 
 For local plugin testing:
 
-1. Keep `plugin: ["opencode-hive"]` in `opencode.json` (not `opencode-hive@latest`).
+1. Keep `plugin: ["@hung319/opencode-hive"]` in `opencode.json` (not `"@hung319/opencode-hive@latest"`).
 2. Build `packages/hive-core` first, then `packages/opencode-hive`.
-3. Symlink `~/.cache/opencode/node_modules/opencode-hive` to your local `packages/opencode-hive` checkout.
+3. Symlink `~/.cache/opencode/node_modules/@hung319/opencode-hive` to your local `packages/opencode-hive` checkout.
 
 ### Configuration
 
@@ -108,12 +89,12 @@ Run Agent Hive once to auto-generate a default configuration at `~/.config/openc
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/tctinh/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
+  "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
   "agentMode": "unified",
   "disableSkills": [],
   "disableMcps": [],
   "agents": {
-    "hive-master": {
+    "hive": {
       "model": "anthropic/claude-sonnet-4-20250514",
       "temperature": 0.5
     }
@@ -125,7 +106,7 @@ Run Agent Hive once to auto-generate a default configuration at `~/.config/openc
 
 | Option | Values | Description |
 |--------|--------|-------------|
-| `agentMode` | `unified` (default), `dedicated` | `unified`: Single `hive-master` agent handles planning + orchestration. `dedicated`: Separate `architect-planner` and `swarm-orchestrator` agents. |
+| `agentMode` | `unified` (default), `dedicated` | `unified`: Single `hive` agent handles planning + orchestration. `dedicated`: Separate `architect-planner` and `swarm-orchestrator` agents. |
 | `disableSkills` | `string[]` | Globally disable specific skills (won't appear in `hive_skill` tool). |
 | `disableMcps` | `string[]` | Globally disable MCP servers. Options: `websearch`, `context7`, `grep_app`, `ast_grep`. |
 
@@ -136,7 +117,7 @@ Configure models for each agent role. **Update these to models available on your
 ```json
 {
   "agents": {
-    "hive-master": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 },
+    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 },
     "scout-researcher": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 },
     "forager-worker": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.3 },
     "hygienic-reviewer": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.3 }
@@ -144,7 +125,7 @@ Configure models for each agent role. **Update these to models available on your
 }
 ```
 
-All agents: `hive-master`, `architect-planner`, `swarm-orchestrator`, `scout-researcher`, `forager-worker`, `hygienic-reviewer`.
+All agents: `hive`, `architect-planner`, `swarm-orchestrator`, `scout-researcher`, `forager-worker`, `hygienic-reviewer`.
 
 #### Custom Derived Subagents
 
@@ -190,7 +171,7 @@ Skills provide specialized workflows that agents can load on-demand via `hive_sk
 ```json
 {
   "agents": {
-    "hive-master": { "autoLoadSkills": ["parallel-exploration"] },
+    "hive": { "autoLoadSkills": ["parallel-exploration"] },
     "forager-worker": { "autoLoadSkills": ["test-driven-development", "verification-before-completion"] }
   }
 }
@@ -230,7 +211,7 @@ Set reasoning/effort levels per agent:
 ```json
 {
   "agents": {
-    "hive-master": { "model": "anthropic/claude-sonnet-4-20250514", "variant": "high" },
+    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "variant": "high" },
     "forager-worker": { "variant": "medium" }
   }
 }
@@ -294,7 +275,7 @@ Recommended baseline:
 }
 ```
 
-Also keep OpenCode plugin config as `"opencode-hive"` (not `"opencode-hive@latest"`) during local testing.
+Also keep OpenCode plugin config as `"@hung319/opencode-hive"` (not `"@hung319/opencode-hive@latest"`) during local testing.
 
 ---
 
@@ -446,74 +427,11 @@ When done, you have:
 
 ---
 
-## VS Code Extension
-
-Visual management without leaving your editor:
-
-- **Sidebar** — See all features and progress at a glance
-- **Inline Comments** — Add review comments directly on plan.md
-- **Approve Button** — One-click plan approval
-- **Real-time Updates** — Watches `.hive/` for changes
-- **Launch Tasks** — Open tasks in OpenCode from VS Code
-- **Expandable Tasks** — Click to view spec.md and report.md for each task
-
-```
-┌─────────────────────────────────────┐
-│ HIVE                           [+]  │
-├─────────────────────────────────────┤
-│ ▼ user-auth              [3/3]  ✅  │
-│   ├─ 01-extract-auth-logic     ✅   │
-│   │   ├─ spec.md                    │
-│   │   └─ report.md                  │
-│   ├─ 02-add-token-refresh      ✅   │
-│   └─ 03-update-api-routes      ✅   │
-│ ▶ dark-mode              [0/3]  📋  │
-│ ▶ api-refactor           [2/5]  🔄  │
-└─────────────────────────────────────┘
-```
-
-**Review plans, add comments, approve — all without leaving VS Code.**
-
-### Extension Features
-
-| Feature | Description |
-|---------|-------------|
-| **Feature Tree** | Hierarchical view of all features, tasks, and their status |
-| **Plan Review** | Open plan.md with syntax highlighting and inline commenting |
-| **Task Details** | Expand any task to see spec.md (context) and report.md (results) |
-| **Status Icons** | Visual indicators: ✅ done, 🔄 in-progress, ⏳ pending, ❌ failed |
-| **Context Files** | Browse and edit context files stored per-feature |
-| **Session History** | View feature history and status |
-
-### Extension Requirements
-
-> **Important:** The VS Code extension is a companion tool for [OpenCode](https://opencode.ai). It provides visualization and review capabilities but does not execute tasks on its own.
-
-**You need:**
-1. **OpenCode CLI** — The AI coding assistant that runs the Hive workflow
-2. **opencode-hive plugin** — Installed in your OpenCode configuration
-3. **vscode-hive extension** — For visual management in VS Code
-
-The extension watches your `.hive/` directory and displays the current state. All planning and execution happens through OpenCode.
-
-### Using the Extension
-
-1. **Open your project** in VS Code (must have `.hive/` directory)
-2. **Click the Hive icon** in the Activity Bar (left sidebar)
-3. **Browse features** — Expand to see tasks, context, sessions
-4. **Review plans** — Click on plan.md to open with inline commenting
-5. **Add comments** — Use VS Code's comment feature on plan.md lines
-6. **Approve plans** — Click the approve button when ready
-7. **Monitor progress** — Watch task status update in real-time as OpenCode executes
-
----
-
 ## Packages
 
 | Package | Platform | Description |
 |---------|----------|-------------|
-| **[opencode-hive](https://www.npmjs.com/package/opencode-hive)** | npm | OpenCode plugin — 6 specialized bee agents, 15 tools, 11 skills |
-| **[vscode-hive](https://marketplace.visualstudio.com/items?itemName=tctinh.vscode-hive)** | VS Code | Visual management — review, comment, approve |
+| **[@hung319/opencode-hive](https://www.npmjs.com/package/@hung319/opencode-hive)** | npm | OpenCode plugin — 6 specialized bee agents, 15 tools, 11 skills |
 
 **Agent Selection:** Use `hive`, `architect`, or `swarm` as your primary agent. Use `@scout`, `@forager`, or `@hygienic` to mention subagents directly.
 
@@ -544,13 +462,12 @@ Clean git history (worktree merges), full documentation (generated as you work),
 | Feature | Vibe Coding | Spec-First Tools | Agent Hive |
 |---------|-------------|------------------|------------|
 | Setup required | None | Heavy | Minimal |
-| Documentation | None | Upfront | Emerges from work |
+| Documentation | None | Upstream | Emerges from work |
 | Planning | Ad-hoc | Required first | Conversational |
 | Tracking | None | Manual | Automatic |
 | Audit trail | None | If maintained | Built-in |
 | Multi-agent ready | Chaos | ❌ | ✅ Native |
 | Subagent tracing | Painful | ❌ | ✅ Automatic |
-| VS Code UI | ❌ | ❌ | ✅ Full support |
 
 ---
 
@@ -587,15 +504,11 @@ Hive complements these excellent projects:
 
 | Platform | Setup | Status |
 |----------|-------|--------|
-| **GitHub Copilot** | Install extension + create agent file | Full support |
-| **OpenCode** | Add `opencode-hive` plugin | Full support |
-| **VS Code** | Extension for visual management | Full support |
+| **OpenCode** | Add `@hung319/opencode-hive` plugin | Full support |
 
 Designed to work seamlessly with:
 
-- **[GitHub Copilot](https://github.com/features/copilot)** — Use keyword `hive` in Copilot Chat
 - **[OpenCode](https://opencode.ai)** — The AI coding CLI
-- **VS Code** — Your editor for reviews
 - **Git** — Worktrees for isolation
 
 ---

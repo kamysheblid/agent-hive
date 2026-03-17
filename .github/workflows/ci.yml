@@ -39,7 +39,3 @@ jobs:
       - name: Test opencode-hive
         working-directory: packages/opencode-hive
         run: bun test
-
-      - name: Build vscode-hive
-        working-directory: packages/vscode-hive
-        run: bun run build

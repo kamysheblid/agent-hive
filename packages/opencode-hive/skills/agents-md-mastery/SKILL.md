@@ -99,8 +99,7 @@ bun run release:check
 # ← Key directories, where things live
 packages/
 ├── hive-core/      # Shared logic
-├── opencode-hive/  # Plugin
-└── vscode-hive/    # Extension
+└── opencode-hive/  # Plugin
 
 ## Important Patterns
 # ← How to do common tasks correctly

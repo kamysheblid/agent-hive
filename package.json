@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "bun run --filter hive-core build && bun run --filter opencode-hive build && bun run --filter vscode-hive build",
+    "build": "bun run --filter hive-core build && bun run --filter @hung319/opencode-hive build",
     "dev": "bun run --filter hive-core build && bun run --filter '*' dev",
     "release:prepare": "node scripts/release/prepare.mjs",
     "release:check": "bun install && bun run build && npm -ws --if-present run test"

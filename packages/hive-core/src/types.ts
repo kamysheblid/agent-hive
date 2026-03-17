@@ -158,7 +158,7 @@ export interface AgentModelConfig {
 }
 
 export const BUILT_IN_AGENT_NAMES = [
-  'hive-master',
+  'hive',
   'architect-planner',
   'swarm-orchestrator',
   'scout-researcher',
@@ -215,8 +215,8 @@ export interface HiveConfig {
   agentMode?: 'unified' | 'dedicated';
   /** Agent configuration */
   agents?: {
-    /** Hive Master (hybrid planner + orchestrator) */
-    'hive-master'?: AgentModelConfig;
+    /** Hive (hybrid planner + orchestrator) */
+    'hive'?: AgentModelConfig;
     /** Architect Planner (planning-only) */
     'architect-planner'?: AgentModelConfig;
     /** Swarm Orchestrator */
@@ -241,7 +241,7 @@ export interface HiveConfig {
 
 /** Default models for Hive agents */
 export const DEFAULT_AGENT_MODELS = {
-  'hive-master': 'github-copilot/claude-opus-4.5',
+  'hive': 'github-copilot/claude-opus-4.5',
   'architect-planner': 'github-copilot/gpt-5.2-codex',
   'swarm-orchestrator': 'github-copilot/claude-opus-4.5',
   'scout-researcher': 'zai-coding-plan/glm-4.7',
@@ -250,7 +250,7 @@ export const DEFAULT_AGENT_MODELS = {
 } as const;
 
 export const DEFAULT_HIVE_CONFIG: HiveConfig = {
-  $schema: 'https://raw.githubusercontent.com/tctinh/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json',
+  $schema: 'https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json',
   enableToolsFor: [],
   disableSkills: [],
   disableMcps: [],
@@ -272,8 +272,8 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     },
   },
   agents: {
-    'hive-master': {
-      model: DEFAULT_AGENT_MODELS['hive-master'],
+    'hive': {
+      model: DEFAULT_AGENT_MODELS['hive'],
       temperature: 0.5,
       skills: [
         'brainstorming',

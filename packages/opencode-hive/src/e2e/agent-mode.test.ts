@@ -37,7 +37,7 @@ describe("agentMode gating", () => {
     }
   });
 
-  it("registers hive-master, scout, forager, and hygienic in unified mode", async () => {
+  it("registers hive, scout, forager, and hygienic in unified mode", async () => {
     const configPath = path.join(testRoot, ".config", "opencode", "agent_hive.json");
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
     fs.writeFileSync(
@@ -59,13 +59,13 @@ describe("agentMode gating", () => {
     const opencodeConfig: any = { agent: {} };
     await hooks.config!(opencodeConfig);
 
-    expect(opencodeConfig.agent["hive-master"]).toBeDefined();
+    expect(opencodeConfig.agent["hive"]).toBeDefined();
     expect(opencodeConfig.agent["architect-planner"]).toBeUndefined();
     expect(opencodeConfig.agent["swarm-orchestrator"]).toBeUndefined();
     expect(opencodeConfig.agent["scout-researcher"]).toBeDefined();
     expect(opencodeConfig.agent["forager-worker"]).toBeDefined();
     expect(opencodeConfig.agent["hygienic-reviewer"]).toBeDefined();
-    expect(opencodeConfig.default_agent).toBe("hive-master");
+    expect(opencodeConfig.default_agent).toBe("hive");
   });
 
   it("registers dedicated agents in dedicated mode", async () => {
@@ -90,7 +90,7 @@ describe("agentMode gating", () => {
     const opencodeConfig: any = { agent: {} };
     await hooks.config!(opencodeConfig);
 
-    expect(opencodeConfig.agent["hive-master"]).toBeUndefined();
+    expect(opencodeConfig.agent["hive"]).toBeUndefined();
     expect(opencodeConfig.agent["architect-planner"]).toBeDefined();
     expect(opencodeConfig.agent["swarm-orchestrator"]).toBeDefined();
     expect(opencodeConfig.agent["scout-researcher"]).toBeDefined();
@@ -144,6 +144,6 @@ describe("agentMode gating", () => {
     expect(swarmPrompt).toContain("## Configured Custom Subagents");
     expect(swarmPrompt).toContain("reviewer-security");
 
-    expect(opencodeConfig.agent["hive-master"]).toBeUndefined();
+    expect(opencodeConfig.agent["hive"]).toBeUndefined();
   });
 });

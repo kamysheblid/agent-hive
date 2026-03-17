@@ -29,7 +29,7 @@ describe('agent_hive schema customAgents contract', () => {
   });
 
   it('reserves built-in and plugin-managed agent names', () => {
-    expectReservedNameToFail('hive-master');
+    expectReservedNameToFail('hive');
     expectReservedNameToFail('architect-planner');
     expectReservedNameToFail('swarm-orchestrator');
     expectReservedNameToFail('scout-researcher');

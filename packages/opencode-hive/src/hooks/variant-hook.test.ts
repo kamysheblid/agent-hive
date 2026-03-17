@@ -60,7 +60,7 @@ describe('createVariantHook', () => {
 
     it('applies variant to each configured built-in agent', async () => {
       const agentVariants = {
-        'hive-master': 'max',
+        'hive': 'max',
         'architect-planner': 'high',
         'swarm-orchestrator': 'medium',
         'scout-researcher': 'low',

@@ -34,7 +34,7 @@ describe("ConfigService defaults", () => {
     expect(Object.keys(config.agents ?? {}).sort()).toEqual([
       "architect-planner",
       "forager-worker",
-      "hive-master",
+      "hive",
       "hygienic-reviewer",
       "scout-researcher",
       "swarm-orchestrator",
@@ -42,7 +42,7 @@ describe("ConfigService defaults", () => {
     expect(config.agents?.["architect-planner"]?.model).toBe(
       "github-copilot/gpt-5.2-codex",
     );
-    expect(config.agents?.["hive-master"]?.model).toBe(
+    expect(config.agents?.["hive"]?.model).toBe(
       "github-copilot/claude-opus-4.5",
     );
     expect(config.agents?.["swarm-orchestrator"]?.model).toBe(
@@ -158,7 +158,7 @@ describe("ConfigService defaults", () => {
       JSON.stringify(
         {
           agents: {
-            "hive-master": { temperature: 0.8 },
+            "hive": { temperature: 0.8 },
           },
         },
         null,
@@ -167,12 +167,12 @@ describe("ConfigService defaults", () => {
     );
 
     const config = service.get();
-    expect(config.agents?.["hive-master"]?.temperature).toBe(0.8);
-    expect(config.agents?.["hive-master"]?.model).toBe(
+    expect(config.agents?.["hive"]?.temperature).toBe(0.8);
+    expect(config.agents?.["hive"]?.model).toBe(
       "github-copilot/claude-opus-4.5",
     );
 
-    const agentConfig = service.getAgentConfig("hive-master");
+    const agentConfig = service.getAgentConfig("hive");
     expect(agentConfig.temperature).toBe(0.8);
     expect(agentConfig.model).toBe("github-copilot/claude-opus-4.5");
   });
@@ -255,7 +255,7 @@ describe("ConfigService defaults", () => {
         {
           disableSkills: ["parallel-exploration", "custom-skill"],
           agents: {
-            "hive-master": {
+            "hive": {
               autoLoadSkills: ["custom-skill"],
             },
           },
@@ -265,7 +265,7 @@ describe("ConfigService defaults", () => {
       ),
     );
 
-    const config = service.getAgentConfig("hive-master");
+    const config = service.getAgentConfig("hive");
     expect(config.autoLoadSkills).toEqual([]);
   });
 
@@ -368,7 +368,7 @@ describe("ConfigService defaults", () => {
               description: "Reserved plugin alias.",
             },
             "unsupported-base": {
-              baseAgent: "hive-master",
+              baseAgent: "hive",
               description: "Should be skipped at runtime.",
             },
             "forager-ui": {

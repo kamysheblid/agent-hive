@@ -69,12 +69,12 @@ describe('Agent permissions', () => {
     mock.restore();
   });
 
-  it('registers hive-master, scout, forager, and hygienic in unified mode', async () => {
+  it('registers hive, scout, forager, and hygienic in unified mode', async () => {
     // Mock ConfigService to return unified mode
     spyOn(ConfigService.prototype, 'get').mockReturnValue({
       agentMode: 'unified',
       agents: {
-        'hive-master': {},
+        'hive': {},
       }
     } as any);
 
@@ -97,15 +97,15 @@ describe('Agent permissions', () => {
     } = {};
     await hooks.config?.(opencodeConfig);
 
-    expect(opencodeConfig.agent?.['hive-master']).toBeTruthy();
+    expect(opencodeConfig.agent?.['hive']).toBeTruthy();
     expect(opencodeConfig.agent?.['swarm-orchestrator']).toBeUndefined();
     expect(opencodeConfig.agent?.['architect-planner']).toBeUndefined();
     expect(opencodeConfig.agent?.['scout-researcher']).toBeTruthy();
     expect(opencodeConfig.agent?.['forager-worker']).toBeTruthy();
     expect(opencodeConfig.agent?.['hygienic-reviewer']).toBeTruthy();
-    expect(opencodeConfig.default_agent).toBe('hive-master');
+    expect(opencodeConfig.default_agent).toBe('hive');
 
-    const hivePerm = opencodeConfig.agent?.['hive-master']?.permission;
+    const hivePerm = opencodeConfig.agent?.['hive']?.permission;
     expect(hivePerm).toBeTruthy();
   });
 
@@ -138,7 +138,7 @@ describe('Agent permissions', () => {
     } = {};
     await hooks.config?.(opencodeConfig);
 
-    expect(opencodeConfig.agent?.['hive-master']).toBeUndefined();
+    expect(opencodeConfig.agent?.['hive']).toBeUndefined();
     expect(opencodeConfig.agent?.['swarm-orchestrator']).toBeTruthy();
     expect(opencodeConfig.agent?.['architect-planner']).toBeTruthy();
     expect(opencodeConfig.agent?.['scout-researcher']).toBeTruthy();
@@ -160,7 +160,7 @@ describe('Agent permissions', () => {
     spyOn(ConfigService.prototype, 'get').mockReturnValue({
       agentMode: 'unified',
       agents: {
-        'hive-master': {},
+        'hive': {},
       },
     } as any);
 
@@ -195,7 +195,7 @@ describe('Agent permissions', () => {
     spyOn(ConfigService.prototype, 'get').mockReturnValue({
       agentMode: 'unified',
       agents: {
-        'hive-master': {},
+        'hive': {},
       },
       customAgents: {
         'forager-ui': {
@@ -328,9 +328,9 @@ describe('Per-agent tool filtering', () => {
     expect(swarmTools!['hive_plan_approve']).toBeUndefined();
   });
 
-  it('hive-master has no tools filter (all tools allowed)', async () => {
+  it('hive has no tools filter (all tools allowed)', async () => {
     const agents = await buildConfig('unified');
-    const hiveTools = agents['hive-master']?.tools;
+    const hiveTools = agents['hive']?.tools;
     expect(hiveTools).toBeUndefined();
   });
 });

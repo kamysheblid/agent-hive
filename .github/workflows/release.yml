@@ -32,10 +32,6 @@ jobs:
         working-directory: packages/opencode-hive
         run: bun run build
 
-      - name: Build vscode-hive
-        working-directory: packages/vscode-hive
-        run: bun run build
-
       - name: Test hive-core
         working-directory: packages/hive-core
         run: bun test
@@ -43,12 +39,6 @@ jobs:
       - name: Test opencode-hive
         working-directory: packages/opencode-hive
         run: bun test
-
-      - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vsix
-          path: packages/vscode-hive/*.vsix
 
       - name: Upload npm package artifact
         uses: actions/upload-artifact@v4
@@ -84,23 +74,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_KEY }}
 
-  publish-vscode:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: Download VSIX
-        uses: actions/download-artifact@v4
-        with:
-          name: vsix
-
-      - name: Publish to VS Code Marketplace
-        run: npx @vscode/vsce publish --packagePath *.vsix
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
-
   release:
-    needs: [build, publish-npm, publish-vscode]
+    needs: [build, publish-npm]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
@@ -108,16 +83,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download VSIX
-        uses: actions/download-artifact@v4
-        with:
-          name: vsix
-          path: artifacts/
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
-          files: artifacts/*.vsix
           body_path: docs/releases/${{ github.ref_name }}.md
           fail_on_unmatched_files: false
         env:

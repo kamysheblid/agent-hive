@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://raw.githubusercontent.com/tctinh/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
+  "$id": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
   "title": "Agent Hive Configuration",
   "description": "Configuration schema for ~/.config/opencode/agent_hive.json",
   "type": "object",
@@ -76,9 +76,9 @@
       "description": "Agent model configuration overrides",
       "additionalProperties": false,
       "properties": {
-        "hive-master": {
+        "hive": {
           "$ref": "#/$defs/agentConfig",
-          "description": "Hive Master (hybrid planner + orchestrator)"
+          "description": "Hive (hybrid planner + orchestrator)"
         },
         "architect-planner": {
           "$ref": "#/$defs/agentConfig",
@@ -108,7 +108,7 @@
       "propertyNames": {
         "not": {
           "enum": [
-            "hive-master",
+            "hive",
             "architect-planner",
             "swarm-orchestrator",
             "scout-researcher",

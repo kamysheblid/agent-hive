@@ -1,6 +1,6 @@
-# opencode-hive
+# @hung319/opencode-hive
 
-[![npm version](https://img.shields.io/npm/v/opencode-hive)](https://www.npmjs.com/package/opencode-hive)
+[![npm version](https://img.shields.io/npm/v/@hung319/opencode-hive)](https://www.npmjs.com/package/@hung319/opencode-hive)
 [![License: MIT with Commons Clause](https://img.shields.io/badge/License-MIT%20with%20Commons%20Clause-blue.svg)](../../LICENSE)
 
 **From Vibe Coding to Hive Coding** — The OpenCode plugin that brings structure to AI-assisted development.
@@ -17,14 +17,14 @@ Hive: Plan → Review → Approve → Execute → Ship
 ## Installation
 
 ```bash
-npm install opencode-hive
+npm install @hung319/opencode-hive
 ```
 
 ## Optional: Enable MCP Research Tools
 
 1. Create `.opencode/mcp-servers.json` using the template:
    - From this repo: `packages/opencode-hive/templates/mcp-servers.json`
-   - Or from npm: `node_modules/opencode-hive/templates/mcp-servers.json`
+   - Or from npm: `node_modules/@hung319/opencode-hive/templates/mcp-servers.json`
 2. Set `EXA_API_KEY` to enable `websearch_exa` (optional).
 3. Restart OpenCode.
 
@@ -106,7 +106,7 @@ When using Dynamic Context Pruning (DCP), use a Hive-safe config in `~/.config/o
   - `strategies.supersedeWrites.enabled: false`
   - `strategies.purgeErrors.enabled: false`
 
-For local plugin testing, keep OpenCode plugin entry as `"opencode-hive"` (not `"opencode-hive@latest"`).
+For local plugin testing, keep OpenCode plugin entry as `"@hung319/opencode-hive"` (not `"@hung319/opencode-hive@latest"`).
 
 ## Prompt Budgeting & Observability
 
@@ -161,7 +161,7 @@ Hive uses a config file at `~/.config/opencode/agent_hive.json`. You can customi
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/tctinh/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
+  "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
   "disableSkills": ["brainstorming", "writing-plans"],
   "disableMcps": ["websearch", "ast_grep"]
 }
@@ -196,7 +196,7 @@ Each agent can have specific skills enabled. If configured, only those skills ap
 ```json
 {
   "agents": {
-    "hive-master": {
+    "hive": {
       "skills": ["brainstorming", "writing-plans", "executing-plans"]
     },
     "forager-worker": {
@@ -222,9 +222,9 @@ Use `autoLoadSkills` to automatically inject skills into an agent's system promp
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/tctinh/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
+  "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
   "agents": {
-    "hive-master": {
+    "hive": {
       "autoLoadSkills": ["parallel-exploration"]
     },
     "forager-worker": {
@@ -257,7 +257,7 @@ Skill IDs must be safe directory names (no `/`, `\`, `..`, or `.`). Missing or i
 
 | Agent | autoLoadSkills default |
 |-------|------------------------|
-| `hive-master` | `parallel-exploration` |
+| `hive` | `parallel-exploration` |
 | `forager-worker` | `test-driven-development`, `verification-before-completion` |
 | `scout-researcher` | (none) |
 | `architect-planner` | `parallel-exploration` |
@@ -269,9 +269,9 @@ You can set a `variant` for each Hive agent to control model reasoning/effort le
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/tctinh/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
+  "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
   "agents": {
-    "hive-master": {
+    "hive": {
       "model": "anthropic/claude-sonnet-4-20250514",
       "variant": "high"
     },
@@ -366,17 +366,13 @@ Override models for specific agents:
 ```json
 {
   "agents": {
-    "hive-master": {
+    "hive": {
       "model": "anthropic/claude-sonnet-4-20250514",
       "temperature": 0.5
     }
   }
 }
 ```
-
-## Pair with VS Code
-
-For the full experience, install [vscode-hive](https://marketplace.visualstudio.com/items?itemName=tctinh.vscode-hive) to review plans inline with comments.
 
 ## License
 

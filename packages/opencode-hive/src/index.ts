@@ -180,7 +180,7 @@ const plugin: Plugin = async (ctx) => {
   // Get filtered skills (globally disabled skills removed)
   // Per-agent skill filtering could be added here based on agent context
   const filteredSkills = getFilteredSkills(disabledSkills);
-  const effectiveAutoLoadSkills = configService.getAgentConfig('hive-master').autoLoadSkills ?? [];
+  const effectiveAutoLoadSkills = configService.getAgentConfig('hive').autoLoadSkills ?? [];
   const worktreeService = new WorktreeService({
     baseDir: directory,
     hiveDir: path.join(directory, '.hive'),
@@ -1532,8 +1532,8 @@ Expand your Discovery section and try again.`;
           .join('\n')}`;
 
       // Build auto-loaded skill content for each agent
-      const hiveUserConfig = configService.getAgentConfig('hive-master');
-      const hiveAutoLoadedSkills = await buildAutoLoadedSkillsContent('hive-master', configService, directory);
+      const hiveUserConfig = configService.getAgentConfig('hive');
+      const hiveAutoLoadedSkills = await buildAutoLoadedSkillsContent('hive', configService, directory);
       const hiveConfig = {
         model: hiveUserConfig.model,
         variant: hiveUserConfig.variant,
@@ -1645,7 +1645,7 @@ Expand your Discovery section and try again.`;
       };
 
       const builtInAgentConfigs = {
-        'hive-master': hiveConfig,
+        'hive': hiveConfig,
         'architect-planner': architectConfig,
         'swarm-orchestrator': swarmConfig,
         'scout-researcher': scoutConfig,
@@ -1684,7 +1684,7 @@ Expand your Discovery section and try again.`;
       const allAgents: Record<string, unknown> = {};
       
       if (agentMode === 'unified') {
-        allAgents['hive-master'] = builtInAgentConfigs['hive-master'];
+        allAgents['hive'] = builtInAgentConfigs['hive'];
         allAgents['scout-researcher'] = builtInAgentConfigs['scout-researcher'];
         allAgents['forager-worker'] = builtInAgentConfigs['forager-worker'];
         allAgents['hygienic-reviewer'] = builtInAgentConfigs['hygienic-reviewer'];
@@ -1712,7 +1712,7 @@ Expand your Discovery section and try again.`;
         delete (configAgent as Record<string, unknown>).hygienic;
         delete (configAgent as Record<string, unknown>).receiver;
         // Clean up old kebab-case names (in case they exist)
-        delete (configAgent as Record<string, unknown>)['hive-master'];
+        delete (configAgent as Record<string, unknown>)['hive'];
         delete (configAgent as Record<string, unknown>)['architect-planner'];
         delete (configAgent as Record<string, unknown>)['swarm-orchestrator'];
         delete (configAgent as Record<string, unknown>)['scout-researcher'];
@@ -1723,7 +1723,7 @@ Expand your Discovery section and try again.`;
 
       // Set default agent based on mode
       (opencodeConfig as Record<string, unknown>).default_agent = 
-        agentMode === 'unified' ? 'hive-master' : 'architect-planner';
+        agentMode === 'unified' ? 'hive' : 'architect-planner';
 
       // Merge built-in MCP servers (OMO-style remote endpoints)
       const configMcp = opencodeConfig.mcp as Record<string, unknown> | undefined;
