@@ -1718,6 +1718,22 @@ Expand your Discovery section and try again.`;
         delete (configAgent as Record<string, unknown>)['scout-researcher'];
         delete (configAgent as Record<string, unknown>)['forager-worker'];
         delete (configAgent as Record<string, unknown>)['hygienic-reviewer'];
+        
+        // Demote built-in OpenCode agents to subagent mode (like micode)
+        // This makes hive the primary agent instead of the default build/plan
+        if (configAgent.build) {
+          (configAgent.build as Record<string, unknown>).mode = 'subagent';
+        }
+        if (configAgent.plan) {
+          (configAgent.plan as Record<string, unknown>).mode = 'subagent';
+        }
+        if (configAgent.triage) {
+          (configAgent.triage as Record<string, unknown>).mode = 'subagent';
+        }
+        if (configAgent.docs) {
+          (configAgent.docs as Record<string, unknown>).mode = 'subagent';
+        }
+        
         Object.assign(configAgent, allAgents);
       }
 
