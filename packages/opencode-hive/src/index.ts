@@ -8,6 +8,7 @@ import { BUILTIN_SKILLS } from './skills/registry.generated.js';
 import type { SkillDefinition } from './skills/types.js';
 // Tools
 import { gitingestTool } from './tools/gitingest.js';
+import { lookAtTool } from './tools/look-at.js';
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -15,8 +16,14 @@ import { SWARM_BEE_PROMPT } from './agents/swarm.js';
 import { SCOUT_BEE_PROMPT } from './agents/scout.js';
 import { FORAGER_BEE_PROMPT } from './agents/forager.js';
 import { HYGIENIC_BEE_PROMPT } from './agents/hygienic.js';
+// Froggy agents
 import { CODE_REVIEWER_PROMPT } from './agents/code-reviewer.js';
 import { CODE_SIMPLIFIER_PROMPT } from './agents/code-simplifier.js';
+// Micode agents
+import { CODEBASE_LOCATOR_PROMPT } from './agents/codebase-locator.js';
+import { CODEBASE_ANALYZER_PROMPT } from './agents/codebase-analyzer.js';
+import { PATTERN_FINDER_PROMPT } from './agents/pattern-finder.js';
+import { PROJECT_INITIALIZER_PROMPT } from './agents/project-initializer.js';
 import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
 
@@ -834,6 +841,7 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
 
     tool: {
       gitingest: gitingestTool,
+      look_at: lookAtTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 

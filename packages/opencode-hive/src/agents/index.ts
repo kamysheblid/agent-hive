@@ -12,6 +12,12 @@
  * Additional Agents (from opencode-froggy):
  * - Code Reviewer: Reviews code for quality, correctness, security
  * - Code Simplifier: Simplifies code for clarity while preserving behavior
+ * 
+ * Additional Agents (from micode):
+ * - Codebase Locator: Finds WHERE files live in codebase
+ * - Codebase Analyzer: Explains HOW code works with file:line refs
+ * - Pattern Finder: Finds existing patterns to model after
+ * - Project Initializer: Generates ARCHITECTURE.md and CODE_STYLE.md
  */
 
 // Bee agents (lean, focused)
@@ -25,6 +31,12 @@ export { hygienicBeeAgent, HYGIENIC_BEE_PROMPT } from './hygienic';
 // Froggy agents
 export { codeReviewerAgent, CODE_REVIEWER_PROMPT } from './code-reviewer';
 export { codeSimplifierAgent, CODE_SIMPLIFIER_PROMPT } from './code-simplifier';
+
+// Micode agents
+export { codebaseLocatorAgent, CODEBASE_LOCATOR_PROMPT } from './codebase-locator';
+export { codebaseAnalyzerAgent, CODEBASE_ANALYZER_PROMPT } from './codebase-analyzer';
+export { patternFinderAgent, PATTERN_FINDER_PROMPT } from './pattern-finder';
+export { projectInitializerAgent, PROJECT_INITIALIZER_PROMPT } from './project-initializer';
 
 
 /**
@@ -41,6 +53,12 @@ export { codeSimplifierAgent, CODE_SIMPLIFIER_PROMPT } from './code-simplifier';
  * Froggy Agents:
  * - code-reviewer: Reviews code for quality, correctness, security
  * - code-simplifier: Simplifies code for clarity while preserving behavior
+ * 
+ * Micode Agents:
+ * - codebase-locator: Finds WHERE files live
+ * - codebase-analyzer: Explains HOW code works
+ * - pattern-finder: Finds patterns to model after
+ * - project-initializer: Generates project docs
  */
 export const hiveAgents = {
   // Bee Agents (lean, focused - recommended)
@@ -83,6 +101,27 @@ export const hiveAgents = {
   'code-simplifier': {
     name: 'Code Simplifier',
     description: 'Simplifies recently modified code for clarity and maintainability while strictly preserving behavior.',
+    mode: 'subagent' as const,
+  },
+  // Micode agents
+  'codebase-locator': {
+    name: 'Codebase Locator',
+    description: 'Finds WHERE files live in the codebase.',
+    mode: 'subagent' as const,
+  },
+  'codebase-analyzer': {
+    name: 'Codebase Analyzer',
+    description: 'Explains HOW code works with precise file:line references.',
+    mode: 'subagent' as const,
+  },
+  'pattern-finder': {
+    name: 'Pattern Finder',
+    description: 'Finds existing patterns and examples to model after.',
+    mode: 'subagent' as const,
+  },
+  'project-initializer': {
+    name: 'Project Initializer',
+    description: 'Rapidly analyze any project and generate ARCHITECTURE.md and CODE_STYLE.md',
     mode: 'subagent' as const,
   },
 };
