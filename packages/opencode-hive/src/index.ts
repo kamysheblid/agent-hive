@@ -191,7 +191,7 @@ const plugin: Plugin = async (ctx) => {
   // Get filtered skills (globally disabled skills removed)
   // Per-agent skill filtering could be added here based on agent context
   const filteredSkills = getFilteredSkills(disabledSkills);
-  const effectiveAutoLoadSkills = configService.getAgentConfig('hive').autoLoadSkills ?? [];
+  const effectiveAutoLoadSkills = configService.getAgentConfig('zetta').autoLoadSkills ?? [];
   const worktreeService = new WorktreeService({
     baseDir: directory,
     hiveDir: path.join(directory, '.hive'),
@@ -1546,14 +1546,14 @@ Expand your Discovery section and try again.`;
           .join('\n')}`;
 
       // Build auto-loaded skill content for each agent
-      const hiveUserConfig = configService.getAgentConfig('hive');
-      const hiveAutoLoadedSkills = await buildAutoLoadedSkillsContent('hive', configService, directory);
-      const hiveConfig = {
-        model: hiveUserConfig.model,
-        variant: hiveUserConfig.variant,
-        temperature: hiveUserConfig.temperature ?? 0.5,
-        description: 'Hive (Hybrid) - Plans + orchestrates. Detects phase, loads skills on-demand.',
-        prompt: QUEEN_BEE_PROMPT + hiveAutoLoadedSkills + (agentMode === 'unified' ? customSubagentAppendix : ''),
+      const zettaUserConfig = configService.getAgentConfig('zetta');
+      const zettaAutoLoadedSkills = await buildAutoLoadedSkillsContent('zetta', configService, directory);
+      const zettaConfig = {
+        model: zettaUserConfig.model,
+        variant: zettaUserConfig.variant,
+        temperature: zettaUserConfig.temperature ?? 0.5,
+        description: 'Zetta (Hybrid) - Plans + orchestrates. Detects phase, loads skills on-demand.',
+        prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + (agentMode === 'unified' ? customSubagentAppendix : ''),
         permission: {
           question: "allow",
           skill: "allow",
@@ -1659,7 +1659,7 @@ Expand your Discovery section and try again.`;
       };
 
       const builtInAgentConfigs = {
-        'hive': hiveConfig,
+        'zetta': zettaConfig,
         'architect-planner': architectConfig,
         'swarm-orchestrator': swarmConfig,
         'scout-researcher': scoutConfig,

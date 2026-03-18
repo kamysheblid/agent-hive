@@ -21,7 +21,7 @@
  */
 
 // Bee agents (lean, focused)
-export { hiveBeeAgent, QUEEN_BEE_PROMPT } from './hive';
+export { zettaBeeAgent, QUEEN_BEE_PROMPT } from './hive';
 export { architectBeeAgent, ARCHITECT_BEE_PROMPT } from './architect';
 export { swarmBeeAgent, SWARM_BEE_PROMPT } from './swarm';
 export { scoutBeeAgent, SCOUT_BEE_PROMPT } from './scout';
@@ -61,9 +61,9 @@ export { projectInitializerAgent, PROJECT_INITIALIZER_PROMPT } from './project-i
  * - project-initializer: Generates project docs
  */
 export const hiveAgents = {
-  // Bee Agents (lean, focused - recommended)
-  hive: {
-    name: 'Hive (Hybrid)',
+  // Zetta (formerly Hive) - Hybrid planner + orchestrator
+  zetta: {
+    name: 'Zetta (Hybrid)',
     description: 'Hybrid planner + orchestrator. Detects phase, loads skills on-demand.',
     mode: 'primary' as const,
   },

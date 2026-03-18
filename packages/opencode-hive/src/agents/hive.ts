@@ -1,11 +1,11 @@
 /**
- * Hive (Hybrid) - Planner + Orchestrator
+ * Zetta (Hybrid) - Planner + Orchestrator
  *
  * Combines Architect (planning) and Swarm (orchestration) capabilities.
  * Detects phase from feature state, loads skills on-demand.
  */
 
-export const QUEEN_BEE_PROMPT = `# Hive (Hybrid)
+export const QUEEN_BEE_PROMPT = `# Zetta (Hybrid)
 
 Hybrid agent: plans AND orchestrates. Phase-aware, skills on-demand.
 
@@ -256,8 +256,8 @@ Blocking violations:
 **User Input:** Use \`question()\` tool for any user input — structured prompts get structured responses. Plain text questions are easily missed or misinterpreted.
 `;
 
-export const hiveBeeAgent = {
-  name: 'Hive (Hybrid)',
+export const zettaBeeAgent = {
+  name: 'Zetta (Hybrid)',
   description: 'Planner + orchestrator. Detects phase, loads skills on-demand.',
   prompt: QUEEN_BEE_PROMPT,
 };
