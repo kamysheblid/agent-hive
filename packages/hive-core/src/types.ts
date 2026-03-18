@@ -237,6 +237,26 @@ export interface HiveConfig {
   persistentContainers?: boolean;
   /** Hook execution cadence (number of turns between hook invocations). Key = hook name, Value = cadence (1 = every turn, 3 = every 3rd turn) */
   hook_cadence?: Record<string, number>;
+  /** Context compression configuration (DCP-style) */
+  contextCompression?: {
+    enabled?: boolean;
+    threshold?: number;
+    maxToolCalls?: number;
+    protectedTools?: string[];
+    protectUserMessages?: boolean;
+  };
+  /** Memory and session summarization configuration */
+  memory?: {
+    enabled?: boolean;
+    autoSummarize?: boolean;
+    summarizeAfterMessages?: number;
+    useOpencodeDb?: boolean;
+  };
+  /** MCP API keys (also supports environment variables EXA_API_KEY, CONTEXT7_API_KEY) */
+  mcpApiKeys?: {
+    exa?: string;
+    context7?: string;
+  };
 }
 
 /** Default models for Hive agents */
@@ -276,13 +296,13 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
       model: DEFAULT_AGENT_MODELS['zetta'],
       temperature: 0.5,
       skills: [],
-      autoLoadSkills: [],
+      autoLoadSkills: ['parallel-exploration'],
     },
     'architect-planner': {
       model: DEFAULT_AGENT_MODELS['architect-planner'],
       temperature: 0.7,
       skills: [],
-      autoLoadSkills: [],
+      autoLoadSkills: ['parallel-exploration'],
     },
     'swarm-orchestrator': {
       model: DEFAULT_AGENT_MODELS['swarm-orchestrator'],
@@ -299,7 +319,7 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     'forager-worker': {
       model: DEFAULT_AGENT_MODELS['forager-worker'],
       temperature: 0.3,
-      autoLoadSkills: [],
+      autoLoadSkills: ['test-driven-development', 'verification-before-completion'],
     },
     'hygienic-reviewer': {
       model: DEFAULT_AGENT_MODELS['hygienic-reviewer'],

@@ -71,6 +71,83 @@
         }
       ]
     },
+    "contextCompression": {
+      "type": "object",
+      "description": "Context compression configuration (DCP-style automatic pruning)",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic context compression when threshold is reached"
+        },
+        "threshold": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 0.9,
+          "default": 0.5,
+          "description": "Context usage threshold to trigger compression (0.5 = 50% of context limit)"
+        },
+        "maxToolCalls": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 200,
+          "default": 50,
+          "description": "Maximum number of tool calls to keep after compression"
+        },
+        "protectedTools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tool names to protect from compression (glob patterns supported)"
+        },
+        "protectUserMessages": {
+          "type": "boolean",
+          "default": true,
+          "description": "Protect user messages from being compressed"
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "description": "Memory and session summarization configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic session summarization and memory persistence"
+        },
+        "autoSummarize": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically summarize conversation after N messages"
+        },
+        "summarizeAfterMessages": {
+          "type": "number",
+          "minimum": 5,
+          "maximum": 100,
+          "default": 20,
+          "description": "Number of messages after which to trigger summarization"
+        },
+        "useOpencodeDb": {
+          "type": "boolean",
+          "default": true,
+          "description": "Store memories in OpenCode database path for cross-session persistence"
+        }
+      }
+    },
+    "mcpApiKeys": {
+      "type": "object",
+      "description": "MCP API keys configuration (also supports environment variables: EXA_API_KEY, CONTEXT7_API_KEY)",
+      "properties": {
+        "exa": {
+          "type": "string",
+          "description": "Exa API key for websearch (optional - works without it)"
+        },
+        "context7": {
+          "type": "string",
+          "description": "Context7 API key (optional - works without it)"
+        }
+      }
+    },
     "agents": {
       "type": "object",
       "description": "Agent model configuration overrides",

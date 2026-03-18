@@ -9,6 +9,9 @@ import type { SkillDefinition } from './skills/types.js';
 // Tools
 import { gitingestTool } from './tools/gitingest.js';
 import { lookAtTool } from './tools/look-at.js';
+import { artifactSearchTool } from './tools/artifact-search.js';
+import { btcaAskTool } from './tools/btca-ask.js';
+import { ptyStartTool, ptySendTool, ptyReadTool, ptyKillTool, ptyListTool } from './tools/pty.js';
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -164,6 +167,7 @@ import { formatRelativeTime } from "./utils/format";
 import { createVariantHook } from "./hooks/variant-hook.js";
 import { HIVE_SYSTEM_PROMPT, shouldExecuteHook } from "./hooks/system-hook.js";
 import { buildCompactionPrompt } from "./utils/compaction-prompt.js";
+import { createCompactionHook, needsCompression, compressContext, buildCompressionHint } from "./utils/context-compression.js";
 
 /**
  * Core plugin implementation.
@@ -786,11 +790,47 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
       }
     },
 
+    // Context compression hook - auto compresses at 50% context threshold
+    // Similar to DCP (Dynamic Context Pruning) or oh-my-openagent
     "experimental.session.compacting": async (
-      _input: { sessionID: string },
+      input: { sessionID: string; messages?: unknown[]; contextLimit?: number },
       output: { context: string[]; prompt?: string },
     ) => {
-      output.context.push(buildCompactionPrompt());
+      // Get context limit (default 200k tokens for Claude)
+      const contextLimit = input.contextLimit || 200000;
+      
+      // Get messages from input (if available)
+      const messages = (input.messages || []) as Array<{ role?: string; content?: unknown; tool_calls?: unknown[] }>;
+      
+      // Check if compression is needed based on context usage
+      if (messages.length > 0) {
+        // Import Message type for estimation
+        const { estimateTokens, needsCompression, compressContext, buildCompressionHint } = await import("./utils/context-compression.js");
+        
+        if (needsCompression(messages as any, contextLimit, { threshold: 0.5, enabled: true })) {
+          const { compressed, stats } = compressContext(messages as any, { 
+            threshold: 0.5, 
+            enabled: true,
+            maxToolCalls: 50,
+            protectedTools: [
+              "hive_feature_create",
+              "hive_plan_write",
+              "hive_worktree_commit", 
+              "hive_merge",
+            ],
+          }, contextLimit);
+          
+          console.log(`[hive:compaction] Context at ${Math.round(stats.reductionRatio * 100)}% - compressed ${stats.originalMessages} → ${stats.compressedMessages} messages`);
+          
+          // Add compression hint
+          output.context.push(buildCompressionHint());
+        } else {
+          // Just add the basic compaction prompt
+          output.context.push(buildCompactionPrompt());
+        }
+      } else {
+        output.context.push(buildCompactionPrompt());
+      }
     },
 
     // Apply per-agent variant to messages (covers built-in and accepted custom task() agents)
@@ -842,6 +882,13 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
     tool: {
       gitingest: gitingestTool,
       look_at: lookAtTool,
+      artifact_search: artifactSearchTool,
+      btca_ask: btcaAskTool,
+      pty_start: ptyStartTool,
+      pty_send: ptySendTool,
+      pty_read: ptyReadTool,
+      pty_kill: ptyKillTool,
+      pty_list: ptyListTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 
@@ -1698,7 +1745,7 @@ Expand your Discovery section and try again.`;
       const allAgents: Record<string, unknown> = {};
       
       if (agentMode === 'unified') {
-        allAgents['hive'] = builtInAgentConfigs['hive'];
+        allAgents['zetta'] = builtInAgentConfigs['zetta'];
         allAgents['scout-researcher'] = builtInAgentConfigs['scout-researcher'];
         allAgents['forager-worker'] = builtInAgentConfigs['forager-worker'];
         allAgents['hygienic-reviewer'] = builtInAgentConfigs['hygienic-reviewer'];
@@ -1753,14 +1800,24 @@ Expand your Discovery section and try again.`;
 
       // Set default agent based on mode
       (opencodeConfig as Record<string, unknown>).default_agent = 
-        agentMode === 'unified' ? 'hive' : 'architect-planner';
+        agentMode === 'unified' ? 'zetta' : 'architect-planner';
 
       // Merge built-in MCP servers (OMO-style remote endpoints)
+      // Only add MCPs that user hasn't already configured in their opencode.json
       const configMcp = opencodeConfig.mcp as Record<string, unknown> | undefined;
+      const mcpToAdd = builtinMcps;
+      
       if (!configMcp) {
-        opencodeConfig.mcp = builtinMcps;
+        // No MCP config at all - use all built-in MCPs
+        opencodeConfig.mcp = mcpToAdd;
       } else {
-        Object.assign(configMcp, builtinMcps);
+        // User has MCP config - only add MCPs they haven't configured
+        // This preserves user's MCP settings (like grep_app, ast_grep from opencode.json)
+        for (const [name, config] of Object.entries(mcpToAdd)) {
+          if (!(name in configMcp)) {
+            configMcp[name] = config;
+          }
+        }
       }
 
     },

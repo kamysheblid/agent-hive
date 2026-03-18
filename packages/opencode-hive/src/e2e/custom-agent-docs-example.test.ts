@@ -92,10 +92,10 @@ describe('e2e: published custom-agent docs example', () => {
     expect(reviewerSecurity.variant).toBeUndefined();
     expect(reviewerSecurity.description).toBe('Use for security-focused review passes.');
 
-    const hivePrompt = opencodeConfig.agent['hive']?.prompt as string;
-    expect(hivePrompt).toContain('## Configured Custom Subagents');
-    expect(hivePrompt).toContain('`forager-ui`');
-    expect(hivePrompt).toContain('`reviewer-security`');
+    const zettaPrompt = opencodeConfig.agent['zetta']?.prompt as string;
+    expect(zettaPrompt).toContain('## Configured Custom Subagents');
+    expect(zettaPrompt).toContain('`forager-ui`');
+    expect(zettaPrompt).toContain('`reviewer-security`');
 
     const readmeContent = fs.readFileSync(README_PATH, 'utf-8');
     const sectionMatch = readmeContent.match(/### Custom Derived Subagents[\s\S]*?```json\n([\s\S]*?)\n```/);

@@ -29,13 +29,12 @@ describe('agent_hive schema customAgents contract', () => {
   });
 
   it('reserves built-in and plugin-managed agent names', () => {
-    expectReservedNameToFail('hive');
+    expectReservedNameToFail('zetta');
     expectReservedNameToFail('architect-planner');
     expectReservedNameToFail('swarm-orchestrator');
     expectReservedNameToFail('scout-researcher');
     expectReservedNameToFail('forager-worker');
     expectReservedNameToFail('hygienic-reviewer');
-    expectReservedNameToFail('hive');
     expectReservedNameToFail('architect');
     expectReservedNameToFail('swarm');
     expectReservedNameToFail('scout');

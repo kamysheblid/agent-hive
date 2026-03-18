@@ -789,7 +789,7 @@ Do it
       configPath,
       JSON.stringify({
         agents: {
-          "hive": {
+          "zetta": {
             autoLoadSkills: ["brainstorming"],
           },
         },
@@ -822,7 +822,7 @@ Do it
 
     // system.transform should still inject HIVE_SYSTEM_PROMPT and status hint
     const output = { system: [] as string[] };
-    await hooks["experimental.chat.system.transform"]?.({ agent: "hive" }, output);
+    await hooks["experimental.chat.system.transform"]?.({ agent: "zetta" }, output);
     output.system.push("## Base Agent Prompt");
 
     const joined = output.system.join("\n");
@@ -835,18 +835,17 @@ Do it
     const opencodeConfig: Record<string, unknown> = { agent: {} };
     await hooks.config!(opencodeConfig);
     
-    const agentConfig = (opencodeConfig.agent as Record<string, { prompt?: string }>)["hive"];
+    const agentConfig = (opencodeConfig.agent as Record<string, { prompt?: string }>)["zetta"];
     expect(agentConfig).toBeDefined();
     expect(agentConfig.prompt).toBeDefined();
     
-    const brainstormingSkill = BUILTIN_SKILLS.find((skill) => skill.name === "brainstorming");
-    expect(brainstormingSkill).toBeDefined();
-    expect(agentConfig.prompt).toContain(brainstormingSkill!.template);
+    // Skills are referenced via hive_skill("...") - on-demand loading
+    expect(agentConfig.prompt).toContain(`\`hive_skill("brainstorming")\``);
     expect(agentConfig.prompt).toContain("Configured Custom Subagents");
     expect(agentConfig.prompt).toContain("`reviewer-security`");
     expect(agentConfig.prompt).toContain("default to built-in `hygienic-reviewer`");
     expect(agentConfig.prompt).toContain("Configured Custom Subagents` is a better match");
-    expect(agentConfig.prompt).toContain("task({ subagent_type: \"<chosen-reviewer>\"");
+    expect(agentConfig.prompt).toContain(`task({ subagent_type: \"<chosen-reviewer>\"`);
 
     const agents = opencodeConfig.agent as Record<string, unknown>;
     expect(agents["forager-worker"]).toBeDefined();
@@ -1258,32 +1257,26 @@ Do it
     );
     expect(parallelExplorationSkill).toBeDefined();
 
-    // Skills are now injected via config hook's prompt field, NOT system.transform
-    // Default mode is 'unified' which includes hive, scout, forager, hygienic
-    const opencodeConfig: Record<string, unknown> = { agent: {} };
+    // Get agent config from the config hook
+    const opencodeConfig: any = { agent: {} };
     await hooks.config!(opencodeConfig);
-    const agents = opencodeConfig.agent as Record<string, { prompt?: string }>;
+    const agents = opencodeConfig.agent as Record<string, unknown>;
 
-    // hive should have parallel-exploration in prompt (unified mode)
-    expect(agents["hive"]?.prompt).toBeDefined();
-    expect(agents["hive"]?.prompt).toContain(
-      parallelExplorationSkill!.template,
-    );
-    expect(agents["hive"]?.prompt).not.toContain(onboardingSnippet);
+    // Skills are referenced via hive_skill("...") - on-demand loading
+    // zetta should have parallel-exploration reference in prompt (unified mode)
+    expect(agents["zetta"]?.prompt).toBeDefined();
+    expect(agents["zetta"]?.prompt).toContain(`\`hive_skill("parallel-exploration")\``);
+    expect(agents["zetta"]?.prompt).not.toContain(onboardingSnippet);
 
     // scout-researcher should NOT have parallel-exploration in prompt (unified mode)
     // (removed to prevent recursive delegation - scout cannot spawn scouts)
     expect(agents["scout-researcher"]?.prompt).toBeDefined();
-    expect(agents["scout-researcher"]?.prompt).not.toContain(
-      parallelExplorationSkill!.template,
-    );
+    expect(agents["scout-researcher"]?.prompt).not.toContain(`\`hive_skill("parallel-exploration")\``);
     expect(agents["scout-researcher"]?.prompt).not.toContain(onboardingSnippet);
 
     // forager-worker should NOT have parallel-exploration in prompt
     expect(agents["forager-worker"]?.prompt).toBeDefined();
-    expect(agents["forager-worker"]?.prompt).not.toContain(
-      parallelExplorationSkill!.template,
-    );
+    expect(agents["forager-worker"]?.prompt).not.toContain(`\`hive_skill("parallel-exploration")\``);
     expect(agents["forager-worker"]?.prompt).not.toContain(onboardingSnippet);
   });
 
