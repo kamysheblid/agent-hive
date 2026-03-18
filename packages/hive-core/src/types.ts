@@ -215,8 +215,8 @@ export interface HiveConfig {
   agentMode?: 'unified' | 'dedicated';
   /** Agent configuration */
   agents?: {
-    /** Hive (hybrid planner + orchestrator) */
-    'hive'?: AgentModelConfig;
+    /** Zetta (hybrid planner + orchestrator) */
+    'zetta'?: AgentModelConfig;
     /** Architect Planner (planning-only) */
     'architect-planner'?: AgentModelConfig;
     /** Swarm Orchestrator */
@@ -241,7 +241,7 @@ export interface HiveConfig {
 
 /** Default models for Hive agents */
 export const DEFAULT_AGENT_MODELS = {
-  'hive': 'github-copilot/claude-opus-4.5',
+  'zetta': 'github-copilot/claude-opus-4.5',
   'architect-planner': 'github-copilot/gpt-5.2-codex',
   'swarm-orchestrator': 'github-copilot/claude-opus-4.5',
   'scout-researcher': 'zai-coding-plan/glm-4.7',
@@ -272,27 +272,22 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     },
   },
   agents: {
-    'hive': {
-      model: DEFAULT_AGENT_MODELS['hive'],
+    'zetta': {
+      model: DEFAULT_AGENT_MODELS['zetta'],
       temperature: 0.5,
-      skills: [
-        'brainstorming',
-        'writing-plans',
-        'dispatching-parallel-agents',
-        'executing-plans',
-      ],
-      autoLoadSkills: ['parallel-exploration'],
+      skills: [],
+      autoLoadSkills: [],
     },
     'architect-planner': {
       model: DEFAULT_AGENT_MODELS['architect-planner'],
       temperature: 0.7,
-      skills: ['brainstorming', 'writing-plans'],
-      autoLoadSkills: ['parallel-exploration'],
+      skills: [],
+      autoLoadSkills: [],
     },
     'swarm-orchestrator': {
       model: DEFAULT_AGENT_MODELS['swarm-orchestrator'],
       temperature: 0.5,
-      skills: ['dispatching-parallel-agents', 'executing-plans'],
+      skills: [],
       autoLoadSkills: [],
     },
     'scout-researcher': {
@@ -304,12 +299,12 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     'forager-worker': {
       model: DEFAULT_AGENT_MODELS['forager-worker'],
       temperature: 0.3,
-      autoLoadSkills: ['test-driven-development', 'verification-before-completion'],
+      autoLoadSkills: [],
     },
     'hygienic-reviewer': {
       model: DEFAULT_AGENT_MODELS['hygienic-reviewer'],
       temperature: 0.3,
-      skills: ['systematic-debugging', 'code-reviewer'],
+      skills: [],
       autoLoadSkills: [],
     },
   },

@@ -151,15 +151,17 @@ export class ConfigService {
    * Get agent-specific model config
    */
   getAgentConfig(agent: string): AgentModelConfig | ResolvedCustomAgentConfig {
+    // Map deprecated 'hive' to 'zetta' for backward compatibility
+    const resolvedAgent = agent === 'hive' ? 'zetta' : agent;
     const config = this.get();
 
-    if (this.isBuiltInAgent(agent)) {
-      const agentConfig = config.agents?.[agent] ?? {};
-      const defaultAutoLoadSkills = DEFAULT_HIVE_CONFIG.agents?.[agent]?.autoLoadSkills ?? [];
+    if (this.isBuiltInAgent(resolvedAgent)) {
+      const agentConfig = config.agents?.[resolvedAgent] ?? {};
+      const defaultAutoLoadSkills = DEFAULT_HIVE_CONFIG.agents?.[resolvedAgent]?.autoLoadSkills ?? [];
       const effectiveAutoLoadSkills = this.resolveAutoLoadSkills(
         defaultAutoLoadSkills,
         agentConfig.autoLoadSkills ?? [],
-        this.isPlannerAgent(agent),
+        this.isPlannerAgent(resolvedAgent),
       );
 
       return {

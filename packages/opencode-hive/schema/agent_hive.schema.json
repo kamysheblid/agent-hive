@@ -76,9 +76,9 @@
       "description": "Agent model configuration overrides",
       "additionalProperties": false,
       "properties": {
-        "hive": {
+        "zetta": {
           "$ref": "#/$defs/agentConfig",
-          "description": "Hive (hybrid planner + orchestrator)"
+          "description": "Zetta (hybrid planner + orchestrator)"
         },
         "architect-planner": {
           "$ref": "#/$defs/agentConfig",
@@ -108,13 +108,12 @@
       "propertyNames": {
         "not": {
           "enum": [
-            "hive",
+            "zetta",
             "architect-planner",
             "swarm-orchestrator",
             "scout-researcher",
             "forager-worker",
             "hygienic-reviewer",
-            "hive",
             "architect",
             "swarm",
             "scout",
