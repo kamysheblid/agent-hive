@@ -2,7 +2,7 @@ import type { McpConfig } from './types';
 import { websearchMcp } from './websearch';
 import { context7Mcp } from './context7';
 import { grepAppMcp } from './grep-app';
-import { astGrepRemoteMcp, astGrepMcp } from './ast-grep';
+import { astGrepMcp } from './ast-grep';
 
 /**
  * Built-in MCP configurations
@@ -19,8 +19,8 @@ const allBuiltinMcps: Record<string, McpConfig> = {
   websearch: websearchMcp,
   context7: context7Mcp,
   grep_app: grepAppMcp,
-  // Remote ast-grep with local fallback
-  ast_grep: astGrepRemoteMcp,
+  // Local ast-grep MCP (remote endpoint unavailable)
+  ast_grep: astGrepMcp,
 };
 
 export const createBuiltinMcps = (disabledMcps: string[] = []): Record<string, McpConfig> => {

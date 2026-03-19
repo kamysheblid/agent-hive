@@ -1,18 +1,10 @@
-import type { RemoteMcpConfig, LocalMcpConfig } from './types';
+import type { LocalMcpConfig } from './types';
 
 /**
  * Ast-grep MCP for code analysis
  * 
- * Prefers remote MCP when available, falls back to local npx
- * Remote is preferred to avoid local installation
+ * Uses local npx execution (remote endpoint mcp.ast-grep.dev is unavailable)
  */
-
-export const astGrepRemoteMcp: RemoteMcpConfig = {
-  type: 'remote',
-  // Try to use remote ast-grep MCP if available
-  url: 'https://mcp.ast-grep.dev/mcp',
-  oauth: false,
-};
 
 export const astGrepMcp: LocalMcpConfig = {
   type: 'local',
