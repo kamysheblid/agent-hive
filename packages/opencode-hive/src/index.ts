@@ -1787,44 +1787,44 @@ Expand your Discovery section and try again.`;
       }
 
       // Merge agents into opencodeConfig.agent
-      const configAgent = opencodeConfig.agent as Record<string, unknown> | undefined;
-      if (!configAgent) {
-        opencodeConfig.agent = allAgents;
-      } else {
-        // Clean up old single-word agent names
-        delete configAgent.hive;
-        delete configAgent.architect;
-        delete configAgent.swarm;
-        delete configAgent.scout;
-        delete configAgent.forager;
-        delete configAgent.hygienic;
-        delete configAgent.receiver;
-        // Clean up old kebab-case names (in case they exist)
-        delete configAgent['hive'];
-        delete configAgent['architect-planner'];
-        delete configAgent['swarm-orchestrator'];
-        delete configAgent['scout-researcher'];
-        delete configAgent['forager-worker'];
-        delete configAgent['hygienic-reviewer'];
-        
-        // Demote built-in OpenCode agents to subagent mode
-        // This makes zetta the primary agent instead of the default build/plan
-        const opencodeBuiltInAgents = ['build', 'plan', 'triage', 'docs', 'ask', 'claude-code'];
-        for (const agentName of opencodeBuiltInAgents) {
-          if (configAgent[agentName]) {
-            (configAgent[agentName] as Record<string, unknown>).mode = 'subagent';
-          }
+      const configAgent = (opencodeConfig.agent ??= {}) as Record<string, unknown>;
+      
+      // Clean up old single-word agent names
+      delete configAgent.hive;
+      delete configAgent.architect;
+      delete configAgent.swarm;
+      delete configAgent.scout;
+      delete configAgent.forager;
+      delete configAgent.hygienic;
+      delete configAgent.receiver;
+      // Clean up old kebab-case names (in case they exist)
+      delete configAgent['hive'];
+      delete configAgent['architect-planner'];
+      delete configAgent['swarm-orchestrator'];
+      delete configAgent['scout-researcher'];
+      delete configAgent['forager-worker'];
+      delete configAgent['hygienic-reviewer'];
+      
+      // Demote built-in OpenCode agents to subagent mode
+      // This makes zetta the primary agent instead of the default build/plan
+      // IMPORTANT: We MUST create entries for these agents if they don't exist
+      // because OpenCode's built-in agents might not be in the config yet
+      const opencodeBuiltInAgents = ['build', 'plan', 'triage', 'docs', 'ask', 'claude-code'];
+      for (const agentName of opencodeBuiltInAgents) {
+        if (!configAgent[agentName]) {
+          configAgent[agentName] = {};
         }
-        
-        // Demote all our agents except primary
-        for (const [agentName, agentConfig] of Object.entries(allAgents)) {
-          if (agentName !== primaryAgent && agentConfig && typeof agentConfig === 'object') {
-            (agentConfig as Record<string, unknown>).mode = 'subagent';
-          }
-        }
-        
-        Object.assign(configAgent, allAgents);
+        (configAgent[agentName] as Record<string, unknown>).mode = 'subagent';
       }
+      
+      // Demote all our agents except primary
+      for (const [agentName, agentConfig] of Object.entries(allAgents)) {
+        if (agentName !== primaryAgent && agentConfig && typeof agentConfig === 'object') {
+          (agentConfig as Record<string, unknown>).mode = 'subagent';
+        }
+      }
+      
+      Object.assign(configAgent, allAgents);
 
       // CRITICAL: Set default agent - this is what makes zetta the primary agent
       // Without this, OpenCode uses its own default agent

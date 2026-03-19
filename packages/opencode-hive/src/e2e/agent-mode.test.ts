@@ -146,4 +146,41 @@ describe("agentMode gating", () => {
 
     expect(opencodeConfig.agent["zetta"]).toBeUndefined();
   });
+
+  it("demotes built-in agents (build, plan) to subagent mode even when no agent config exists", async () => {
+    const configPath = path.join(testRoot, ".config", "opencode", "agent_hive.json");
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        agentMode: "unified",
+      }),
+    );
+
+    const ctx: any = {
+      directory: testRoot,
+      worktree: testRoot,
+      serverUrl: new URL("http://localhost:1"),
+      project: createProject(testRoot),
+      client: OPENCODE_CLIENT,
+    };
+
+    const hooks = await plugin(ctx);
+    // Test with NO existing agent config (empty object means no agent section)
+    const opencodeConfig: any = { agent: undefined };
+    await hooks.config!(opencodeConfig);
+
+    // Verify built-in agents are demoted to subagent mode
+    expect(opencodeConfig.agent["build"]).toBeDefined();
+    expect((opencodeConfig.agent["build"] as any).mode).toBe("subagent");
+    expect(opencodeConfig.agent["plan"]).toBeDefined();
+    expect((opencodeConfig.agent["plan"] as any).mode).toBe("subagent");
+    
+    // Verify zetta is the default agent
+    expect(opencodeConfig.default_agent).toBe("zetta");
+    
+    // Verify zetta is registered as primary (no mode = primary)
+    expect(opencodeConfig.agent["zetta"]).toBeDefined();
+    expect((opencodeConfig.agent["zetta"] as any).mode).toBeUndefined();
+  });
 });
