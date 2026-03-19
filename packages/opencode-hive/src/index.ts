@@ -12,6 +12,10 @@ import { lookAtTool } from './tools/look-at.js';
 import { artifactSearchTool } from './tools/artifact-search.js';
 import { btcaAskTool } from './tools/btca-ask.js';
 import { ptyStartTool, ptySendTool, ptyReadTool, ptyKillTool, ptyListTool } from './tools/pty.js';
+// LSP Tools
+import { lspRenameTool, lspGotoDefinitionTool, lspFindReferencesTool, lspDiagnosticsTool, lspHoverTool, lspCodeActionsTool } from './tools/lsp.js';
+// Skill-Embedded MCP Tools
+import { skillMcpTool, listSkillMcpsTool } from './tools/skill-mcp.js';
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -889,6 +893,18 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
       pty_read: ptyReadTool,
       pty_kill: ptyKillTool,
       pty_list: ptyListTool,
+
+      // LSP Tools - IDE-like functionality
+      lsp_rename: lspRenameTool,
+      lsp_goto_definition: lspGotoDefinitionTool,
+      lsp_find_references: lspFindReferencesTool,
+      lsp_diagnostics: lspDiagnosticsTool,
+      lsp_hover: lspHoverTool,
+      lsp_code_actions: lspCodeActionsTool,
+
+      // Skill-Embedded MCP Tools
+      skill_mcp: skillMcpTool,
+      list_skill_mcps: listSkillMcpsTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 

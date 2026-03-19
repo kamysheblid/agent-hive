@@ -4,6 +4,8 @@
  * Skill definitions for Hive.
  */
 
+import type { McpConfig } from '../mcp/types.js';
+
 /**
  * Definition of a skill that can be loaded by agents.
  */
@@ -16,6 +18,9 @@ export interface SkillDefinition {
   
   /** Markdown content with detailed instructions */
   template: string;
+  
+  /** Optional embedded MCP servers for this skill */
+  mcp?: Record<string, McpConfig>;
 }
 
 /**
