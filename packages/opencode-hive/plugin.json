@@ -1,8 +1,8 @@
 {
-  "name": "hive",
-  "version": "1.0.1",
-  "description": "Context-Driven Development",
-  "dataPath": "../../.hive",
+  "name": "@hung319/opencode-hive",
+  "version": "1.3.4",
+  "description": "Context-Driven Development for AI coding assistants",
+  "dataPath": ".hive",
   "commands": [
     {"name": "/hive", "description": "Create feature"}
   ],
@@ -15,10 +15,30 @@
     "hive_tasks_sync",
     "hive_task_create",
     "hive_task_update",
+    "hive_worktree_start",
     "hive_worktree_create",
     "hive_worktree_commit",
     "hive_worktree_discard",
+    "hive_merge",
     "hive_context_write",
-    "hive_status"
+    "hive_status",
+    "hive_agents_md",
+    "hive_skill"
+  ],
+  "agents": [
+    "zetta",
+    "architect-planner",
+    "swarm-orchestrator",
+    "scout-researcher",
+    "forager-worker",
+    "hygienic-reviewer",
+    "forager-example-template",
+    "hygienic-example-template"
+  ],
+  "mcp": [
+    "websearch",
+    "context7",
+    "grep_app",
+    "ast_grep"
   ]
 }
