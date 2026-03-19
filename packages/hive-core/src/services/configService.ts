@@ -277,7 +277,7 @@ export class ConfigService {
   }
 
   private isPlannerAgent(agent: BuiltInAgentName | CustomAgentBase): boolean {
-    return agent === 'hive' || agent === 'architect-planner';
+    return agent === 'zetta' || agent === 'architect-planner';
   }
 
   private isObjectRecord(value: unknown): value is Record<string, unknown> {

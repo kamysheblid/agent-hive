@@ -34,15 +34,15 @@ describe("ConfigService defaults", () => {
     expect(Object.keys(config.agents ?? {}).sort()).toEqual([
       "architect-planner",
       "forager-worker",
-      "hive",
       "hygienic-reviewer",
       "scout-researcher",
       "swarm-orchestrator",
+      "zetta",
     ]);
     expect(config.agents?.["architect-planner"]?.model).toBe(
       "github-copilot/gpt-5.2-codex",
     );
-    expect(config.agents?.["hive"]?.model).toBe(
+    expect(config.agents?.["zetta"]?.model).toBe(
       "github-copilot/claude-opus-4.5",
     );
     expect(config.agents?.["swarm-orchestrator"]?.model).toBe(
@@ -158,7 +158,7 @@ describe("ConfigService defaults", () => {
       JSON.stringify(
         {
           agents: {
-            "hive": { temperature: 0.8 },
+            "zetta": { temperature: 0.8 },
           },
         },
         null,
@@ -167,12 +167,12 @@ describe("ConfigService defaults", () => {
     );
 
     const config = service.get();
-    expect(config.agents?.["hive"]?.temperature).toBe(0.8);
-    expect(config.agents?.["hive"]?.model).toBe(
+    expect(config.agents?.["zetta"]?.temperature).toBe(0.8);
+    expect(config.agents?.["zetta"]?.model).toBe(
       "github-copilot/claude-opus-4.5",
     );
 
-    const agentConfig = service.getAgentConfig("hive");
+    const agentConfig = service.getAgentConfig("zetta");
     expect(agentConfig.temperature).toBe(0.8);
     expect(agentConfig.model).toBe("github-copilot/claude-opus-4.5");
   });
@@ -255,7 +255,7 @@ describe("ConfigService defaults", () => {
         {
           disableSkills: ["parallel-exploration", "custom-skill"],
           agents: {
-            "hive": {
+            "zetta": {
               autoLoadSkills: ["custom-skill"],
             },
           },
@@ -265,7 +265,7 @@ describe("ConfigService defaults", () => {
       ),
     );
 
-    const config = service.getAgentConfig("hive");
+    const config = service.getAgentConfig("zetta");
     expect(config.autoLoadSkills).toEqual([]);
   });
 

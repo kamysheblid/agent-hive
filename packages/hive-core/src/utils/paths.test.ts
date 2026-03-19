@@ -163,6 +163,11 @@ describe("Atomic + Locked JSON Utilities", () => {
     });
 
     it("cleans up temp file on failure", () => {
+      // Skip this test when running as root (root bypasses read-only permissions)
+      if (process.getuid?.() === 0) {
+        return;
+      }
+
       const filePath = path.join(TEST_DIR, "readonly", "fail.txt");
 
       // Create readonly directory

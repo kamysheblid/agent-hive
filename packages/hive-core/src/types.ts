@@ -158,7 +158,7 @@ export interface AgentModelConfig {
 }
 
 export const BUILT_IN_AGENT_NAMES = [
-  'hive',
+  'zetta',
   'architect-planner',
   'swarm-orchestrator',
   'scout-researcher',
