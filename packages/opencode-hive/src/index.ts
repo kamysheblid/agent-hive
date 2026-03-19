@@ -1775,48 +1775,60 @@ Expand your Discovery section and try again.`;
 
       Object.assign(allAgents, customSubagents);
 
-      // Merge agents into opencodeConfig.agent (config hook is sufficient for agent discovery)
+      // Determine the primary agent
+      const primaryAgent = agentMode === 'unified' ? 'zetta' : 'architect-planner';
+
+      // Ensure all our agents are properly configured with mode
+      // Primary agent gets no mode (default), subagents get mode: 'subagent'
+      for (const [agentName, agentConfig] of Object.entries(allAgents)) {
+        if (agentName !== primaryAgent && agentConfig && typeof agentConfig === 'object') {
+          (agentConfig as Record<string, unknown>).mode = 'subagent';
+        }
+      }
+
+      // Merge agents into opencodeConfig.agent
       const configAgent = opencodeConfig.agent as Record<string, unknown> | undefined;
       if (!configAgent) {
         opencodeConfig.agent = allAgents;
       } else {
         // Clean up old single-word agent names
-        delete (configAgent as Record<string, unknown>).hive;
-        delete (configAgent as Record<string, unknown>).architect;
-        delete (configAgent as Record<string, unknown>).swarm;
-        delete (configAgent as Record<string, unknown>).scout;
-        delete (configAgent as Record<string, unknown>).forager;
-        delete (configAgent as Record<string, unknown>).hygienic;
-        delete (configAgent as Record<string, unknown>).receiver;
+        delete configAgent.hive;
+        delete configAgent.architect;
+        delete configAgent.swarm;
+        delete configAgent.scout;
+        delete configAgent.forager;
+        delete configAgent.hygienic;
+        delete configAgent.receiver;
         // Clean up old kebab-case names (in case they exist)
-        delete (configAgent as Record<string, unknown>)['hive'];
-        delete (configAgent as Record<string, unknown>)['architect-planner'];
-        delete (configAgent as Record<string, unknown>)['swarm-orchestrator'];
-        delete (configAgent as Record<string, unknown>)['scout-researcher'];
-        delete (configAgent as Record<string, unknown>)['forager-worker'];
-        delete (configAgent as Record<string, unknown>)['hygienic-reviewer'];
+        delete configAgent['hive'];
+        delete configAgent['architect-planner'];
+        delete configAgent['swarm-orchestrator'];
+        delete configAgent['scout-researcher'];
+        delete configAgent['forager-worker'];
+        delete configAgent['hygienic-reviewer'];
         
-        // Demote built-in OpenCode agents to subagent mode (like micode)
-        // This makes hive the primary agent instead of the default build/plan
-        if (configAgent.build) {
-          (configAgent.build as Record<string, unknown>).mode = 'subagent';
+        // Demote built-in OpenCode agents to subagent mode
+        // This makes zetta the primary agent instead of the default build/plan
+        const opencodeBuiltInAgents = ['build', 'plan', 'triage', 'docs', 'ask', 'claude-code'];
+        for (const agentName of opencodeBuiltInAgents) {
+          if (configAgent[agentName]) {
+            (configAgent[agentName] as Record<string, unknown>).mode = 'subagent';
+          }
         }
-        if (configAgent.plan) {
-          (configAgent.plan as Record<string, unknown>).mode = 'subagent';
-        }
-        if (configAgent.triage) {
-          (configAgent.triage as Record<string, unknown>).mode = 'subagent';
-        }
-        if (configAgent.docs) {
-          (configAgent.docs as Record<string, unknown>).mode = 'subagent';
+        
+        // Demote all our agents except primary
+        for (const [agentName, agentConfig] of Object.entries(allAgents)) {
+          if (agentName !== primaryAgent && agentConfig && typeof agentConfig === 'object') {
+            (agentConfig as Record<string, unknown>).mode = 'subagent';
+          }
         }
         
         Object.assign(configAgent, allAgents);
       }
 
-      // Set default agent based on mode
-      (opencodeConfig as Record<string, unknown>).default_agent = 
-        agentMode === 'unified' ? 'zetta' : 'architect-planner';
+      // CRITICAL: Set default agent - this is what makes zetta the primary agent
+      // Without this, OpenCode uses its own default agent
+      (opencodeConfig as Record<string, unknown>).default_agent = primaryAgent;
 
       // Merge built-in MCP servers (OMO-style remote endpoints)
       // Only add MCPs that user hasn't already configured in their opencode.json
