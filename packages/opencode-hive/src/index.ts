@@ -16,6 +16,8 @@ import { ptyStartTool, ptySendTool, ptyReadTool, ptyKillTool, ptyListTool } from
 import { lspRenameTool, lspGotoDefinitionTool, lspFindReferencesTool, lspDiagnosticsTool, lspHoverTool, lspCodeActionsTool } from './tools/lsp.js';
 // Skill-Embedded MCP Tools
 import { skillMcpTool, listSkillMcpsTool } from './tools/skill-mcp.js';
+// Memory Tools
+import { hiveMemoryListTool, hiveMemorySetTool, hiveMemoryReplaceTool, hiveJournalWriteTool, hiveJournalSearchTool, buildMemoryInjection, ensureMemorySeeded } from './tools/memory.js';
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -773,6 +775,12 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
 
       output.system.push(HIVE_SYSTEM_PROMPT);
 
+      // Inject memory blocks into system prompt
+      const memoryInjection = await buildMemoryInjection(directory);
+      if (memoryInjection) {
+        output.system.push(memoryInjection);
+      }
+
       // NOTE: autoLoadSkills injection is now done in the config hook (prompt field)
       // to ensure skills are present from the first message. The system.transform hook
       // may not receive the agent name at runtime, so we removed legacy auto-load here.
@@ -796,27 +804,86 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
 
     // Context compression hook - auto compresses at 50% context threshold
     // Similar to DCP (Dynamic Context Pruning) or oh-my-openagent
+    // Also captures session snapshot for continuity
     "experimental.session.compacting": async (
       input: { sessionID: string; messages?: unknown[]; contextLimit?: number },
       output: { context: string[]; prompt?: string },
     ) => {
-      // Get context limit (default 200k tokens for Claude)
-      const contextLimit = input.contextLimit || 200000;
+      // Get config
+      const snapshotConfig = configService.get().sessionSnapshot;
+      const compressionConfig = configService.get().contextCompression;
       
-      // Get messages from input (if available)
+      // Session snapshot - capture state before compaction
+      if (snapshotConfig?.enabled !== false) {
+        const snapshotParts: string[] = [];
+        const maxChars = snapshotConfig?.maxSnapshotChars ?? 2048;
+        
+        // Active feature
+        if (snapshotConfig?.includeActiveFeature !== false) {
+          try {
+            const active = featureService.getActive();
+            if (active) {
+              snapshotParts.push(`## Active Feature: ${active.name}`);
+              snapshotParts.push(`Status: ${active.status}`);
+            }
+          } catch {
+            // Feature service might not be available
+          }
+        }
+        
+        // Pending tasks
+        if (snapshotConfig?.includePendingTasks !== false) {
+          try {
+            const featureNames = featureService.list();
+            const pendingTasks: string[] = [];
+            
+            for (const name of featureNames) {
+              const info = featureService.getInfo(name);
+              if (info && info.status !== 'completed') {
+                const pending = info.tasks.filter(t => t.status === 'pending' || t.status === 'in_progress');
+                for (const task of pending) {
+                  pendingTasks.push(`- [${task.status}] ${task.name}`);
+                }
+              }
+            }
+            
+            if (pendingTasks.length > 0) {
+              snapshotParts.push(`\n## Pending Tasks (${pendingTasks.length})`);
+              snapshotParts.push(...pendingTasks.slice(0, 20));
+            }
+          } catch {
+            // Task service might not be available
+          }
+        }
+        
+        if (snapshotParts.length > 0) {
+          const snapshot = snapshotParts.join('\n').slice(0, maxChars);
+          output.context.push(`
+## Session Snapshot (before compaction)
+
+${snapshot}
+
+**Important:** After compaction, resume from where you left off. Check the pending tasks above and continue working.
+`);
+        }
+      }
+      
+      // Context compression
+      const contextLimit = input.contextLimit || 200000;
       const messages = (input.messages || []) as Array<{ role?: string; content?: unknown; tool_calls?: unknown[] }>;
       
-      // Check if compression is needed based on context usage
       if (messages.length > 0) {
-        // Import Message type for estimation
-        const { estimateTokens, needsCompression, compressContext, buildCompressionHint } = await import("./utils/context-compression.js");
+        const { needsCompression, compressContext, buildCompressionHint } = await import("./utils/context-compression.js");
         
-        if (needsCompression(messages as any, contextLimit, { threshold: 0.5, enabled: true })) {
-          const { compressed, stats } = compressContext(messages as any, { 
-            threshold: 0.5, 
-            enabled: true,
-            maxToolCalls: 50,
-            protectedTools: [
+        const threshold = compressionConfig?.threshold ?? 0.5;
+        const enabled = compressionConfig?.enabled ?? true;
+        
+        if (needsCompression(messages as any, contextLimit, { threshold, enabled })) {
+          const { stats } = compressContext(messages as any, { 
+            threshold, 
+            enabled,
+            maxToolCalls: compressionConfig?.maxToolCalls ?? 50,
+            protectedTools: compressionConfig?.protectedTools ?? [
               "hive_feature_create",
               "hive_plan_write",
               "hive_worktree_commit", 
@@ -826,10 +893,8 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
           
           console.log(`[hive:compaction] Context at ${Math.round(stats.reductionRatio * 100)}% - compressed ${stats.originalMessages} → ${stats.compressedMessages} messages`);
           
-          // Add compression hint
           output.context.push(buildCompressionHint());
         } else {
-          // Just add the basic compaction prompt
           output.context.push(buildCompactionPrompt());
         }
       } else {
@@ -881,6 +946,30 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
       output.args.workdir = undefined; // docker command runs on host
     },
 
+    // Token truncation hook - compress large tool outputs to save context
+    "tool.execute.after": async (input: { tool: string; sessionID: string; callID: string; args: any }, output: { title: string; output: string; metadata: any }) => {
+      const truncationConfig = configService.get().tokenTruncation;
+      if (!truncationConfig?.enabled) return;
+      
+      const result = output.output;
+      if (!result) return;
+      
+      const maxChars = truncationConfig.maxChars ?? 30000;
+      if (result.length <= maxChars) return;
+      
+      const keepFirst = truncationConfig.keepFirstPercent ?? 40;
+      const keepLast = truncationConfig.keepLastPercent ?? 40;
+      
+      const firstChars = Math.floor((result.length * keepFirst) / 100);
+      const lastChars = Math.floor((result.length * keepLast) / 100);
+      
+      const truncated = result.slice(0, firstChars) + 
+        `\n\n[... ${result.length - firstChars - lastChars} characters truncated ...]\n\n` + 
+        result.slice(-lastChars);
+      
+      output.output = truncated;
+    },
+
     mcp: builtinMcps,
 
     tool: {
@@ -905,6 +994,13 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
       // Skill-Embedded MCP Tools
       skill_mcp: skillMcpTool,
       list_skill_mcps: listSkillMcpsTool,
+
+      // Memory Tools (Letta-style persistent memory blocks)
+      hive_memory_list: hiveMemoryListTool,
+      hive_memory_set: hiveMemorySetTool,
+      hive_memory_replace: hiveMemoryReplaceTool,
+      hive_journal_write: hiveJournalWriteTool,
+      hive_journal_search: hiveJournalSearchTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 
@@ -1721,6 +1817,106 @@ Expand your Discovery section and try again.`;
         },
       };
 
+      // Micode agents (from micode plugin)
+      const micodeUserConfig = configService.getAgentConfig('codebase-locator');
+      const codebaseLocatorConfig = {
+        model: micodeUserConfig.model,
+        variant: micodeUserConfig.variant,
+        temperature: micodeUserConfig.temperature ?? 0.3,
+        mode: 'subagent' as const,
+        description: 'Codebase Locator - Finds WHERE files live in the codebase. No analysis, just locations.',
+        prompt: CODEBASE_LOCATOR_PROMPT,
+        tools: agentTools(['hive_plan_read', 'hive_skill']),
+        permission: {
+          edit: "deny",
+          task: "deny",
+          delegate: "deny",
+          skill: "allow",
+        },
+      };
+
+      const codebaseAnalyzerConfig = {
+        model: micodeUserConfig.model,
+        variant: micodeUserConfig.variant,
+        temperature: micodeUserConfig.temperature ?? 0.3,
+        mode: 'subagent' as const,
+        description: 'Codebase Analyzer - Explains HOW code works. Deep module analysis.',
+        prompt: CODEBASE_ANALYZER_PROMPT,
+        tools: agentTools(['hive_plan_read', 'hive_skill']),
+        permission: {
+          edit: "deny",
+          task: "deny",
+          delegate: "deny",
+          skill: "allow",
+        },
+      };
+
+      const patternFinderConfig = {
+        model: micodeUserConfig.model,
+        variant: micodeUserConfig.variant,
+        temperature: micodeUserConfig.temperature ?? 0.3,
+        mode: 'subagent' as const,
+        description: 'Pattern Finder - Finds patterns to model after. Extracts conventions.',
+        prompt: PATTERN_FINDER_PROMPT,
+        tools: agentTools(['hive_plan_read', 'hive_skill']),
+        permission: {
+          edit: "deny",
+          task: "deny",
+          delegate: "deny",
+          skill: "allow",
+        },
+      };
+
+      const projectInitializerConfig = {
+        model: micodeUserConfig.model,
+        variant: micodeUserConfig.variant,
+        temperature: micodeUserConfig.temperature ?? 0.5,
+        mode: 'subagent' as const,
+        description: 'Project Initializer - Generates project documentation from codebase analysis.',
+        prompt: PROJECT_INITIALIZER_PROMPT,
+        tools: agentTools(['hive_plan_read', 'hive_context_write', 'hive_skill']),
+        permission: {
+          edit: "deny",
+          task: "deny",
+          delegate: "deny",
+          skill: "allow",
+        },
+      };
+
+      // Code Reviewer and Code Simplifier (from froggy agents)
+      const froggyUserConfig = configService.getAgentConfig('code-reviewer');
+      const codeReviewerConfig = {
+        model: froggyUserConfig.model,
+        variant: froggyUserConfig.variant,
+        temperature: froggyUserConfig.temperature ?? 0.3,
+        mode: 'subagent' as const,
+        description: 'Code Reviewer - Reviews code for quality, correctness, security, and maintainability.',
+        prompt: CODE_REVIEWER_PROMPT,
+        tools: agentTools(['hive_plan_read', 'hive_skill']),
+        permission: {
+          edit: "deny",
+          task: "deny",
+          delegate: "deny",
+          skill: "allow",
+        },
+      };
+
+      const codeSimplifierConfig = {
+        model: froggyUserConfig.model,
+        variant: froggyUserConfig.variant,
+        temperature: froggyUserConfig.temperature ?? 0.3,
+        mode: 'subagent' as const,
+        description: 'Code Simplifier - Simplifies recently modified code for clarity while preserving behavior.',
+        prompt: CODE_SIMPLIFIER_PROMPT,
+        tools: agentTools(['hive_plan_read', 'hive_skill']),
+        permission: {
+          edit: "deny",
+          task: "deny",
+          delegate: "deny",
+          skill: "allow",
+        },
+      };
+
       const builtInAgentConfigs = {
         'zetta': zettaConfig,
         'architect-planner': architectConfig,
@@ -1728,6 +1924,12 @@ Expand your Discovery section and try again.`;
         'scout-researcher': scoutConfig,
         'forager-worker': foragerConfig,
         'hygienic-reviewer': hygienicConfig,
+        'code-reviewer': codeReviewerConfig,
+        'code-simplifier': codeSimplifierConfig,
+        'codebase-locator': codebaseLocatorConfig,
+        'codebase-analyzer': codebaseAnalyzerConfig,
+        'pattern-finder': patternFinderConfig,
+        'project-initializer': projectInitializerConfig,
       };
 
       const customAutoLoadedSkills = Object.fromEntries(

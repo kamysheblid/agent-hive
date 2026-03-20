@@ -31,7 +31,12 @@
     "lsp_find_references",
     "lsp_diagnostics",
     "lsp_hover",
-    "lsp_code_actions"
+    "lsp_code_actions",
+    "hive_memory_list",
+    "hive_memory_set",
+    "hive_memory_replace",
+    "hive_journal_write",
+    "hive_journal_search"
   ],
   "agents": [
     "zetta",
@@ -40,8 +45,14 @@
     "scout-researcher",
     "forager-worker",
     "hygienic-reviewer",
+    "code-reviewer",
+    "code-simplifier",
     "forager-example-template",
-    "hygienic-example-template"
+    "hygienic-example-template",
+    "codebase-locator",
+    "codebase-analyzer",
+    "pattern-finder",
+    "project-initializer"
   ],
   "mcp": [
     "websearch",
@@ -52,6 +63,8 @@
   "hooks": [
     "hive.todo-enforcer",
     "hive.hashline-edit",
-    "hive.comment-checker"
+    "hive.comment-checker",
+    "hive.token-truncation",
+    "hive.session-snapshot"
   ]
 }

@@ -257,6 +257,28 @@ export interface HiveConfig {
     exa?: string;
     context7?: string;
   };
+  /** Token truncation - compress large tool outputs to save context */
+  tokenTruncation?: {
+    enabled?: boolean;
+    /** Maximum characters before truncation (default: 30000) */
+    maxChars?: number;
+    /** Keep first X% of content (default: 40) */
+    keepFirstPercent?: number;
+    /** Keep last X% of content (default: 40) */
+    keepLastPercent?: number;
+  };
+  /** Session snapshot - preserve state across compaction for continuity */
+  sessionSnapshot?: {
+    enabled?: boolean;
+    /** Maximum snapshot size in characters (default: 2048) */
+    maxSnapshotChars?: number;
+    /** Include active feature info (default: true) */
+    includeActiveFeature?: boolean;
+    /** Include pending tasks (default: true) */
+    includePendingTasks?: boolean;
+    /** Include modified files (default: false) */
+    includeModifiedFiles?: boolean;
+  };
 }
 
 /** Default models for Hive agents */
@@ -327,5 +349,20 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
       skills: [],
       autoLoadSkills: [],
     },
+  },
+  // Token truncation: compress large tool outputs (enabled by default)
+  tokenTruncation: {
+    enabled: true,
+    maxChars: 30000,
+    keepFirstPercent: 40,
+    keepLastPercent: 40,
+  },
+  // Session snapshot: preserve state across compaction (enabled by default)
+  sessionSnapshot: {
+    enabled: true,
+    maxSnapshotChars: 2048,
+    includeActiveFeature: true,
+    includePendingTasks: true,
+    includeModifiedFiles: false,
   },
 };
