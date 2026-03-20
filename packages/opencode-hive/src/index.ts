@@ -218,7 +218,6 @@ import { formatRelativeTime } from "./utils/format";
 import { createVariantHook } from "./hooks/variant-hook.js";
 import { HIVE_SYSTEM_PROMPT, shouldExecuteHook } from "./hooks/system-hook.js";
 import { buildCompactionPrompt } from "./utils/compaction-prompt.js";
-import { dependencyInstaller, ensurePluginDeps } from "./utils/dep-installer.js";
 import { createCompactionHook, needsCompression, compressContext, buildCompressionHint } from "./utils/context-compression.js";
 
 /**
@@ -272,12 +271,6 @@ const plugin: Plugin = async (ctx) => {
   const disabledMcps = configService.getDisabledMcps();
   const disabledSkills = configService.getDisabledSkills();
   const builtinMcps = createBuiltinMcps(disabledMcps);
-  
-  // Auto-install plugin dependencies in background (non-blocking)
-  // This ensures tools like btca, dora, auto-cr are available
-  if (configService.get().autoInstallDeps !== false) {
-    ensurePluginDeps();
-  }
   
   // Get filtered skills (globally disabled skills removed)
   // Per-agent skill filtering could be added here based on agent context
