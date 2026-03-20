@@ -1,6 +1,6 @@
 {
   "name": "@hung319/opencode-hive",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "type": "module",
   "description": "OpenCode plugin for Agent Hive - from vibe coding to hive coding",
   "license": "MIT WITH Commons-Clause",
@@ -44,7 +44,9 @@
     "@upstash/context7-mcp": "^2.1.0",
     "exa-mcp-server": "^3.1.5",
     "@sparkleideas/agent-booster": "^0.2.3",
-    "@sparkleideas/memory": "^3.5.2"
+    "@sparkleideas/memory": "^3.5.2",
+    "@ast-grep/napi": "^0.41.1",
+    "@paretools/search": "^0.15.0"
   },
   "devDependencies": {
     "hive-core": "workspace:*",

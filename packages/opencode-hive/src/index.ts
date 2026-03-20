@@ -22,6 +22,19 @@ import { hiveMemoryListTool, hiveMemorySetTool, hiveMemoryReplaceTool, hiveJourn
 import { hiveCodeEditTool, hiveLazyEditTool, hiveBoosterStatusTool } from './tools/agent-booster.js';
 // Vector Memory Tools (semantic search)
 import { hiveVectorSearchTool, hiveVectorAddTool, hiveVectorStatusTool } from './tools/vector-memory.js';
+
+// Native ast-grep Tools (NAPI-powered AST analysis)
+import { 
+  astGrepDumpSyntaxTreeTool, 
+  astGrepTestMatchCodeRuleTool, 
+  astGrepFindCodeTool, 
+  astGrepScanCodeTool,
+  astGrepRewriteCodeTool,
+  astGrepAnalyzeImportsTool,
+} from './tools/ast-grep-native.js';
+
+// Hive Doctor Tools (health check and optimization)
+import { hiveDoctorTool, hiveDoctorQuickTool } from './tools/hive-doctor.js';
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -1062,6 +1075,18 @@ ${snapshot}
       hive_vector_search: hiveVectorSearchTool,
       hive_vector_add: hiveVectorAddTool,
       hive_vector_status: hiveVectorStatusTool,
+
+      // Native ast-grep Tools (NAPI-powered AST analysis)
+      ast_grep_dump_syntax_tree: astGrepDumpSyntaxTreeTool,
+      ast_grep_test_match_code_rule: astGrepTestMatchCodeRuleTool,
+      ast_grep_find_code: astGrepFindCodeTool,
+      ast_grep_scan_code: astGrepScanCodeTool,
+      ast_grep_rewrite_code: astGrepRewriteCodeTool,
+      ast_grep_analyze_imports: astGrepAnalyzeImportsTool,
+
+      // Hive Doctor Tools (health check and optimization)
+      hive_doctor: hiveDoctorTool,
+      hive_doctor_quick: hiveDoctorQuickTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 

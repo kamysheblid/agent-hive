@@ -8,7 +8,7 @@
     "ast_grep": {
       "command": "npx",
       "args": ["-y", "@notprolands/ast-grep-mcp"],
-      "description": "AST-aware code search and refactoring"
+      "description": "AST-aware code search and refactoring (legacy MCP, consider using native tools)"
     },
     "context7": {
       "command": "npx",
@@ -22,6 +22,11 @@
         "EXA_API_KEY": "${EXA_API_KEY}"
       },
       "description": "Exa AI web search (requires API key)"
+    },
+    "pare_search": {
+      "command": "npx",
+      "args": ["-y", "@paretools/search"],
+      "description": "Structured ripgrep/fd search (65-95% token reduction)"
     }
   }
 }

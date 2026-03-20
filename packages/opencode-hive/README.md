@@ -187,7 +187,21 @@ Hive uses a config file at `~/.config/opencode/agent_hive.json`. You can customi
 | `websearch` | Web search via [Exa AI](https://exa.ai). Real-time web searches and content scraping. | Set `EXA_API_KEY` env var |
 | `context7` | Library documentation lookup via [Context7](https://context7.com). Query up-to-date docs for any programming library. | None |
 | `grep_app` | GitHub code search via [grep.app](https://grep.app). Find real-world code examples from public repositories. | None |
-| `ast_grep` | AST-aware code search and replace via [ast-grep](https://ast-grep.github.io). Pattern matching across 25+ languages. | None (runs via npx) |
+| `ast_grep` | Native NAPI-powered AST analysis. Pattern matching across 25+ languages. | Built-in (no npx needed) |
+| `pare_search` | Structured ripgrep/fd search with 65-95% token reduction. | None (runs via npx) |
+
+#### Native ast-grep Tools
+
+Instead of MCP-based ast-grep, this plugin includes native tools using `@ast-grep/napi`:
+
+| Tool | Description |
+|------|-------------|
+| `ast_grep_dump_syntax_tree` | Dump code's syntax structure for debugging |
+| `ast_grep_test_match_code_rule` | Test code against YAML rules |
+| `ast_grep_find_code` | Find code matching patterns in project |
+| `ast_grep_scan_code` | Scan for TypeScript bugs and best practices |
+| `ast_grep_rewrite_code` | Transform/refactor code with AST patterns |
+| `ast_grep_analyze_imports` | Analyze import usage in codebase |
 
 ### Per-Agent Skills
 
@@ -470,6 +484,73 @@ hive_vector_search({
     "indexPath": "~/.config/opencode/hive/vector-index",
     "dimensions": 384
   }
+}
+```
+
+## Hive Doctor
+
+System health check and optimization advisor. Checks dependencies, features, and provides recommendations.
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `hive_doctor` | Full health check with recommendations |
+| `hive_doctor_quick` | Quick status summary |
+
+### Usage
+
+```typescript
+// Full health check
+hive_doctor()
+
+// Quick check
+hive_doctor_quick()
+```
+
+### What it checks
+
+1. **Dependencies** - Optional packages installed and working
+   - @sparkleideas/agent-booster
+   - @sparkleideas/memory
+   - @ast-grep/napi
+   - @paretools/search
+   - @upstash/context7-mcp
+   - exa-mcp-server
+
+2. **Optimizations** - Features enabled in config
+   - snip (60-90% token reduction)
+   - vector memory (semantic search)
+   - agent booster (fast code editing)
+   - Docker sandbox (isolated environments)
+   - native ast-grep (fast AST analysis)
+   - pare-search (structured search)
+
+3. **Recommendations** - Suggestions for improvements
+
+### Example Output
+
+```json
+{
+  "status": "warning",
+  "checks": {
+    "dependencies": {
+      "total": 6,
+      "installed": 4,
+      "packages": [...]
+    },
+    "optimizations": {
+      "total": 6,
+      "enabled": 3,
+      "features": [...]
+    }
+  },
+  "recommendations": [
+    "Enable vector memory for semantic search across memories"
+  ],
+  "quickFixes": [
+    { "command": "npm install @sparkleideas/memory", "description": "Install vector-memory" }
+  ]
 }
 ```
 
