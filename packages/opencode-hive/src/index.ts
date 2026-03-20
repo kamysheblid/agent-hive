@@ -1967,12 +1967,28 @@ Expand your Discovery section and try again.`;
         allAgents['scout-researcher'] = builtInAgentConfigs['scout-researcher'];
         allAgents['forager-worker'] = builtInAgentConfigs['forager-worker'];
         allAgents['hygienic-reviewer'] = builtInAgentConfigs['hygienic-reviewer'];
+        // Micode agents (available in both modes)
+        allAgents['codebase-locator'] = builtInAgentConfigs['codebase-locator'];
+        allAgents['codebase-analyzer'] = builtInAgentConfigs['codebase-analyzer'];
+        allAgents['pattern-finder'] = builtInAgentConfigs['pattern-finder'];
+        allAgents['project-initializer'] = builtInAgentConfigs['project-initializer'];
+        // Froggy agents
+        allAgents['code-reviewer'] = builtInAgentConfigs['code-reviewer'];
+        allAgents['code-simplifier'] = builtInAgentConfigs['code-simplifier'];
       } else {
         allAgents['architect-planner'] = builtInAgentConfigs['architect-planner'];
         allAgents['swarm-orchestrator'] = builtInAgentConfigs['swarm-orchestrator'];
         allAgents['scout-researcher'] = builtInAgentConfigs['scout-researcher'];
         allAgents['forager-worker'] = builtInAgentConfigs['forager-worker'];
         allAgents['hygienic-reviewer'] = builtInAgentConfigs['hygienic-reviewer'];
+        // Micode agents
+        allAgents['codebase-locator'] = builtInAgentConfigs['codebase-locator'];
+        allAgents['codebase-analyzer'] = builtInAgentConfigs['codebase-analyzer'];
+        allAgents['pattern-finder'] = builtInAgentConfigs['pattern-finder'];
+        allAgents['project-initializer'] = builtInAgentConfigs['project-initializer'];
+        // Froggy agents
+        allAgents['code-reviewer'] = builtInAgentConfigs['code-reviewer'];
+        allAgents['code-simplifier'] = builtInAgentConfigs['code-simplifier'];
       }
 
       Object.assign(allAgents, customSubagents);
