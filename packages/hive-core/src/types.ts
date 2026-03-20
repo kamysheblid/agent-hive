@@ -279,6 +279,18 @@ export interface HiveConfig {
     /** Include modified files (default: false) */
     includeModifiedFiles?: boolean;
   };
+  /** Snip integration - prefix shell commands with snip to reduce token usage */
+  snip?: {
+    enabled?: boolean;
+    /** Custom snip path (default: 'snip') */
+    command?: string;
+  };
+  /** Smart session titles - auto-generate meaningful session titles */
+  smartTitle?: {
+    enabled?: boolean;
+    /** Update title every N idle events (default: 1) */
+    updateThreshold?: number;
+  };
 }
 
 /** Default models for Hive agents */
@@ -364,5 +376,15 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     includeActiveFeature: true,
     includePendingTasks: true,
     includeModifiedFiles: false,
+  },
+  // Snip: reduce token usage for shell commands (requires snip CLI installed)
+  snip: {
+    enabled: false,  // Disabled by default, requires snip CLI
+    command: 'snip',
+  },
+  // Smart session titles: auto-generate meaningful titles (disabled by default)
+  smartTitle: {
+    enabled: false,
+    updateThreshold: 1,
   },
 };

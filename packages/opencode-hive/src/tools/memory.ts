@@ -536,3 +536,320 @@ export async function buildMemoryInjection(projectRoot: string): Promise<string>
   
   return sections.join('\n');
 }
+
+// ============================================================================
+// Enhanced Memory (from simple-memory plugin)
+// Typed memories with scope, type, and search
+// ============================================================================
+
+export type MemoryType = 'decision' | 'learning' | 'preference' | 'blocker' | 'context' | 'pattern';
+
+export interface TypedMemory {
+  ts: string;
+  type: MemoryType;
+  scope: string;
+  content: string;
+  issue?: string;
+  tags?: string[];
+}
+
+interface TypedMemoryFile {
+  filepath: string;
+  lineIndex: number;
+}
+
+function getTypedMemoryDir(): string {
+  return path.join(os.homedir(), '.config', 'opencode', 'hive', 'typed-memory');
+}
+
+function getTypedMemoryFile(): string {
+  const date = new Date().toISOString().split('T')[0];
+  return path.join(getTypedMemoryDir(), `${date}.logfmt`);
+}
+
+function getDeletionsFile(): string {
+  return path.join(getTypedMemoryDir(), 'deletions.logfmt');
+}
+
+function parseTypedMemoryLine(line: string): TypedMemory | null {
+  const tsMatch = line.match(/ts=([^\s]+)/);
+  const typeMatch = line.match(/type=([^\s]+)/);
+  const scopeMatch = line.match(/scope=([^\s]+)/);
+  const contentMatch = line.match(/content="([^"]*(?:\\"[^"]*)*)"/);
+  const issueMatch = line.match(/issue=([^\s]+)/);
+  const tagsMatch = line.match(/tags=([^\s]+)/);
+
+  if (!tsMatch?.[1] || !typeMatch?.[1] || !scopeMatch?.[1]) return null;
+
+  return {
+    ts: tsMatch[1],
+    type: typeMatch[1] as MemoryType,
+    scope: scopeMatch[1],
+    content: contentMatch?.[1]?.replace(/\\"/g, '"') || '',
+    issue: issueMatch?.[1],
+    tags: tagsMatch?.[1]?.split(','),
+  };
+}
+
+function formatTypedMemory(m: TypedMemory): string {
+  const date = m.ts.split('T')[0];
+  const tags = m.tags?.length ? ` [${m.tags.join(', ')}]` : '';
+  const issue = m.issue ? ` (${m.issue})` : '';
+  return `[${date}] ${m.type}/${m.scope}: ${m.content}${issue}${tags}`;
+}
+
+function scoreTypedMemoryMatch(memory: TypedMemory, words: string[]): number {
+  const searchable = `${memory.type} ${memory.scope} ${memory.content} ${memory.tags?.join(' ') || ''}`.toLowerCase();
+  let score = 0;
+  for (const word of words) {
+    if (searchable.includes(word)) score++;
+    if (memory.scope.toLowerCase() === word) score += 2;
+    if (memory.type.toLowerCase() === word) score += 2;
+  }
+  return score;
+}
+
+async function ensureTypedMemoryDir(): Promise<void> {
+  const dir = getTypedMemoryDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+async function getAllTypedMemories(): Promise<TypedMemory[]> {
+  const dir = getTypedMemoryDir();
+  if (!fs.existsSync(dir)) return [];
+
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.logfmt'));
+  if (!files.length) return [];
+
+  const lines: string[] = [];
+  for (const filename of files) {
+    if (filename === 'deletions.logfmt') continue;
+    const filepath = path.join(dir, filename);
+    const text = fs.readFileSync(filepath, 'utf-8');
+    lines.push(...text.trim().split('\n').filter(Boolean));
+  }
+
+  return lines.map(parseTypedMemoryLine).filter((m): m is TypedMemory => m !== null);
+}
+
+async function findTypedMemories(
+  scope?: string,
+  type?: MemoryType,
+  query?: string
+): Promise<TypedMemoryFile[]> {
+  const dir = getTypedMemoryDir();
+  if (!fs.existsSync(dir)) return [];
+
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.logfmt'));
+  const matches: TypedMemoryFile[] = [];
+
+  for (const filename of files) {
+    if (filename === 'deletions.logfmt') continue;
+    const filepath = path.join(dir, filename);
+    const text = fs.readFileSync(filepath, 'utf-8');
+    const lines = text.split('\n');
+
+    lines.forEach((line, lineIndex) => {
+      const memory = parseTypedMemoryLine(line);
+      if (!memory) return;
+      if (scope && memory.scope !== scope) return;
+      if (type && memory.type !== type) return;
+      if (query) {
+        const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+        if (scoreTypedMemoryMatch(memory, words) === 0) return;
+      }
+      matches.push({ filepath, lineIndex });
+    });
+  }
+
+  return matches;
+}
+
+async function logTypedMemoryDeletion(memory: TypedMemory, reason: string): Promise<void> {
+  await ensureTypedMemoryDir();
+  const ts = new Date().toISOString();
+  const content = memory.content.replace(/"/g, '\\"');
+  const escapedReason = reason.replace(/"/g, '\\"');
+  const issue = memory.issue ? ` issue=${memory.issue}` : '';
+  const tags = memory.tags?.length ? ` tags=${memory.tags.join(',')}` : '';
+  const line = `ts=${ts} action=deleted original_ts=${memory.ts} type=${memory.type} scope=${memory.scope} content="${content}" reason="${escapedReason}"${issue}${tags}\n`;
+
+  const file = getDeletionsFile();
+  const existing = fs.existsSync(file) ? fs.readFileSync(file, 'utf-8') : '';
+  fs.writeFileSync(file, existing + line);
+}
+
+// Enhanced Memory Tools
+
+export const hiveMemoryRecallTool: ToolDefinition = tool({
+  description: 'Search typed memories by scope, type, or query. Retrieve learnings, decisions, preferences, and patterns.',
+  args: {
+    scope: tool.schema.string().optional().describe('Filter by scope (e.g., project, user, auth, api)'),
+    type: tool.schema.enum(['decision', 'learning', 'preference', 'blocker', 'context', 'pattern']).optional().describe('Filter by memory type'),
+    query: tool.schema.string().optional().describe('Search terms (matches type, scope, content)'),
+    limit: tool.schema.number().optional().describe('Maximum results (default: 20)'),
+  },
+  async execute({ scope, type, query, limit = 20 }) {
+    await ensureTypedMemoryDir();
+    const allMemories = await getAllTypedMemories();
+
+    if (!allMemories.length) {
+      return JSON.stringify({
+        message: 'No typed memories found. Use hive_memory_set to create one.',
+        total: 0,
+        results: [],
+      }, null, 2);
+    }
+
+    let results = allMemories;
+
+    if (scope) {
+      results = results.filter(m => m.scope === scope || m.scope.includes(scope));
+    }
+    if (type) {
+      results = results.filter(m => m.type === type);
+    }
+
+    if (query) {
+      const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const scored = results
+        .map(m => ({ memory: m, score: scoreTypedMemoryMatch(m, words) }))
+        .filter(x => x.score > 0)
+        .sort((a, b) => b.score - a.score);
+      results = scored.map(x => x.memory);
+    }
+
+    const totalCount = allMemories.length;
+    const filteredCount = results.length;
+    const limited = results.slice(0, limit);
+
+    if (!limited.length) {
+      return JSON.stringify({
+        message: 'No matching memories found.',
+        total: totalCount,
+        results: [],
+      }, null, 2);
+    }
+
+    return JSON.stringify({
+      total: totalCount,
+      filtered: filteredCount,
+      returned: limited.length,
+      results: limited.map(m => ({
+        type: m.type,
+        scope: m.scope,
+        content: m.content,
+        created: m.ts,
+        issue: m.issue,
+        tags: m.tags,
+        formatted: formatTypedMemory(m),
+      })),
+    }, null, 2);
+  },
+});
+
+export const hiveMemoryUpdateTool: ToolDefinition = tool({
+  description: 'Update a typed memory entry. Finds by scope and type, updates content.',
+  args: {
+    scope: tool.schema.string().describe('Scope of memory to update'),
+    type: tool.schema.enum(['decision', 'learning', 'preference', 'blocker', 'context', 'pattern']).describe('Type of memory'),
+    content: tool.schema.string().describe('New content'),
+    query: tool.schema.string().optional().describe('If multiple matches, filter by query'),
+  },
+  async execute({ scope, type, content, query }) {
+    const matches = await findTypedMemories(scope, type);
+
+    if (matches.length === 0) {
+      return JSON.stringify({
+        success: false,
+        error: `No memories found for ${type} in ${scope}`,
+      }, null, 2);
+    }
+
+    let target = matches[0];
+    if (matches.length > 1 && query) {
+      const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+      const scored = matches.map(m => {
+        const memory = parseTypedMemoryLine(fs.readFileSync(m.filepath, 'utf-8').split('\n')[m.lineIndex]);
+        return { match: m, score: memory ? scoreTypedMemoryMatch(memory, words) : 0 };
+      }).filter(x => x.score > 0).sort((a, b) => b.score - a.score);
+
+      if (scored.length === 0) {
+        return JSON.stringify({
+          success: false,
+          error: `Found ${matches.length} memories for ${type}/${scope}, but none matched query "${query}"`,
+        }, null, 2);
+      }
+      target = scored[0].match;
+    }
+
+    // Log old version
+    const oldLine = fs.readFileSync(target.filepath, 'utf-8').split('\n')[target.lineIndex];
+    const oldMemory = parseTypedMemoryLine(oldLine);
+    if (oldMemory) {
+      await logTypedMemoryDeletion(oldMemory, `Updated to: ${content}`);
+    }
+
+    // Update the memory
+    const ts = new Date().toISOString();
+    const lines = fs.readFileSync(target.filepath, 'utf-8').split('\n');
+    lines[target.lineIndex] = `ts=${ts} type=${type} scope=${scope} content="${content.replace(/"/g, '\\"')}"`;
+    fs.writeFileSync(target.filepath, lines.join('\n'));
+
+    return JSON.stringify({
+      success: true,
+      scope,
+      type,
+      content,
+      message: `Updated ${type} in ${scope}`,
+    }, null, 2);
+  },
+});
+
+export const hiveMemoryForgetTool: ToolDefinition = tool({
+  description: 'Delete a typed memory. Logs deletion for audit purposes.',
+  args: {
+    scope: tool.schema.string().describe('Scope of memory to delete'),
+    type: tool.schema.enum(['decision', 'learning', 'preference', 'blocker', 'context', 'pattern']).describe('Type of memory'),
+    reason: tool.schema.string().describe('Why this memory is being deleted'),
+  },
+  async execute({ scope, type, reason }) {
+    const matches = await findTypedMemories(scope, type);
+
+    if (matches.length === 0) {
+      return JSON.stringify({
+        success: false,
+        error: `No memories found for ${type} in ${scope}`,
+      }, null, 2);
+    }
+
+    let deleted = 0;
+    const deletedMemories: TypedMemory[] = [];
+
+    for (const match of matches) {
+      const text = fs.readFileSync(match.filepath, 'utf-8');
+      const lines = text.split('\n');
+      const memory = parseTypedMemoryLine(lines[match.lineIndex]);
+
+      if (memory) {
+        await logTypedMemoryDeletion(memory, reason);
+        deletedMemories.push(memory);
+        deleted++;
+      }
+
+      lines.splice(match.lineIndex, 1);
+      fs.writeFileSync(match.filepath, lines.join('\n'));
+    }
+
+    return JSON.stringify({
+      success: true,
+      deleted,
+      scope,
+      type,
+      reason,
+      message: `Deleted ${deleted} ${type} memory(ies) from ${scope}. Deletion logged.`,
+    }, null, 2);
+  },
+});

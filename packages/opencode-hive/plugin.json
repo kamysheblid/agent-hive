@@ -35,6 +35,9 @@
     "hive_memory_list",
     "hive_memory_set",
     "hive_memory_replace",
+    "hive_memory_recall",
+    "hive_memory_update",
+    "hive_memory_forget",
     "hive_journal_write",
     "hive_journal_search"
   ],

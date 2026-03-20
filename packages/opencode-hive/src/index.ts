@@ -17,7 +17,7 @@ import { lspRenameTool, lspGotoDefinitionTool, lspFindReferencesTool, lspDiagnos
 // Skill-Embedded MCP Tools
 import { skillMcpTool, listSkillMcpsTool } from './tools/skill-mcp.js';
 // Memory Tools
-import { hiveMemoryListTool, hiveMemorySetTool, hiveMemoryReplaceTool, hiveJournalWriteTool, hiveJournalSearchTool, buildMemoryInjection, ensureMemorySeeded } from './tools/memory.js';
+import { hiveMemoryListTool, hiveMemorySetTool, hiveMemoryReplaceTool, hiveJournalWriteTool, hiveJournalSearchTool, hiveMemoryRecallTool, hiveMemoryUpdateTool, hiveMemoryForgetTool, buildMemoryInjection, ensureMemorySeeded } from './tools/memory.js';
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -184,6 +184,35 @@ type ToolContext = {
   agent: string;
   abort: AbortSignal;
 };
+
+// ============================================================================
+// Snip Integration (from opencode-snip)
+// Prefix shell commands with snip to reduce 60-90% token usage
+// ============================================================================
+
+const ENV_VAR_RE = /^([A-Za-z_][A-Za-z0-9_]*=[^\s]* +)*/;
+
+/**
+ * Prefix a command with snip to reduce output token usage
+ * Based on: https://github.com/VincentHardouin/opencode-snip
+ */
+function prefixWithSnip(command: string, snipCommand = 'snip'): string {
+  // Don't double-prefix already snipped commands
+  if (command.startsWith(`${snipCommand} `)) {
+    return command;
+  }
+
+  // Split at first shell operator (space + && | ; | |), keeping operator+rest intact
+  const splitMatch = command.match(/^(.*?)( &&| [|]| ;|;)(.*)$/);
+  const firstPart = splitMatch ? splitMatch[1] : command;
+  const rest = splitMatch ? splitMatch[2] + splitMatch[3] : '';
+
+  // Extract leading env var prefix (e.g. "CGO_ENABLED=0 GOOS=linux ")
+  const envPrefix = (firstPart.match(ENV_VAR_RE) ?? [''])[0];
+  const bareCmd = firstPart.slice(envPrefix.length).trim();
+
+  return `${envPrefix}${snipCommand} ${bareCmd}${rest}`;
+}
 
 const plugin: Plugin = async (ctx) => {
   const { directory, client } = ctx;
@@ -919,31 +948,44 @@ ${snapshot}
 
       if (input.tool !== "bash") return;
       
-      const sandboxConfig = configService.getSandboxConfig();
-      if (sandboxConfig.mode === 'none') return;
-      
       const command = output.args?.command?.trim();
       if (!command) return;
       
-      // Escape hatch: HOST: prefix (case-insensitive)
+      // Escape hatch: HOST: prefix (case-insensitive) - skip all processing
       if (/^HOST:\s*/i.test(command)) {
         const strippedCommand = command.replace(/^HOST:\s*/i, '');
         console.warn(`[hive:sandbox] HOST bypass: ${strippedCommand.slice(0, 80)}${strippedCommand.length > 80 ? '...' : ''}`);
         output.args.command = strippedCommand;
         return;
       }
+
+      // Apply snip prefix if enabled (reduces 60-90% token usage for shell output)
+      const snipConfig = configService.get().snip;
+      let finalCommand = command;
+      if (snipConfig?.enabled) {
+        finalCommand = prefixWithSnip(command, snipConfig.command ?? 'snip');
+      }
       
-      // Only wrap commands with explicit workdir inside hive worktrees
-      const workdir = output.args?.workdir;
-      if (!workdir) return;
+      const sandboxConfig = configService.getSandboxConfig();
+      if (sandboxConfig.mode !== 'none') {
+        // Only wrap commands with explicit workdir inside hive worktrees
+        const workdir = output.args?.workdir;
+        if (workdir) {
+          const hiveWorktreeBase = path.join(directory, '.hive', '.worktrees');
+          if (workdir.startsWith(hiveWorktreeBase)) {
+            // Wrap command using static method (with persistent config)
+            const wrapped = DockerSandboxService.wrapCommand(workdir, finalCommand, sandboxConfig);
+            output.args.command = wrapped;
+            output.args.workdir = undefined; // docker command runs on host
+            return;
+          }
+        }
+      }
       
-      const hiveWorktreeBase = path.join(directory, '.hive', '.worktrees');
-      if (!workdir.startsWith(hiveWorktreeBase)) return;
-      
-      // Wrap command using static method (with persistent config)
-      const wrapped = DockerSandboxService.wrapCommand(workdir, command, sandboxConfig);
-      output.args.command = wrapped;
-      output.args.workdir = undefined; // docker command runs on host
+      // If we prefixed with snip, apply the prefixed command
+      if (snipConfig?.enabled && finalCommand !== command) {
+        output.args.command = finalCommand;
+      }
     },
 
     // Token truncation hook - compress large tool outputs to save context
@@ -999,6 +1041,11 @@ ${snapshot}
       hive_memory_list: hiveMemoryListTool,
       hive_memory_set: hiveMemorySetTool,
       hive_memory_replace: hiveMemoryReplaceTool,
+      // Typed memory tools (from simple-memory)
+      hive_memory_recall: hiveMemoryRecallTool,
+      hive_memory_update: hiveMemoryUpdateTool,
+      hive_memory_forget: hiveMemoryForgetTool,
+      // Journal tools
       hive_journal_write: hiveJournalWriteTool,
       hive_journal_search: hiveJournalSearchTool,
 
@@ -2067,7 +2114,69 @@ Expand your Discovery section and try again.`;
       }
 
     },
+
+    // Smart session title - auto-generate titles when session is idle
+    // Uses heuristic-based extraction (AI generation can be added later)
+    event: async (input: { event: { type: string; properties?: Record<string, unknown> } }) => {
+      const smartTitleConfig = configService.get().smartTitle;
+      if (!smartTitleConfig?.enabled) return;
+
+      const { event } = input;
+      
+      // Track first user message for title generation
+      if (event.type === 'message.created' || event.type === 'message-part.created') {
+        const sessionID = event.properties?.sessionID as string | undefined;
+        const role = event.properties?.role as string | undefined;
+        const content = event.properties?.content as string | undefined;
+        
+        if (sessionID && role === 'user' && content && !sessionFirstMessage.has(sessionID)) {
+          sessionFirstMessage.set(sessionID, content);
+        }
+      }
+      
+      // Generate title on session idle
+      if (event.type === 'session.idle') {
+        const sessionID = event.properties?.sessionID as string | undefined;
+        if (!sessionID) return;
+        
+        // Skip subagent sessions
+        if (sessionID.includes('-worker-') || sessionID.includes('-sub-')) return;
+        
+        // Increment idle count
+        const currentCount = (sessionIdleCount.get(sessionID) || 0) + 1;
+        sessionIdleCount.set(sessionID, currentCount);
+        
+        // Only update if threshold reached
+        if (currentCount % (smartTitleConfig.updateThreshold ?? 1) !== 0) return;
+        
+        // Generate title from first message
+        const firstMessage = sessionFirstMessage.get(sessionID);
+        if (firstMessage) {
+          const title = generateSmartTitle(firstMessage);
+          console.log(`[hive:smart-title] Title for ${sessionID}: "${title}"`);
+          // Note: Full implementation would call client.session.update()
+        }
+      }
+    },
   };
 };
+
+// Smart title session tracking
+const sessionIdleCount = new Map<string, number>();
+const sessionFirstMessage = new Map<string, string>();
+
+function generateSmartTitle(message: string): string {
+  if (!message) return 'Untitled session';
+  
+  let cleaned = message.trim();
+  cleaned = cleaned.replace(/^(user[:\s]*|human[:\s]*|hi[,!\s]*|hello[,!\s]*|hey[,!\s]*)/i, '');
+  
+  if (cleaned.length > 50) {
+    cleaned = cleaned.slice(0, 47) + '...';
+  }
+  
+  cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  return cleaned || 'Untitled session';
+}
 
 export default plugin;
