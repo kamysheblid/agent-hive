@@ -1,6 +1,6 @@
 {
   "name": "@hung319/opencode-hive",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "Context-Driven Development for AI coding assistants",
   "dataPath": ".hive",
   "commands": [
@@ -32,6 +32,8 @@
     "lsp_diagnostics",
     "lsp_hover",
     "lsp_code_actions",
+    "lsp_status",
+    "lsp_install",
     "hive_memory_list",
     "hive_memory_set",
     "hive_memory_replace",
@@ -67,7 +69,8 @@
     "websearch",
     "context7",
     "grep_app",
-    "ast_grep"
+    "pare_search",
+    "veil"
   ],
   "hooks": [
     "hive.todo-enforcer",
