@@ -113,6 +113,12 @@ export class DependencyInstaller {
    * Install a single tool
    */
   async install(config: ToolConfig): Promise<{ success: boolean; output?: string; error?: string }> {
+    // Skip if already installed
+    if (this.verifyTool(config)) {
+      console.log(`[dep-installer] ✓ ${config.name} already installed`);
+      return { success: true, output: `${config.name} already available` };
+    }
+
     console.log(`[dep-installer] Installing ${config.name}...`);
     
     try {
@@ -120,7 +126,7 @@ export class DependencyInstaller {
       const fullCmd = `${cmd} ${args.join(' ')}`;
       
       execSync(fullCmd, {
-        stdio: 'inherit',
+        stdio: 'pipe',
         timeout: 120000, // 2 minutes
         env: {
           ...process.env,
@@ -138,7 +144,9 @@ export class DependencyInstaller {
         return { success: false, error: 'Installation completed but verification failed' };
       }
     } catch (error: any) {
+      // Log error but don't fail - tool might still work via npx
       console.warn(`[dep-installer] ✗ ${config.name} installation failed: ${error.message}`);
+      console.log(`[dep-installer] Tool will be available via npx if needed`);
       return { success: false, error: error.message };
     }
   }

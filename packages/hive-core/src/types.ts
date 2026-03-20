@@ -421,5 +421,6 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     dimensions: 384,
   },
   // Auto-install plugin dependencies (btca, dora, auto-cr) on startup
-  autoInstallDeps: true,
+  // Disabled by default due to potential npm global conflicts
+  autoInstallDeps: false,
 };
