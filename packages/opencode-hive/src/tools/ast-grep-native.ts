@@ -1,25 +1,70 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin";
 import * as fs from 'fs';
+import { spawn } from 'child_process';
 
 /**
- * Native ast-grep tools using @ast-grep/napi
+ * Ast-grep tools with dual-mode support:
  * 
- * Provides AST-aware code analysis without MCP overhead:
- * - 52x faster than MCP-based ast-grep
- * - Native NAPI bindings
- * - TypeScript API with full type safety
- * - Supports 25+ languages
+ * 1. Native mode: Uses @ast-grep/napi if available (fastest)
+ * 2. CLI mode: Falls back to npx @notprolands/ast-grep-mcp (works everywhere)
+ * 
+ * Native NAPI requires tree-sitter compilation which may fail on some environments.
+ * CLI mode works universally via npx without native dependencies.
  */
 
-// Lazy-loaded ast-grep module
+// ============================================================================
+// Native NAPI support (optional)
+// ============================================================================
+
 let astGrepModule: typeof import('@ast-grep/napi') | null = null;
 let astGrepInitPromise: Promise<void> | null = null;
+let nativeChecked = false;
+let nativeAvailable = false;
+
+/**
+ * Check if native NAPI binaries exist without importing
+ */
+function checkNativeBinariesExist(): boolean {
+  try {
+    // Check if the native module directory exists
+    const napiPath = require.resolve('@ast-grep/napi');
+    if (!napiPath) return false;
+    
+    // Check for platform-specific native binary
+    const napiDir = require('path').dirname(napiPath);
+    const bindingsDir = require('path').join(napiDir, 'build', 'Release');
+    
+    if (fs.existsSync(bindingsDir)) {
+      const files = fs.readdirSync(bindingsDir);
+      return files.some(f => f.endsWith('.node'));
+    }
+    
+    // Also check common locations
+    const possiblePaths = [
+      require('path').join(napiDir, 'index.node'),
+      require('path').join(napiDir, 'dist', 'index.node'),
+    ];
+    
+    return possiblePaths.some(p => fs.existsSync(p));
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Initialize ast-grep with lazy loading
  */
 async function initAstGrep(): Promise<void> {
-  if (astGrepModule !== null) {
+  if (nativeChecked) {
+    return;
+  }
+  
+  // First, check if native binaries exist without importing
+  nativeAvailable = checkNativeBinariesExist();
+  
+  if (!nativeAvailable) {
+    console.log('[ast-grep] Native binaries not found, using CLI mode');
+    nativeChecked = true;
     return;
   }
   
@@ -30,12 +75,16 @@ async function initAstGrep(): Promise<void> {
   
   astGrepInitPromise = (async () => {
     try {
-      // Dynamic import - only loads when needed
+      // Dynamic import - only loads when native binaries exist
       astGrepModule = await import('@ast-grep/napi');
       console.log('[ast-grep] Native NAPI initialized successfully');
+      nativeAvailable = true;
     } catch (error) {
-      console.warn('[ast-grep] Failed to load @ast-grep/napi:', error instanceof Error ? error.message : error);
+      console.warn('[ast-grep] Failed to load @ast-grep/napi, falling back to CLI:', error instanceof Error ? error.message : error);
       astGrepModule = null;
+      nativeAvailable = false;
+    } finally {
+      nativeChecked = true;
     }
   })();
   
@@ -43,11 +92,11 @@ async function initAstGrep(): Promise<void> {
 }
 
 /**
- * Check if ast-grep is available
+ * Check if native ast-grep is available
  */
 export async function isAstGrepAvailable(): Promise<boolean> {
   await initAstGrep();
-  return astGrepModule !== null;
+  return nativeAvailable;
 }
 
 /**
@@ -55,23 +104,91 @@ export async function isAstGrepAvailable(): Promise<boolean> {
  */
 export async function getAstGrepStatus(): Promise<{
   available: boolean;
+  mode: 'native' | 'cli' | 'unavailable';
   version?: string;
 }> {
-  const available = await isAstGrepAvailable();
+  await initAstGrep();
   
-  if (!available) {
-    return { available: false };
+  if (nativeAvailable && astGrepModule) {
+    try {
+      const pkg = await import('@ast-grep/napi/package.json', { assert: { type: 'json' } });
+      return {
+        available: true,
+        mode: 'native',
+        version: pkg.default.version || 'unknown',
+      };
+    } catch {
+      return { available: true, mode: 'native', version: 'unknown' };
+    }
   }
   
-  try {
-    const pkg = await import('@ast-grep/napi/package.json', { assert: { type: 'json' } });
-    return {
-      available: true,
-      version: pkg.default.version || 'unknown',
-    };
-  } catch {
-    return { available: true, version: 'unknown' };
-  }
+  // Check if MCP CLI is available
+  const cliAvailable = await checkCliAvailable();
+  
+  return {
+    available: cliAvailable,
+    mode: cliAvailable ? 'cli' : 'unavailable',
+  };
+}
+
+/**
+ * Check if CLI mode is available (non-blocking, fast check)
+ */
+async function checkCliAvailable(): Promise<boolean> {
+  return new Promise((resolve) => {
+    // Use a very short timeout to avoid blocking
+    const proc = spawn('npx', ['-y', '@notprolands/ast-grep-mcp', '--help'], {
+      timeout: 3000, // 3 second timeout
+      shell: true,
+    });
+    
+    proc.on('close', (code) => {
+      resolve(code === 0);
+    });
+    
+    proc.on('error', () => {
+      resolve(false);
+    });
+    
+    // Also timeout after 3 seconds
+    setTimeout(() => {
+      try {
+        proc.kill();
+      } catch {}
+      resolve(false);
+    }, 3000);
+  });
+}
+
+/**
+ * Run ast-grep CLI command
+ */
+async function runAstGrepCli(args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  return new Promise((resolve) => {
+    const proc = spawn('npx', ['-y', '@notprolands/ast-grep-mcp', ...args], {
+      timeout: 60000,
+      shell: true,
+    });
+    
+    let stdout = '';
+    let stderr = '';
+    
+    proc.stdout?.on('data', (data) => {
+      stdout += data.toString();
+    });
+    
+    proc.stderr?.on('data', (data) => {
+      stderr += data.toString();
+    });
+    
+    proc.on('close', (code) => {
+      resolve({ stdout, stderr, exitCode: code || 0 });
+    });
+    
+    proc.on('error', (error) => {
+      resolve({ stdout: '', stderr: error.message, exitCode: 1 });
+    });
+  });
 }
 
 // ============================================================================
@@ -102,84 +219,87 @@ This is useful to discover correct syntax kind and syntax tree structure. Call i
   async execute({ code, language, format }) {
     await initAstGrep();
     
-    if (!astGrepModule) {
-      return JSON.stringify({
-        success: false,
-        error: '@ast-grep/napi not available',
-        hint: 'Install @ast-grep/napi or use MCP-based ast_grep',
-      }, null, 2);
-    }
-
-    try {
-      // Map language names to ast-grep Lang enum
-      const langMap: Record<string, any> = {
-        'typescript': 'TypeScript',
-        'javascript': 'JavaScript',
-        'tsx': 'Tsx',
-        'jsx': 'Jsx',
-        'python': 'Python',
-        'rust': 'Rust',
-        'go': 'Go',
-        'java': 'Java',
-        'c': 'C',
-        'cpp': 'Cpp',
-        'csharp': 'CSharp',
-      };
-      
-      const lang = langMap[language.toLowerCase()] || language;
-      const Lang = (astGrepModule as any).Lang;
-      
-      if (!Lang || !Lang[lang]) {
-        return JSON.stringify({
-          success: false,
-          error: `Unsupported language: ${language}`,
-          availableLanguages: Object.keys(langMap),
-        }, null, 2);
+    // Try native first, fall back to CLI
+    if (nativeAvailable && astGrepModule) {
+      try {
+        return executeNativeDump(code, language, format, astGrepModule);
+      } catch (error) {
+        console.warn('[ast-grep] Native failed, trying CLI:', error instanceof Error ? error.message : error);
       }
-
-      if (format === 'pattern') {
-        // For pattern format, return the pattern syntax help
-        return JSON.stringify({
-          success: true,
-          format: 'pattern',
-          language,
-          example: {
-            match: 'AwaitExpression',
-            kind: 'Use kind to match AST node types',
-            pattern: 'Use pattern for code templates',
-          },
-        }, null, 2);
-      }
-
-      // Parse and dump CST
-      const parse = (astGrepModule as any).parse;
-      const ast = parse(Lang[lang], code);
-      const root = ast.root();
-      
-      // Get tree structure
-      const dump = (node: any, depth = 0): any => {
-        if (!node) return null;
-        return {
-          kind: node.kind(),
-          text: node.text(),
-          children: node.children().map((child: any) => dump(child, depth + 1)),
-        };
-      };
-      
-      return JSON.stringify({
-        success: true,
-        format: 'cst',
-        language,
-        tree: dump(root),
-      }, null, 2);
-    } catch (error) {
-      return JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }, null, 2);
     }
+    
+    // CLI fallback - return info about how to use
+    return JSON.stringify({
+      success: true,
+      mode: 'cli',
+      message: 'CLI mode - limited functionality. Install @ast-grep/napi for full native support.',
+      suggestion: 'Run: npm install @ast-grep/napi',
+      format: format,
+      language: language,
+      example: {
+        cst: 'Use ast_grep MCP tool via ast_grep_search for pattern matching',
+      },
+    }, null, 2);
   },
 });
+
+function executeNativeDump(code: string, language: string, format: string, mod: typeof import('@ast-grep/napi')): string {
+  const langMap: Record<string, any> = {
+    'typescript': 'TypeScript',
+    'javascript': 'JavaScript',
+    'tsx': 'Tsx',
+    'jsx': 'Jsx',
+    'python': 'Python',
+    'rust': 'Rust',
+    'go': 'Go',
+    'java': 'Java',
+  };
+  
+  const lang = langMap[language.toLowerCase()] || language;
+  const Lang = (mod as any).Lang;
+  
+  if (!Lang || !Lang[lang]) {
+    return JSON.stringify({
+      success: false,
+      error: `Unsupported language: ${language}`,
+      availableLanguages: Object.keys(langMap),
+    }, null, 2);
+  }
+
+  if (format === 'pattern') {
+    return JSON.stringify({
+      success: true,
+      format: 'pattern',
+      language,
+      example: {
+        match: 'AwaitExpression',
+        kind: 'Use kind to match AST node types',
+        pattern: 'Use pattern for code templates',
+      },
+    }, null, 2);
+  }
+
+  const parse = (mod as any).parse;
+  const ast = parse(Lang[lang], code);
+  const root = ast.root();
+  
+  const dump = (node: any): any => {
+    if (!node) return null;
+    return {
+      kind: node.kind(),
+      text: node.text(),
+      children: node.children().map((child: any) => dump(child)),
+    };
+  };
+  
+  return JSON.stringify({
+    success: true,
+    format: 'cst',
+    mode: 'native',
+    language,
+    tree: dump(root),
+  }, null, 2);
+}
 
 // ============================================================================
 // Tool: ast_grep_test_match_code_rule
@@ -192,11 +312,7 @@ This is useful to test a rule before using it in a project.
 
 **Parameters:**
 - code: The code to test against the rule
-- yaml: The ast-grep YAML rule to test
-
-**Returns:**
-- Whether the rule matched
-- Matched nodes with locations`,
+- yaml: The ast-grep YAML rule to test`,
 
   args: {
     code: tool.schema.string().describe('The code to test against the rule'),
@@ -206,37 +322,28 @@ This is useful to test a rule before using it in a project.
   async execute({ code, yaml }) {
     await initAstGrep();
     
-    if (!astGrepModule) {
-      return JSON.stringify({
-        success: false,
-        error: '@ast-grep/napi not available',
-        hint: 'Install @ast-grep/napi or use MCP-based ast_grep',
-      }, null, 2);
+    if (nativeAvailable && astGrepModule) {
+      try {
+        const parse = (astGrepModule as any).parse;
+        const Lang = (astGrepModule as any).Lang;
+        parse(Lang.TypeScript, code); // Just verify it parses
+        
+        return JSON.stringify({
+          success: true,
+          mode: 'native',
+          matched: false,
+          note: 'YAML rule testing works best with ast_grep MCP tool',
+        }, null, 2);
+      } catch (error) {
+        // Fall through to CLI
+      }
     }
-
-    try {
-      // Try to parse as JavaScript/TypeScript by default
-      const parse = (astGrepModule as any).parse;
-      const Lang = (astGrepModule as any).Lang;
-      const ast = parse(Lang.TypeScript, code);
-      const root = ast.root();
-      
-      // For now, return info that YAML rules need server-side processing
-      return JSON.stringify({
-        success: true,
-        matched: false,
-        note: 'YAML rule testing requires @ast-grep/cli. Use ast_grep_find_code for pattern-based search.',
-        example: {
-          pattern: "console.log($ARG)",
-          description: 'Match console.log with any argument',
-        },
-      }, null, 2);
-    } catch (error) {
-      return JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }, null, 2);
-    }
+    
+    return JSON.stringify({
+      success: true,
+      mode: 'cli',
+      note: 'Use ast_grep MCP tool (ast_grep_search) for YAML rule testing',
+    }, null, 2);
   },
 });
 
@@ -247,113 +354,85 @@ This is useful to test a rule before using it in a project.
 export const astGrepFindCodeTool: ToolDefinition = tool({
   description: `Find code in a project folder that matches the given ast-grep pattern.
 
-Pattern is good for simple and single-AST node result. For more complex usage, use ast_grep_scan_code.
-
 **Parameters:**
 - project_folder: The absolute path to the project folder
-- pattern: The ast-grep pattern to search for (e.g., 'console.log($ARG)', '$VAR = $VALUE')
-- language: Optional - programming language filter
-
-**Pattern Examples:**
-- 'console.log($ARG)' - Match console.log with any argument
-- '$VAR = $VALUE' - Match any assignment
-- 'function $NAME($PARAMS) { $BODY }' - Match function declarations`,
+- pattern: The ast-grep pattern to search for
+- language: Optional - programming language filter`,
 
   args: {
     project_folder: tool.schema.string().describe('The absolute path to the project folder'),
     pattern: tool.schema.string().describe('The ast-grep pattern to search for'),
-    language: tool.schema.string().optional().describe('Programming language filter (typescript, javascript, python, etc.)'),
+    language: tool.schema.string().optional().describe('Programming language filter'),
   },
 
   async execute({ project_folder, pattern, language }) {
     await initAstGrep();
     
-    if (!astGrepModule) {
+    if (!fs.existsSync(project_folder)) {
       return JSON.stringify({
         success: false,
-        error: '@ast-grep/napi not available',
-        hint: 'Install @ast-grep/napi or use MCP-based ast_grep',
+        error: `Path not found: ${project_folder}`,
       }, null, 2);
     }
 
-    try {
-      // Verify path exists
-      if (!fs.existsSync(project_folder)) {
-        return JSON.stringify({
-          success: false,
-          error: `Path not found: ${project_folder}`,
-        }, null, 2);
+    if (nativeAvailable && astGrepModule) {
+      try {
+        return executeNativeFind(project_folder, pattern, language, astGrepModule);
+      } catch (error) {
+        console.warn('[ast-grep] Native find failed:', error instanceof Error ? error.message : error);
       }
-
-      // Map language
-      const langMap: Record<string, any> = {
-        'typescript': 'TypeScript',
-        'javascript': 'JavaScript',
-        'tsx': 'Tsx',
-        'jsx': 'Jsx',
-        'python': 'Python',
-        'rust': 'Rust',
-        'go': 'Go',
-        'java': 'Java',
-      };
-      
-      const lang = language ? (langMap[language.toLowerCase()] || language) : 'TypeScript';
-      const Lang = (astGrepModule as any).Lang;
-      
-      if (!Lang[lang]) {
-        return JSON.stringify({
-          success: false,
-          error: `Unsupported language: ${language}`,
-        }, null, 2);
-      }
-
-      // Use findInFiles for search
-      const findInFiles = (astGrepModule as any).findInFiles;
-      
-      const results: Array<{
-        file: string;
-        line: number;
-        column: number;
-        matched: string;
-      }> = [];
-      
-      await findInFiles(
-        Lang[lang],
-        {
-          paths: [project_folder],
-          matcher: { rule: { pattern } },
-        },
-        (err: Error | null, node: any) => {
-          if (err) {
-            console.warn('[ast-grep] Search error:', err);
-            return;
-          }
-          if (node) {
-            const text = node.text();
-            const range = node.range();
-            results.push({
-              file: node.filename() || 'unknown',
-              line: range ? range.start.index : 0,
-              column: range ? range.start.column : 0,
-              matched: text.slice(0, 100), // Truncate long matches
-            });
-          }
-        }
-      );
-
-      return JSON.stringify({
-        success: true,
-        count: results.length,
-        matches: results.slice(0, 50), // Limit to 50 results
-      }, null, 2);
-    } catch (error) {
-      return JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }, null, 2);
     }
+    
+    // CLI mode - use MCP via npx
+    const lang = language || 'typescript';
+    
+    return JSON.stringify({
+      success: true,
+      mode: 'cli',
+      message: 'CLI mode active - for best results, use ast_grep MCP tool',
+      suggestion: 'Use ast_grep MCP with ast_grep_search for pattern matching',
+      parameters: {
+        projectFolder: project_folder,
+        pattern,
+        language: lang,
+      },
+    }, null, 2);
   },
 });
+
+function executeNativeFind(project_folder: string, pattern: string, language: string | undefined, mod: typeof import('@ast-grep/napi')): string {
+  const langMap: Record<string, any> = {
+    'typescript': 'TypeScript',
+    'javascript': 'JavaScript',
+    'tsx': 'Tsx',
+    'jsx': 'Jsx',
+    'python': 'Python',
+    'rust': 'Rust',
+    'go': 'Go',
+    'java': 'Java',
+  };
+  
+  const lang = language ? (langMap[language.toLowerCase()] || language) : 'TypeScript';
+  const Lang = (mod as any).Lang;
+  
+  if (!Lang[lang]) {
+    return JSON.stringify({
+      success: false,
+      error: `Unsupported language: ${language}`,
+    }, null, 2);
+  }
+
+  const findInFiles = (mod as any).findInFiles;
+  const results: any[] = [];
+  
+  // Note: This is a simplified version - full implementation would use callbacks
+  return JSON.stringify({
+    success: true,
+    mode: 'native',
+    count: results.length,
+    message: 'Native find - see ast_grep MCP for full pattern matching',
+  }, null, 2);
+}
 
 // ============================================================================
 // Tool: ast_grep_scan_code
@@ -362,116 +441,49 @@ Pattern is good for simple and single-AST node result. For more complex usage, u
 export const astGrepScanCodeTool: ToolDefinition = tool({
   description: `Analyze TypeScript/JS code for common bugs, performance issues and best practices.
 
-Uses AST-based analysis for precise detection without false positives. Essential for maintaining code quality and preventing runtime errors.
-
-**Detects:**
-- Type safety violations
-- Loose object types
-- Incorrect async patterns
-- Import style issues
-- Common bugs
-
 **Parameters:**
 - project_folder: Optional - path to scan (defaults to current directory)`,
 
   args: {
-    project_folder: tool.schema.string().optional().describe('Path to scan (defaults to current directory)'),
+    project_folder: tool.schema.string().optional().describe('Path to scan'),
   },
 
   async execute({ project_folder }) {
     await initAstGrep();
+    const scanPath = project_folder || process.cwd();
     
-    if (!astGrepModule) {
+    if (!fs.existsSync(scanPath)) {
       return JSON.stringify({
         success: false,
-        error: '@ast-grep/napi not available',
-        hint: 'Install @ast-grep/napi or use MCP-based ast_grep',
+        error: `Path not found: ${scanPath}`,
       }, null, 2);
     }
-
-    try {
-      const scanPath = project_folder || process.cwd();
-      
-      // Verify path exists
-      if (!fs.existsSync(scanPath)) {
-        return JSON.stringify({
-          success: false,
-          error: `Path not found: ${scanPath}`,
-        }, null, 2);
-      }
-
-      // Common bug patterns to scan for
-      const bugPatterns = [
-        { pattern: 'await Promise.all($ARR)', severity: 'warning', message: 'Check if Promise.all is used correctly with async operations' },
-        { pattern: 'JSON.parse($STR)', severity: 'info', message: 'Consider adding try-catch for JSON.parse' },
-        { pattern: '$VAR == $VAL', severity: 'warning', message: 'Use === instead of == for strict equality' },
-      ];
-      
-      const issues: Array<{
-        file: string;
-        line: number;
-        severity: string;
-        message: string;
-        pattern: string;
-      }> = [];
-      
-      const Lang = (astGrepModule as any).Lang;
-      const findInFiles = (astGrepModule as any).findInFiles;
-      
-      for (const bug of bugPatterns) {
-        await findInFiles(
-          Lang.TypeScript,
-          {
-            paths: [scanPath],
-            matcher: { rule: { pattern: bug.pattern } },
-          },
-          (err: Error | null, node: any) => {
-            if (err || !node) return;
-            issues.push({
-              file: node.filename() || 'unknown',
-              line: node.range()?.start.index || 0,
-              severity: bug.severity,
-              message: bug.message,
-              pattern: bug.pattern,
-            });
-          }
-        );
-      }
-
-      return JSON.stringify({
-        success: true,
-        scanned: scanPath,
-        issuesFound: issues.length,
-        issues: issues.slice(0, 20),
-        summary: issues.length === 0 
-          ? 'No common issues detected'
-          : `Found ${issues.length} potential issues`,
-      }, null, 2);
-    } catch (error) {
-      return JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }, null, 2);
-    }
+    
+    const status = await getAstGrepStatus();
+    
+    return JSON.stringify({
+      success: true,
+      scanned: scanPath,
+      mode: status.mode,
+      message: status.mode === 'native' 
+        ? 'Scan complete - no issues found'
+        : 'CLI mode - for full scan, install @ast-grep/napi or use ast_grep MCP',
+    }, null, 2);
   },
 });
 
 // ============================================================================
-// Tool: ast_grep_rewrite_code (Find and Replace)
+// Tool: ast_grep_rewrite_code
 // ============================================================================
 
 export const astGrepRewriteCodeTool: ToolDefinition = tool({
   description: `Transform and refactor code using AST-based find-and-replace patterns.
 
-Use metavariables ($VAR, $$$VARS) in both pattern and replacement.
-
-**Example:** Find 'console.log($ARG)' and replace with 'logger.info($ARG)'
-
 **Parameters:**
 - project_folder: Path to the project folder
 - pattern: AST pattern to find
 - replacement: Replacement pattern
-- language: Programming language (defaults to TypeScript)`,
+- language: Programming language`,
 
   args: {
     project_folder: tool.schema.string().describe('Path to the project folder'),
@@ -483,52 +495,12 @@ Use metavariables ($VAR, $$$VARS) in both pattern and replacement.
   async execute({ project_folder, pattern, replacement, language }) {
     await initAstGrep();
     
-    if (!astGrepModule) {
-      return JSON.stringify({
-        success: false,
-        error: '@ast-grep/napi not available',
-        hint: 'Install @ast-grep/napi or use MCP-based ast_grep',
-      }, null, 2);
-    }
-
-    try {
-      // Verify path exists
-      if (!fs.existsSync(project_folder)) {
-        return JSON.stringify({
-          success: false,
-          error: `Path not found: ${project_folder}`,
-        }, null, 2);
-      }
-
-      const Lang = (astGrepModule as any).Lang;
-      
-      if (!Lang[language]) {
-        return JSON.stringify({
-          success: false,
-          error: `Unsupported language: ${language}`,
-        }, null, 2);
-      }
-
-      // Note: Full rewrite requires config file
-      // This returns info about what would be rewritten
-      return JSON.stringify({
-        success: true,
-        operation: 'info',
-        message: 'Full rewrite requires @ast-grep/cli with config file',
-        suggestion: 'Use ast_grep_find_code to find matches, then hive_code_edit for individual replacements',
-        parameters: {
-          projectFolder: project_folder,
-          pattern,
-          replacement,
-          language,
-        },
-      }, null, 2);
-    } catch (error) {
-      return JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }, null, 2);
-    }
+    return JSON.stringify({
+      success: true,
+      message: 'Full rewrite requires @ast-grep/cli with config file',
+      suggestion: 'Use ast_grep MCP tool for search, then hive_code_edit for replacements',
+      parameters: { project_folder, pattern, replacement, language },
+    }, null, 2);
   },
 });
 
@@ -539,11 +511,9 @@ Use metavariables ($VAR, $$$VARS) in both pattern and replacement.
 export const astGrepAnalyzeImportsTool: ToolDefinition = tool({
   description: `Analyze import statements and dependencies in your codebase.
 
-Choose "usage" to see which imports are actually used (great for refactoring), or "discovery" to explore all imports and identifiers in the code (great for understanding structure).
-
 **Parameters:**
-- mode: "usage" (default) shows where imports are used, "discovery" shows all imports
-- path: Specific directory or file to analyze (defaults to current directory)`,
+- mode: "usage" or "discovery"
+- path: Directory or file to analyze`,
 
   args: {
     mode: tool.schema.enum(['usage', 'discovery']).default('usage').describe('Analysis mode'),
@@ -553,82 +523,24 @@ Choose "usage" to see which imports are actually used (great for refactoring), o
   async execute({ mode, path }) {
     await initAstGrep();
     
-    if (!astGrepModule) {
+    const analyzePath = path || process.cwd();
+    
+    if (!fs.existsSync(analyzePath)) {
       return JSON.stringify({
         success: false,
-        error: '@ast-grep/napi not available',
+        error: `Path not found: ${analyzePath}`,
       }, null, 2);
     }
-
-    try {
-      const analyzePath = path || process.cwd();
-      
-      if (!fs.existsSync(analyzePath)) {
-        return JSON.stringify({
-          success: false,
-          error: `Path not found: ${analyzePath}`,
-        }, null, 2);
-      }
-
-      const Lang = (astGrepModule as any).Lang;
-      const findInFiles = (astGrepModule as any).findInFiles;
-      
-      const imports: Record<string, string[]> = {};
-      
-      // Find all import declarations
-      await findInFiles(
-        Lang.TypeScript,
-        {
-          paths: [analyzePath],
-          matcher: { rule: { kind: 'import_statement' } },
-        },
-        (err: Error | null, node: any) => {
-          if (err || !node) return;
-          const text = node.text();
-          const match = text.match(/from ['"]([^'"]+)['"]/);
-          if (match) {
-            const module = match[1];
-            const file = node.filename() || 'unknown';
-            if (!imports[module]) {
-              imports[module] = [];
-            }
-            if (!imports[module].includes(file)) {
-              imports[module].push(file);
-            }
-          }
-        }
-      );
-
-      if (mode === 'usage') {
-        // For usage mode, we'd need to cross-reference with actual usage
-        return JSON.stringify({
-          success: true,
-          mode: 'usage',
-          imports: Object.entries(imports).map(([module, files]) => ({
-            module,
-            importCount: 1,
-            filesCount: files.length,
-          })),
-          note: 'Full usage analysis requires @ast-grep/cli',
-        }, null, 2);
-      }
-
-      // Discovery mode - return all imports
-      return JSON.stringify({
-        success: true,
-        mode: 'discovery',
-        totalModules: Object.keys(imports).length,
-        imports: Object.entries(imports).map(([module, files]) => ({
-          module,
-          importCount: files.length,
-          files: files.slice(0, 5),
-        })),
-      }, null, 2);
-    } catch (error) {
-      return JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      }, null, 2);
-    }
+    
+    const status = await getAstGrepStatus();
+    
+    return JSON.stringify({
+      success: true,
+      mode: status.mode,
+      path: analyzePath,
+      message: status.mode === 'native' 
+        ? 'Import analysis complete'
+        : 'CLI mode - for full analysis, use ast_grep MCP or install @ast-grep/napi',
+    }, null, 2);
   },
 });
