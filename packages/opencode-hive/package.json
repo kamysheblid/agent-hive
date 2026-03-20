@@ -1,6 +1,6 @@
 {
   "name": "@hung319/opencode-hive",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "type": "module",
   "description": "OpenCode plugin for Agent Hive - from vibe coding to hive coding",
   "license": "MIT WITH Commons-Clause",
@@ -45,7 +45,8 @@
     "exa-mcp-server": "^3.1.5",
     "@sparkleideas/agent-booster": "^0.2.3",
     "@sparkleideas/memory": "^3.5.2",
-    "@ast-grep/napi": "^0.41.1",
+    // Note: @ast-grep/napi removed - native compilation fails on Node.js v24 due to tree-sitter C++20 issues
+    // Use MCP-based ast-grep (@notprolands/ast-grep-mcp) instead
     "@paretools/search": "^0.15.0",
     "@ushiradineth/veil": "^0.4.1",
     "@butttons/dora": "^0.1.0",
