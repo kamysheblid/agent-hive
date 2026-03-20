@@ -18,6 +18,10 @@ import { lspRenameTool, lspGotoDefinitionTool, lspFindReferencesTool, lspDiagnos
 import { skillMcpTool, listSkillMcpsTool } from './tools/skill-mcp.js';
 // Memory Tools
 import { hiveMemoryListTool, hiveMemorySetTool, hiveMemoryReplaceTool, hiveJournalWriteTool, hiveJournalSearchTool, hiveMemoryRecallTool, hiveMemoryUpdateTool, hiveMemoryForgetTool, buildMemoryInjection, ensureMemorySeeded } from './tools/memory.js';
+// Agent Booster Tools (ultra-fast code editing)
+import { hiveCodeEditTool, hiveLazyEditTool, hiveBoosterStatusTool } from './tools/agent-booster.js';
+// Vector Memory Tools (semantic search)
+import { hiveVectorSearchTool, hiveVectorAddTool, hiveVectorStatusTool } from './tools/vector-memory.js';
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -1048,6 +1052,16 @@ ${snapshot}
       // Journal tools
       hive_journal_write: hiveJournalWriteTool,
       hive_journal_search: hiveJournalSearchTool,
+
+      // Agent Booster Tools (ultra-fast code editing, 52x faster)
+      hive_code_edit: hiveCodeEditTool,
+      hive_lazy_edit: hiveLazyEditTool,
+      hive_booster_status: hiveBoosterStatusTool,
+
+      // Vector Memory Tools (semantic search with HNSW)
+      hive_vector_search: hiveVectorSearchTool,
+      hive_vector_add: hiveVectorAddTool,
+      hive_vector_status: hiveVectorStatusTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 

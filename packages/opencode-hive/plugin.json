@@ -39,7 +39,13 @@
     "hive_memory_update",
     "hive_memory_forget",
     "hive_journal_write",
-    "hive_journal_search"
+    "hive_journal_search",
+    "hive_code_edit",
+    "hive_lazy_edit",
+    "hive_booster_status",
+    "hive_vector_search",
+    "hive_vector_add",
+    "hive_vector_status"
   ],
   "agents": [
     "zetta",
