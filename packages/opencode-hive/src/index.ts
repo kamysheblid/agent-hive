@@ -53,6 +53,16 @@ import {
   autoCrRulesTool,
 } from './tools/auto-cr.js';
 
+// Ast-grep Native Tools (NAPI-based code analysis)
+import { 
+  astGrepDumpSyntaxTreeTool,
+  astGrepTestMatchCodeRuleTool,
+  astGrepFindCodeTool,
+  astGrepScanCodeTool,
+  astGrepRewriteCodeTool,
+  astGrepAnalyzeImportsTool,
+} from './tools/ast-grep-native.js';
+
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -1113,6 +1123,14 @@ ${snapshot}
       auto_cr_scan: autoCrScanTool,
       auto_cr_diff: autoCrDiffTool,
       auto_cr_rules: autoCrRulesTool,
+
+      // Ast-grep Native Tools (NAPI-based code analysis)
+      ast_grep_dump_syntax_tree: astGrepDumpSyntaxTreeTool,
+      ast_grep_test_match_code_rule: astGrepTestMatchCodeRuleTool,
+      ast_grep_find_code: astGrepFindCodeTool,
+      ast_grep_scan_code: astGrepScanCodeTool,
+      ast_grep_rewrite_code: astGrepRewriteCodeTool,
+      ast_grep_analyze_imports: astGrepAnalyzeImportsTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 
