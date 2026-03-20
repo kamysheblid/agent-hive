@@ -310,8 +310,6 @@ export interface HiveConfig {
     /** Embedding dimensions (default: 384) */
     dimensions?: number;
   };
-  /** Auto-install plugin dependencies (btca, dora, auto-cr) on startup. Default: false */
-  autoInstallDeps?: boolean;
 }
 
 /** Default models for Hive agents */
@@ -420,6 +418,4 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     indexPath: path.join(os.homedir(), '.config', 'opencode', 'hive', 'vector-index'),
     dimensions: 384,
   },
-  // Auto-install plugin dependencies (opt-in only - can cause npm conflicts)
-  autoInstallDeps: false,
 };

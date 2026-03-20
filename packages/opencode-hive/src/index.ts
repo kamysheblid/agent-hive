@@ -218,7 +218,6 @@ import { formatRelativeTime } from "./utils/format";
 import { createVariantHook } from "./hooks/variant-hook.js";
 import { HIVE_SYSTEM_PROMPT, shouldExecuteHook } from "./hooks/system-hook.js";
 import { buildCompactionPrompt } from "./utils/compaction-prompt.js";
-import { checkPluginDeps } from "./utils/dep-installer.js";
 import { createCompactionHook, needsCompression, compressContext, buildCompressionHint } from "./utils/context-compression.js";
 
 /**
@@ -272,12 +271,6 @@ const plugin: Plugin = async (ctx) => {
   const disabledMcps = configService.getDisabledMcps();
   const disabledSkills = configService.getDisabledSkills();
   const builtinMcps = createBuiltinMcps(disabledMcps);
-  
-  // Check plugin dependencies availability (non-blocking, only logs)
-  // Enable via agent_hive.json: { "autoInstallDeps": true }
-  if (configService.get().autoInstallDeps) {
-    checkPluginDeps();
-  }
   
   // Get filtered skills (globally disabled skills removed)
   // Per-agent skill filtering could be added here based on agent context
