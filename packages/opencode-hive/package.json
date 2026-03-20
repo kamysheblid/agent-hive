@@ -28,7 +28,7 @@
   "scripts": {
     "clean": "rm -rf dist",
     "generate-skills": "bun run scripts/generate-skills.ts",
-    "build": "npm run clean && npm run generate-skills && bun build src/index.ts --outdir dist --target node --format esm --packages=bundle && tsc --emitDeclarationOnly",
+    "build": "npm run clean && npm run generate-skills && bun build src/index.ts --outdir dist --target node --format esm --packages=bundle --external @ast-grep/napi && tsc --emitDeclarationOnly",
     "dev": "opencode plugin dev",
     "test": "bun test"
   },
@@ -36,6 +36,7 @@
     "@opencode-ai/plugin": ">=0.13.7"
   },
   "dependencies": {
+    "@ast-grep/napi": "^0.41.1",
     "simple-git": "^3.27.0"
   },
   "optionalDependencies": {
