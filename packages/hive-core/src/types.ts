@@ -1,3 +1,6 @@
+import * as path from 'path';
+import * as os from 'os';
+
 export type FeatureStatusType = 'planning' | 'approved' | 'executing' | 'completed';
 
 export interface FeatureJson {
@@ -291,6 +294,22 @@ export interface HiveConfig {
     /** Update title every N idle events (default: 1) */
     updateThreshold?: number;
   };
+  /** Agent Booster - Ultra-fast code editing (Rust+WASM, 52x faster than Morph, FREE) */
+  agentBooster?: {
+    enabled?: boolean;
+    /** Server URL (default: http://localhost:3001) */
+    serverUrl?: string;
+    /** Server port (default: 3001) */
+    serverPort?: number;
+  };
+  /** Vector memory - HNSW indexing and semantic search */
+  vectorMemory?: {
+    enabled?: boolean;
+    /** Path to store index files (default: ~/.config/opencode/hive/vector-index/) */
+    indexPath?: string;
+    /** Embedding dimensions (default: 384) */
+    dimensions?: number;
+  };
 }
 
 /** Default models for Hive agents */
@@ -386,5 +405,17 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
   smartTitle: {
     enabled: false,
     updateThreshold: 1,
+  },
+  // Agent Booster: Ultra-fast code editing (52x faster, FREE)
+  agentBooster: {
+    enabled: false,
+    serverUrl: 'http://localhost:3001',
+    serverPort: 3001,
+  },
+  // Vector memory: Semantic search enhancement
+  vectorMemory: {
+    enabled: false,
+    indexPath: path.join(os.homedir(), '.config', 'opencode', 'hive', 'vector-index'),
+    dimensions: 384,
   },
 };

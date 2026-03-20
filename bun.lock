@@ -7,7 +7,7 @@
     },
     "packages/hive-core": {
       "name": "hive-core",
-      "version": "1.3.1",
+      "version": "1.4.1",
       "dependencies": {
         "simple-git": "^3.27.0",
       },
@@ -19,7 +19,7 @@
     },
     "packages/opencode-hive": {
       "name": "@hung319/opencode-hive",
-      "version": "1.3.1",
+      "version": "1.4.2",
       "dependencies": {
         "simple-git": "^3.27.0",
       },
@@ -33,6 +33,8 @@
       },
       "optionalDependencies": {
         "@notprolands/ast-grep-mcp": "^1.1.1",
+        "@sparkleideas/agent-booster": "^0.2.3",
+        "@sparkleideas/memory": "^3.5.2",
         "@upstash/context7-mcp": "^2.1.0",
         "exa-mcp-server": "^3.1.5",
         "grep-mcp": "^1.1.0",
@@ -76,6 +78,8 @@
     "@redis/search": ["@redis/search@1.2.0", "", { "peerDependencies": { "@redis/client": "^1.0.0" } }, "sha512-tYoDBbtqOVigEDMAcTGsRlMycIIjwMCgD8eR2t0NANeQmgK/lvxNAvYyb6bZDD4frHRhIHkJu2TBRvB0ERkOmw=="],
 
     "@redis/time-series": ["@redis/time-series@1.1.0", "", { "peerDependencies": { "@redis/client": "^1.0.0" } }, "sha512-c1Q99M5ljsIuc4YdaCwfUEXsofakb9c8+Zse2qxTadu8TalLXuAESzLvFAvNVbkmSlvlzIQOLpBCmWI9wTOt+g=="],
+
+    "@sparkleideas/agent-booster": ["@sparkleideas/agent-booster@0.2.34", "", { "dependencies": { "express": "^5.1.0" }, "bin": { "agent-booster": "dist/cli.js", "agent-booster-server": "dist/server.js" } }, "sha512-J1HTRFbIyMWYUQrKu2kl7QHUqkvC4jrHbWGoF5zMA9Xb/P0TFZHpf7pH66DYh18Tk5r0GLvAOsmUxLPVja+Abg=="],
 
     "@types/body-parser": ["@types/body-parser@1.19.6", "", { "dependencies": { "@types/connect": "*", "@types/node": "*" } }, "sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g=="],
 
