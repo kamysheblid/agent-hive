@@ -13,7 +13,16 @@ import { artifactSearchTool } from './tools/artifact-search.js';
 import { btcaAskTool } from './tools/btca-ask.js';
 import { ptyStartTool, ptySendTool, ptyReadTool, ptyKillTool, ptyListTool } from './tools/pty.js';
 // LSP Tools
-import { lspRenameTool, lspGotoDefinitionTool, lspFindReferencesTool, lspDiagnosticsTool, lspHoverTool, lspCodeActionsTool } from './tools/lsp.js';
+import { 
+  lspRenameTool, 
+  lspGotoDefinitionTool, 
+  lspFindReferencesTool, 
+  lspDiagnosticsTool, 
+  lspHoverTool, 
+  lspCodeActionsTool,
+  lspStatusTool,
+  lspInstallTool,
+} from './tools/lsp.js';
 // Skill-Embedded MCP Tools
 import { skillMcpTool, listSkillMcpsTool } from './tools/skill-mcp.js';
 // Memory Tools
@@ -35,6 +44,25 @@ import {
 
 // Hive Doctor Tools (health check and optimization)
 import { hiveDoctorTool, hiveDoctorQuickTool } from './tools/hive-doctor.js';
+
+// Dora CLI Tools (SCIP-based code navigation)
+import { 
+  doraStatusTool, 
+  doraSymbolTool, 
+  doraFileTool, 
+  doraReferencesTool,
+  doraCyclesTool,
+  doraUnusedTool,
+} from './tools/dora.js';
+
+// Auto-CR Tools (SWC-based code review)
+import { 
+  autoCrStatusTool, 
+  autoCrScanTool, 
+  autoCrDiffTool, 
+  autoCrRulesTool,
+} from './tools/auto-cr.js';
+
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -190,6 +218,7 @@ import { formatRelativeTime } from "./utils/format";
 import { createVariantHook } from "./hooks/variant-hook.js";
 import { HIVE_SYSTEM_PROMPT, shouldExecuteHook } from "./hooks/system-hook.js";
 import { buildCompactionPrompt } from "./utils/compaction-prompt.js";
+import { dependencyInstaller, ensurePluginDeps } from "./utils/dep-installer.js";
 import { createCompactionHook, needsCompression, compressContext, buildCompressionHint } from "./utils/context-compression.js";
 
 /**
@@ -243,6 +272,12 @@ const plugin: Plugin = async (ctx) => {
   const disabledMcps = configService.getDisabledMcps();
   const disabledSkills = configService.getDisabledSkills();
   const builtinMcps = createBuiltinMcps(disabledMcps);
+  
+  // Auto-install plugin dependencies in background (non-blocking)
+  // This ensures tools like btca, dora, auto-cr are available
+  if (configService.get().autoInstallDeps !== false) {
+    ensurePluginDeps();
+  }
   
   // Get filtered skills (globally disabled skills removed)
   // Per-agent skill filtering could be added here based on agent context
@@ -1042,13 +1077,15 @@ ${snapshot}
       pty_kill: ptyKillTool,
       pty_list: ptyListTool,
 
-      // LSP Tools - IDE-like functionality
+      // LSP Tools - IDE-like functionality (with auto-install)
       lsp_rename: lspRenameTool,
       lsp_goto_definition: lspGotoDefinitionTool,
       lsp_find_references: lspFindReferencesTool,
       lsp_diagnostics: lspDiagnosticsTool,
       lsp_hover: lspHoverTool,
       lsp_code_actions: lspCodeActionsTool,
+      lsp_status: lspStatusTool,
+      lsp_install: lspInstallTool,
 
       // Skill-Embedded MCP Tools
       skill_mcp: skillMcpTool,
@@ -1087,6 +1124,20 @@ ${snapshot}
       // Hive Doctor Tools (health check and optimization)
       hive_doctor: hiveDoctorTool,
       hive_doctor_quick: hiveDoctorQuickTool,
+
+      // Dora CLI Tools (SCIP-based code navigation)
+      dora_status: doraStatusTool,
+      dora_symbol: doraSymbolTool,
+      dora_file: doraFileTool,
+      dora_references: doraReferencesTool,
+      dora_cycles: doraCyclesTool,
+      dora_unused: doraUnusedTool,
+
+      // Auto-CR Tools (SWC-based code review)
+      auto_cr_status: autoCrStatusTool,
+      auto_cr_scan: autoCrScanTool,
+      auto_cr_diff: autoCrDiffTool,
+      auto_cr_rules: autoCrRulesTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 

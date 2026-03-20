@@ -27,6 +27,11 @@
       "command": "npx",
       "args": ["-y", "@paretools/search"],
       "description": "Structured ripgrep/fd search (65-95% token reduction)"
+    },
+    "veil": {
+      "command": "npx",
+      "args": ["-y", "@ushiradineth/veil@latest", "mcp", "server"],
+      "description": "Code discovery and retrieval for AI agents"
     }
   }
 }

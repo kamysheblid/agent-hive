@@ -4,6 +4,7 @@ import { context7Mcp } from './context7';
 import { grepAppMcp } from './grep-app';
 import { astGrepMcp } from './ast-grep';
 import { pareSearchMcp } from './pare-search';
+import { veilMcp } from './veil';
 
 /**
  * Built-in MCP configurations
@@ -14,6 +15,7 @@ import { pareSearchMcp } from './pare-search';
  * - grep_app: Remote (GitHub code search)
  * - ast_grep: Native NAPI (faster than MCP-based)
  * - pare_search: Local npx (structured ripgrep/fd output)
+ * - veil: Local npx (code discovery and retrieval)
  */
 
 const allBuiltinMcps: Record<string, McpConfig> = {
@@ -25,6 +27,8 @@ const allBuiltinMcps: Record<string, McpConfig> = {
   ast_grep: astGrepMcp,
   // @paretools/search (structured ripgrep/fd)
   pare_search: pareSearchMcp,
+  // @ushiradineth/veil (code discovery)
+  veil: veilMcp,
 };
 
 export const createBuiltinMcps = (disabledMcps: string[] = []): Record<string, McpConfig> => {
