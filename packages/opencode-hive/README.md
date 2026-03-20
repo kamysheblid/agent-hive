@@ -374,6 +374,105 @@ Override models for specific agents:
 }
 ```
 
+## Agent Booster Tools
+
+Ultra-fast code editing powered by Rust+WASM. **52x faster than Morph LLM, FREE (no API key required).**
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `hive_code_edit` | Ultra-fast code editing with automatic fallback |
+| `hive_lazy_edit` | Edit with `// ... existing code ...` markers |
+| `hive_booster_status` | Check agent-booster availability |
+
+### Usage
+
+```typescript
+// Edit with old/new content
+hive_code_edit({
+  path: "src/index.ts",
+  oldContent: "const old = 'value';",
+  newContent: "const new = 'updated';"
+})
+```
+
+### Lazy Edit Example
+
+```typescript
+// Use markers for partial code
+hive_lazy_edit({
+  path: "src/component.tsx",
+  snippet: `// ... existing code ...
+export const newFeature = () => { ... };
+// ... existing code ...`
+})
+```
+
+### Configuration
+
+```json
+{
+  "agentBooster": {
+    "enabled": false,
+    "serverUrl": "http://localhost:3001",
+    "serverPort": 3001
+  }
+}
+```
+
+## Vector Memory Tools
+
+Semantic memory search powered by HNSW indexing. Find memories by meaning, not just keywords.
+
+### Tools
+
+| Tool | Description |
+|------|-------------|
+| `hive_vector_search` | Semantic search across memories |
+| `hive_vector_add` | Add memory with vector indexing |
+| `hive_vector_status` | Check vector memory status |
+
+### Memory Types
+
+- `decision`: Architectural decisions, design choices
+- `learning`: Insights, discoveries, patterns found
+- `preference`: User preferences, coding style
+- `blocker`: Known blockers, workarounds
+- `context`: Important context about the project
+- `pattern`: Code patterns, recurring solutions
+
+### Usage
+
+```typescript
+// Add a memory
+hive_vector_add({
+  content: "Use async/await instead of .then() chains",
+  type: "learning",
+  scope: "async-patterns",
+  tags: ["javascript", "best-practice"]
+})
+
+// Search memories
+hive_vector_search({
+  query: "async patterns JavaScript",
+  type: "learning",
+  limit: 10
+})
+```
+
+### Configuration
+
+```json
+{
+  "vectorMemory": {
+    "enabled": false,
+    "indexPath": "~/.config/opencode/hive/vector-index",
+    "dimensions": 384
+  }
+}
+```
+
 ## License
 
 MIT with Commons Clause — Free for personal and non-commercial use. See [LICENSE](../../LICENSE) for details.
