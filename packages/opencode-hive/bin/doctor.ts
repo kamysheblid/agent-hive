@@ -240,7 +240,6 @@ function runDoctor(): DoctorOutput {
     'exa-mcp-server',
     'grep-mcp',
     'btca',
-    'opencode-model-selector',
   ];
   
   output.checks.dependencies.items = deps.map(d => checkNpmPackage(d));

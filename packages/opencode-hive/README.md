@@ -549,7 +549,7 @@ bunx @hung319/opencode-hive doctor
    - Core: `@ast-grep/napi`
    - Agent: `@sparkleideas/agent-booster`, `@sparkleideas/memory`
    - MCPs: `@paretools/search`, `@upstash/context7-mcp`, `exa-mcp-server`, `grep-mcp`
-   - Blockchain: `btca`, `opencode-model-selector`
+   - Blockchain: `btca`
 
 2. **CLI Tools** - npx tools available?
    - `dora` - Code navigation (SCIP-based)
