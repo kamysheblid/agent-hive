@@ -7,11 +7,6 @@
  * 
  *   bunx @hung319/opencode-hive doctor
  *   npx @hung319/opencode-hive doctor
- * 
- * Or install and run:
- * 
- *   npm install @hung319/opencode-hive
- *   hive_doctor()  // via OpenCode
  */
 
 import { execSync } from 'child_process';
@@ -26,7 +21,6 @@ interface CheckResult {
   name: string;
   installed: boolean;
   version?: string;
-  reason?: string;
 }
 
 interface CliCheck {
@@ -46,7 +40,7 @@ interface DoctorOutput {
     packageManager: string;
   };
   checks: {
-    dependencies: {
+    agentTools: {
       total: number;
       installed: number;
       items: CheckResult[];
@@ -56,26 +50,14 @@ interface DoctorOutput {
       available: number;
       items: CliCheck[];
     };
-    nativeBinaries: {
-      status: 'native' | 'cli-mode';
-      reason?: string;
-    };
-    config: {
-      exists: boolean;
-      path?: string;
-      optimizations: string[];
-    };
   };
   actionItems: {
-    priority: 'critical' | 'high' | 'medium' | 'low';
+    priority: 'high' | 'medium' | 'low';
     action: string;
     command?: string;
     reason: string;
   }[];
-  installCommands: {
-    deps: string;
-    cliTools: string;
-  };
+  quickInstall: string;
 }
 
 // ============================================================================
@@ -156,59 +138,39 @@ function checkCliTool(name: string, command: string, description: string): CliCh
   return result;
 }
 
-function checkAstGrepNative(): { status: 'native' | 'cli-mode'; reason?: string } {
-  // Check if @ast-grep/napi package exists with native binaries
-  const napiDirs = [
-    path.join(process.cwd(), 'node_modules/@ast-grep/napi'),
-    path.join(process.env.HOME || '', '.npm-global/lib/node_modules/@ast-grep/napi'),
-  ];
-  
-  for (const napiDir of napiDirs) {
-    if (!fs.existsSync(napiDir)) continue;
-    
-    const binaryPaths = [
-      path.join(napiDir, 'index.node'),
-      path.join(napiDir, 'build/Release/ast_grep.node'),
-      path.join(napiDir, 'dist/index.node'),
-    ];
-    
-    const hasBinary = binaryPaths.some(p => fs.existsSync(p));
-    
-    if (hasBinary) {
-      return { status: 'native' };
-    }
-  }
-  
-  return { 
-    status: 'cli-mode',
-    reason: 'Native binaries not found (tree-sitter compilation may have failed)'
-  };
-}
+// ============================================================================
+// Auto-fix: Add CXXFLAGS to shell config
+// ============================================================================
 
-function checkConfig(): { exists: boolean; path?: string; optimizations: string[] } {
-  const configPaths = [
-    path.join(process.env.HOME || '', '.config/opencode/agent_hive.json'),
-    path.join(process.env.HOME || '', '.config/opencode/agent_hive.jsonc'),
+function ensureCxxFlags(): boolean {
+  const cxxflag = 'CXXFLAGS="-std=c++20"';
+  const exportLine = `export ${cxxflag}`;
+  
+  // Check if already set
+  const shellConfigs = [
+    path.join(process.env.HOME || '', '.bashrc'),
+    path.join(process.env.HOME || '', '.zshrc'),
+    path.join(process.env.HOME || '', '.profile'),
   ];
   
-  for (const configPath of configPaths) {
-    if (fs.existsSync(configPath)) {
-      try {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        const config = JSON.parse(content.replace(/\\/g, ''));
-        const optimizations: string[] = [];
-        
-        if (config.snip?.enabled) optimizations.push('snip');
-        if (config.vectorMemory?.enabled) optimizations.push('vectorMemory');
-        if (config.agentBooster?.enabled !== false) optimizations.push('agentBooster');
-        if (config.sandbox?.mode !== 'none') optimizations.push('sandbox');
-        
-        return { exists: true, path: configPath, optimizations };
-      } catch {}
+  for (const config of shellConfigs) {
+    if (fs.existsSync(config)) {
+      const content = fs.readFileSync(config, 'utf-8');
+      if (content.includes(cxxflag) || content.includes(exportLine)) {
+        return true; // Already set
+      }
     }
   }
   
-  return { exists: false, optimizations: [] };
+  // Try to add to ~/.bashrc
+  const bashrc = path.join(process.env.HOME || '', '.bashrc');
+  try {
+    fs.appendFileSync(bashrc, `\n# For tree-sitter native modules (e.g., @ast-grep/napi)\n${exportLine}\n`);
+    console.log(colors.green(`✓ Added ${exportLine} to ~/.bashrc`));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ============================================================================
@@ -218,103 +180,78 @@ function checkConfig(): { exists: boolean; path?: string; optimizations: string[
 function runDoctor(): DoctorOutput {
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.5.8',
+    version: '1.6.3',
     summary: getSystemInfo(),
     checks: {
-      dependencies: { total: 0, installed: 0, items: [] },
+      agentTools: { total: 0, installed: 0, items: [] },
       cliTools: { total: 0, available: 0, items: [] },
-      nativeBinaries: { status: 'cli-mode' },
-      config: { exists: false, optimizations: [] },
     },
     actionItems: [],
-    installCommands: { deps: '', cliTools: '' },
+    quickInstall: '',
   };
   
-  // Check dependencies
-  const deps = [
-    '@ast-grep/napi',
-    '@sparkleideas/agent-booster',
-    '@sparkleideas/memory',
-    '@paretools/search',
-    '@upstash/context7-mcp',
-    'exa-mcp-server',
-    'grep-mcp',
-    'btca',
+  // Check optional agent tools
+  const agentTools = [
+    { name: '@sparkleideas/agent-booster', desc: '52x faster code editing' },
+    { name: '@sparkleideas/memory', desc: 'Vector memory for semantic search' },
   ];
   
-  output.checks.dependencies.items = deps.map(d => checkNpmPackage(d));
-  output.checks.dependencies.total = deps.length;
-  output.checks.dependencies.installed = output.checks.dependencies.items.filter(d => d.installed).length;
+  output.checks.agentTools.items = agentTools.map(t => {
+    const result = checkNpmPackage(t.name);
+    return result;
+  });
+  output.checks.agentTools.total = agentTools.length;
+  output.checks.agentTools.installed = output.checks.agentTools.items.filter(t => t.installed).length;
   
   // Check CLI tools
   const cliTools = [
-    { name: 'dora', command: '@butttons/dora', description: 'SCIP-based code navigation' },
-    { name: 'auto-cr', command: 'auto-cr-cmd', description: 'SWC-based automated code review' },
-    { name: 'veil', command: '@ushiradineth/veil', description: 'Code discovery and retrieval' },
-    { name: 'scip-typescript', command: '@sourcegraph/scip-typescript', description: 'TypeScript SCIP indexer' },
-    { name: 'btca', command: 'btca', description: 'BTC/A agent for blockchain tasks' },
+    { name: 'dora', command: '@butttons/dora', desc: 'SCIP-based code navigation' },
+    { name: 'auto-cr', command: 'auto-cr-cmd', desc: 'SWC-based code review' },
+    { name: 'scip-typescript', command: '@sourcegraph/scip-typescript', desc: 'TypeScript indexer' },
+    { name: 'veil', command: '@ushiradineth/veil', desc: 'Code discovery' },
+    { name: 'btca', command: 'btca', desc: 'BTC/A blockchain agent' },
   ];
   
-  output.checks.cliTools.items = cliTools.map(t => checkCliTool(t.name, t.command, t.description));
+  output.checks.cliTools.items = cliTools.map(t => checkCliTool(t.name, t.command, t.desc));
   output.checks.cliTools.total = cliTools.length;
   output.checks.cliTools.available = output.checks.cliTools.items.filter(t => t.installed).length;
   
-  // Check native binaries
-  output.checks.nativeBinaries = checkAstGrepNative();
-  
-  // Check config
-  output.checks.config = checkConfig();
-  
   // Generate action items
-  const missingDeps = output.checks.dependencies.items.filter(d => !d.installed);
   const missingTools = output.checks.cliTools.items.filter(t => !t.installed);
+  const missingAgent = output.checks.agentTools.items.filter(t => !t.installed);
   
   if (missingTools.length > 0) {
     output.actionItems.push({
       priority: 'high',
-      action: `Install ${missingTools.length} CLI tool(s)`,
+      action: `Install CLI tools`,
       command: missingTools.map(t => `npx -y ${t.command}`).join(' && '),
-      reason: 'CLI tools provide code navigation, review, and analysis features',
+      reason: 'CLI tools enhance code navigation and review',
     });
   }
   
-  if (missingDeps.length > 0) {
-    const important = missingDeps.filter(d => 
-      ['@ast-grep/napi', '@notprolands/ast-grep-mcp', '@paretools/search'].includes(d.name)
-    );
-    
-    if (important.length > 0) {
-      output.actionItems.push({
-        priority: 'medium',
-        action: `Install ${important.length} important package(s)`,
-        command: important.map(d => `npm install ${d.name}`).join(' && '),
-        reason: 'These packages enable core functionality',
-      });
-    }
-  }
-  
-  if (!output.checks.config.exists) {
+  if (missingAgent.length > 0) {
     output.actionItems.push({
-      priority: 'low',
-      action: 'Create config file',
-      command: `mkdir -p ~/.config/opencode && cat > ~/.config/opencode/agent_hive.json << 'EOF'\n{\n  "snip": { "enabled": true },\n  "vectorMemory": { "enabled": true }\n}\nEOF`,
-      reason: 'Enable optimizations for better performance',
+      priority: 'medium',
+      action: `Install agent tools`,
+      command: missingAgent.map(t => `npm install ${t.name}`).join(' && '),
+      reason: 'Agent tools provide faster editing and memory',
     });
   }
   
-  // Generate install commands
-  if (missingDeps.length > 0) {
-    output.installCommands.deps = `npm install ${missingDeps.map(d => d.name).join(' ')}`;
+  // Generate quick install
+  const allCommands: string[] = [];
+  for (const tool of missingTools) {
+    allCommands.push(`npx -y ${tool.command}`);
   }
-  
-  if (missingTools.length > 0) {
-    output.installCommands.cliTools = `npx -y ${missingTools.map(t => t.command.split(' ')[0]).join(' ')}`;
+  for (const agent of missingAgent) {
+    allCommands.push(`npm install ${agent.name}`);
   }
+  output.quickInstall = allCommands.join(' && ');
   
   // Determine status
-  if (output.actionItems.some(a => a.priority === 'critical')) {
+  if (missingTools.length >= 3) {
     output.status = 'action-required';
-  } else if (output.actionItems.some(a => a.priority === 'high' || a.priority === 'medium')) {
+  } else if (missingTools.length > 0 || missingAgent.length > 0) {
     output.status = 'needs-setup';
   }
   
@@ -330,11 +267,10 @@ function printDoctor(output: DoctorOutput) {
   console.log(colors.blue('║') + '          🐝 Hive Doctor v' + output.version + ' - System Check' + ' '.repeat(14) + colors.blue('║'));
   console.log(colors.blue('╚═══════════════════════════════════════════════════════════╝'));
   
-  // Summary
   console.log('\n' + colors.gray('─'.repeat(55)));
   console.log(`  OS: ${output.summary.os}`);
   console.log(`  Node: ${output.summary.nodeVersion}`);
-  console.log(`  Package Manager: ${output.summary.packageManager}`);
+  console.log(`  PM: ${output.summary.packageManager}`);
   console.log(colors.gray('─'.repeat(55)));
   
   // Status
@@ -345,15 +281,15 @@ function printDoctor(output: DoctorOutput) {
   
   console.log('\n  Status: ' + statusColor(statusText));
   
-  // Dependencies
-  console.log('\n📦 Dependencies (' + output.checks.dependencies.installed + '/' + output.checks.dependencies.total + ')');
-  for (const dep of output.checks.dependencies.items) {
-    const icon = dep.installed ? colors.green('✅') : colors.yellow('○');
-    const version = dep.version ? colors.gray(`v${dep.version}`) : colors.red('not installed');
-    console.log(`   ${icon} ${dep.name} ${version}`);
+  // Agent tools
+  console.log('\n🚀 Agent Tools (' + output.checks.agentTools.installed + '/' + output.checks.agentTools.total + ')');
+  for (const tool of output.checks.agentTools.items) {
+    const icon = tool.installed ? colors.green('✅') : colors.yellow('○');
+    const version = tool.version ? colors.gray(`v${tool.version}`) : colors.red('not installed');
+    console.log(`   ${icon} ${tool.name} ${version}`);
   }
   
-  // CLI Tools
+  // CLI tools
   console.log('\n🔧 CLI Tools (' + output.checks.cliTools.available + '/' + output.checks.cliTools.total + ')');
   for (const tool of output.checks.cliTools.items) {
     const icon = tool.installed ? colors.green('✅') : colors.yellow('○');
@@ -361,37 +297,41 @@ function printDoctor(output: DoctorOutput) {
     console.log(`   ${icon} ${tool.name} - ${tool.description} ${version}`);
   }
   
-  // Native binaries
-  console.log('\n⚡ Native Binaries');
-  if (output.checks.nativeBinaries.status === 'native') {
-    console.log('   ' + colors.green('✅ Native mode (fastest)'));
-  } else {
-    console.log('   ' + colors.yellow('○ CLI mode (falls back via npx)'));
-    if (output.checks.nativeBinaries.reason) {
-      console.log('      ' + colors.gray(output.checks.nativeBinaries.reason));
+  // Note about MCPs
+  console.log('\n📦 MCPs: ' + colors.gray('Auto-installed with plugin'));
+  
+  // C++20 tip
+  console.log('\n' + colors.cyan('💡 Tip: ') + colors.gray('Enable C++20 for native modules?'));
+  const shellConfigs = [
+    path.join(process.env.HOME || '', '.bashrc'),
+    path.join(process.env.HOME || '', '.zshrc'),
+  ];
+  let cxxflagsSet = false;
+  for (const config of shellConfigs) {
+    if (fs.existsSync(config)) {
+      const content = fs.readFileSync(config, 'utf-8');
+      if (content.includes('CXXFLAGS="-std=c++20"')) {
+        cxxflagsSet = true;
+        break;
+      }
     }
   }
   
-  // Config
-  console.log('\n⚙️  Config');
-  if (output.checks.config.exists) {
-    console.log('   ' + colors.green('✅ Config file found'));
-    if (output.checks.config.optimizations.length > 0) {
-      console.log('      ' + colors.gray('Optimizations: ' + output.checks.config.optimizations.join(', ')));
-    }
+  if (!cxxflagsSet) {
+    console.log('   ' + colors.yellow('Not detected. Run to fix @ast-grep/napi build:'));
+    console.log('   ' + colors.green('echo \'export CXXFLAGS="-std=c++20"\' >> ~/.bashrc'));
   } else {
-    console.log('   ' + colors.yellow('○ No config file (optional)'));
+    console.log('   ' + colors.green('✓ Already configured'));
   }
   
   // Action items
   if (output.actionItems.length > 0) {
     console.log('\n' + colors.gray('─'.repeat(55)));
-    console.log('📋 Action Items\n');
+    console.log('\n📋 Action Items\n');
     
     for (const item of output.actionItems) {
-      const priorityColor = item.priority === 'critical' ? colors.red :
-                           item.priority === 'high' ? colors.yellow :
-                           item.priority === 'medium' ? colors.blue : colors.gray;
+      const priorityColor = item.priority === 'high' ? colors.red :
+                           item.priority === 'medium' ? colors.yellow : colors.gray;
       
       console.log(`  [${priorityColor(item.priority.toUpperCase())}] ${item.action}`);
       console.log(`      ${colors.gray(item.reason)}`);
@@ -403,23 +343,10 @@ function printDoctor(output: DoctorOutput) {
   }
   
   // Quick install
-  if (output.installCommands.deps || output.installCommands.cliTools) {
+  if (output.quickInstall) {
     console.log(colors.gray('─'.repeat(55)));
     console.log('\n🚀 Quick Install\n');
-    
-    if (output.installCommands.deps) {
-      console.log('  ' + colors.cyan('Dependencies:'));
-      console.log('  ' + colors.green(output.installCommands.deps));
-    }
-    
-    if (output.installCommands.cliTools) {
-      console.log('\n  ' + colors.cyan('CLI Tools:'));
-      console.log('  ' + colors.green(output.installCommands.cliTools));
-    }
-    
-    // Note about C++20 for native modules
-    console.log('\n' + colors.yellow('💡 Tip: ') + colors.gray('If @ast-grep/napi fails to build, try:'));
-    console.log('  ' + colors.green('export CXXFLAGS="-std=c++20" && npm install'));
+    console.log('  ' + colors.green(output.quickInstall));
   }
   
   console.log('\n' + colors.blue('═'.repeat(55)));
@@ -434,5 +361,4 @@ function printDoctor(output: DoctorOutput) {
 const output = runDoctor();
 printDoctor(output);
 
-// Exit with appropriate code
 process.exit(output.status === 'ready' ? 0 : 1);

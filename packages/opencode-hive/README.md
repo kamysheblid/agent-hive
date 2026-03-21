@@ -545,53 +545,50 @@ bunx @hung319/opencode-hive doctor
 
 ### What it checks
 
-1. **Dependencies** - npm packages installed?
-   - Core: `@ast-grep/napi`
-   - Agent: `@sparkleideas/agent-booster`, `@sparkleideas/memory`
-   - MCPs: `@paretools/search`, `@upstash/context7-mcp`, `exa-mcp-server`, `grep-mcp`
-   - Blockchain: `btca`
+1. **Agent Tools** (optional)
+   - `@sparkleideas/agent-booster` - 52x faster code editing
+   - `@sparkleideas/memory` - Vector memory for semantic search
 
-2. **CLI Tools** - npx tools available?
+2. **CLI Tools** (optional)
    - `dora` - Code navigation (SCIP-based)
    - `auto-cr` - Automated code review (SWC)
    - `scip-typescript` - TypeScript indexer
    - `veil` - Code discovery
-   - `btca` - BTC/A blockchain agent (from npmx.dev)
+   - `btca` - BTC/A blockchain agent
 
-3. **Config** - Features enabled?
-   - snip, vectorMemory, agentBooster
-   - sandbox mode
-   - MCPs: veil, pare_search
+3. **MCPs** - Auto-installed with plugin
+   - websearch, context7, grep_app
+   - pare_search, veil
+
+4. **C++20 Tip** - For @ast-grep/napi native modules
 
 ### Example Output
 
-```json
-{
-  "status": "warning",
-  "summary": {
-    "dependencies": "⚠️ 2 missing: agent-booster, memory",
-    "cliTools": "⚠️ 1 missing: auto-cr",
-    "config": "💡 2 disabled: snip, vectorMemory"
-  },
-  "actionItems": [
-    {
-      "priority": "high",
-      "action": "Install auto-cr",
-      "command": "npx -y auto-cr-cmd",
-      "reason": "SWC-based automated code review"
-    },
-    {
-      "priority": "medium",
-      "action": "Install agent-booster",
-      "command": "npm install @sparkleideas/agent-booster",
-      "reason": "52x faster code editing"
-    }
-  ],
-  "quickInstall": {
-    "deps": ["@sparkleideas/agent-booster", "@sparkleideas/memory"],
-    "cliTools": ["auto-cr-cmd"]
-  }
-}
+```
+╔═══════════════════════════════════════════════════════════╗
+║          🐝 Hive Doctor v1.6.3 - System Check             ║
+╚═══════════════════════════════════════════════════════════╝
+
+  Status: ⚠️ NEEDS SETUP
+
+🚀 Agent Tools (0/2)
+   ○ @sparkleideas/agent-booster not installed
+   ○ @sparkleideas/memory not installed
+
+🔧 CLI Tools (1/5)
+   ✅ dora (via npx)
+   ○ auto-cr not available
+   ...
+
+📦 MCPs: Auto-installed with plugin
+
+💡 Tip: Enable C++20 for native modules?
+   Not detected. Run to fix @ast-grep/napi build:
+   echo 'export CXXFLAGS="-std=c++20"' >> ~/.bashrc
+
+🚀 Quick Install
+
+  npx -y auto-cr-cmd && npm install @sparkleideas/agent-booster
 ```
 
 ### Setup Workflow
