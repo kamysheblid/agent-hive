@@ -567,7 +567,7 @@ bunx @hung319/opencode-hive doctor --fix  # Auto-fix issues
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
-║          🐝 Hive Doctor v1.6.4 - System Check             ║
+║          🐝 Hive Doctor v1.6.5 - System Check             ║
 ╚═══════════════════════════════════════════════════════════╝
 
   Status: ⚠️ NEEDS SETUP
@@ -578,18 +578,17 @@ bunx @hung319/opencode-hive doctor --fix  # Auto-fix issues
 
 🔧 CLI Tools (4/5)
    ✅ dora (via npx)
-   ○ auto-cr not available
+   ✅ auto-cr (check) installed
    ...
 
 📦 MCPs: Auto-installed with plugin
 
 ⚡ C++20 for native modules:
-   ○ Not set (needed for @ast-grep/napi)
-   Run with --fix to auto-configure
+   ✅ Already configured
 
 🚀 Quick Install
 
-  npx -y auto-cr-cmd && npm install @sparkleideas/agent-booster
+  npm install @sparkleideas/agent-booster
 ```
 
 ### Auto-fix Mode
@@ -599,8 +598,25 @@ bunx @hung319/opencode-hive doctor --fix
 ```
 
 This will:
-1. Auto-add CXXFLAGS="-std=c++20" to ~/.bashrc
-2. Install available CLI tools via npx
+1. Set CXXFLAGS for current session
+2. Add to ~/.bashrc for future sessions
+3. Install available CLI tools via npx
+
+### C++20 for Native Modules
+
+Node.js v24+ requires C++20 for native modules like `@ast-grep/napi`.
+
+**Auto-fix:**
+```bash
+bunx @hung319/opencode-hive doctor --fix
+```
+
+**Manual:**
+```bash
+echo 'export CXXFLAGS="-std=c++20"' >> ~/.bashrc
+source ~/.bashrc
+CXXFLAGS="-std=c++20" npm install @ast-grep/napi
+```
 ╔═══════════════════════════════════════════════════════════╗
 ║          🐝 Hive Doctor v1.6.3 - System Check             ║
 ╚═══════════════════════════════════════════════════════════╝

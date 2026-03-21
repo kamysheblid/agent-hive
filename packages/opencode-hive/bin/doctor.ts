@@ -130,19 +130,19 @@ function checkNpmPackage(name: string): CheckResult {
 
 function checkCliTool(name: string, command: string, description: string): CliCheck {
   const result: CliCheck = { name, command, installed: false, description };
+  const cmdName = command.split(' ')[0];
   
-  // Try direct command
+  // Try direct command with --help (some binaries don't have --version)
   try {
-    const cmd = command.split(' ')[0];
-    execSync(cmd, { stdio: 'ignore', timeout: 3000 });
+    execSync(cmdName, { stdio: 'ignore', timeout: 3000 });
     result.installed = true;
     result.version = 'installed';
     return result;
   } catch {}
   
-  // Try npx
+  // Try npx with --help
   try {
-    execSync(`npx -y ${command.split(' ')[0]} --version`, { 
+    execSync(`npx -y ${cmdName} --help`, { 
       stdio: 'ignore', 
       timeout: 10000 
     });
@@ -150,6 +150,16 @@ function checkCliTool(name: string, command: string, description: string): CliCh
     result.version = 'via npx';
     return result;
   } catch {}
+  
+  // Special case for auto-cr: binary is "check", not "auto-cr"
+  if (name === 'auto-cr') {
+    try {
+      execSync('check --help', { stdio: 'ignore', timeout: 3000 });
+      result.installed = true;
+      result.version = 'installed (check)';
+      return result;
+    } catch {}
+  }
   
   return result;
 }
@@ -185,10 +195,9 @@ function autoFixCxxFlags(): boolean {
     return true;
   }
   
-  const exportLine = '\nexport CXXFLAGS="-std=c++20"\n';
-  const comment = '# For tree-sitter native modules (e.g., @ast-grep/napi)\n';
-  
   const bashrc = path.join(process.env.HOME || '', '.bashrc');
+  const exportLine = '\nexport CXXFLAGS="-std=c++20"\nexport CXXFLAGS="std=c++20"\n';
+  const comment = '\n# For tree-sitter native modules (e.g., @ast-grep/napi)\n';
   
   try {
     // Check if bashrc exists
@@ -199,12 +208,28 @@ function autoFixCxxFlags(): boolean {
     const content = fs.readFileSync(bashrc, 'utf-8');
     
     // Check if already set
-    if (content.includes('CXXFLAGS="-std=c++20"')) {
+    if (content.includes('CXXFLAGS')) {
       return true;
     }
     
     // Add to bashrc
-    fs.appendFileSync(bashrc, `\n${comment}${exportLine}`);
+    fs.appendFileSync(bashrc, `${comment}${exportLine}`);
+    console.log(c.green(`✓ Added CXXFLAGS to ${bashrc}`));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================================
+// Auto-set CXXFLAGS for current session
+// ============================================================================
+
+function setCxxFlagsForCurrentSession(): boolean {
+  try {
+    process.env.CXXFLAGS = '"-std=c++20"';
+    process.env.npm_config_cxxflags = '"-std=c++20"';
+    console.log(c.green('✓ CXXFLAGS set for current session'));
     return true;
   } catch {
     return false;
@@ -245,7 +270,7 @@ function autoInstallCliTools(tools: CliCheck[]): { success: string[]; failed: st
 function runDoctor(autoFix = false): DoctorOutput {
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.6.4',
+    version: '1.6.5',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -257,9 +282,15 @@ function runDoctor(autoFix = false): DoctorOutput {
   };
   
   // Auto-fix CXXFLAGS if requested
-  if (autoFix && output.cxxflagsStatus === 'not-set') {
-    console.log(c.cyan('\n🔧 Auto-fixing C++20 configuration...\n'));
-    if (autoFixCxxFlags()) {
+  if (autoFix) {
+    console.log(c.cyan('\n🔧 Auto-fixing...\n'));
+    
+    // Set for current session
+    setCxxFlagsForCurrentSession();
+    
+    // Add to shell config
+    if (output.cxxflagsStatus === 'not-set') {
+      autoFixCxxFlags();
       output.cxxflagsStatus = 'auto-fixed';
     }
   }
@@ -326,19 +357,21 @@ function runDoctor(autoFix = false): DoctorOutput {
     output.status = 'needs-setup';
   }
   
-  // Auto-install if requested
+  // Auto-install CLI tools if requested
   if (autoFix && missingTools.length > 0) {
-    console.log(c.cyan('\n🔧 Auto-installing CLI tools...\n'));
+    console.log(c.cyan('\n🔧 Installing CLI tools...\n'));
     const installResult = autoInstallCliTools(missingTools);
     
     // Re-check after installation
     if (installResult.success.length > 0) {
       for (const name of installResult.success) {
         const tool = output.checks.cliTools.items.find(t => t.name === name);
-        if (tool) tool.installed = true;
+        if (tool) {
+          tool.installed = true;
+          tool.version = 'installed';
+        }
       }
       output.checks.cliTools.available = output.checks.cliTools.items.filter(t => t.installed).length;
-      missingTools.length; // Refresh
     }
   }
   
