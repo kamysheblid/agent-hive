@@ -113,6 +113,7 @@ function exists(cmd: string): boolean {
 function checkNpmPackage(name: string): CheckResult {
   const result: CheckResult = { name, installed: false };
   
+  // Check if package is installed
   try {
     const output = execSync(`npm list ${name} --depth=0 --json 2>/dev/null`, {
       encoding: 'utf-8',
@@ -124,6 +125,18 @@ function checkNpmPackage(name: string): CheckResult {
       result.version = json.dependencies[name].version;
     }
   } catch {}
+  
+  // Also check if module can be required (actual load test)
+  if (result.installed) {
+    try {
+      require(name);
+      result.installed = true;
+    } catch {
+      // Module installed but failed to load (e.g., native build failed)
+      result.installed = false;
+      result.version = `${result.version || '?'} (load failed)`;
+    }
+  }
   
   return result;
 }
@@ -308,10 +321,11 @@ function runDoctor(autoFix = false): DoctorOutput {
     }
   }
   
-  // Check optional agent tools
+  // Check agent tools (bundled with plugin, externalized at build)
   const agentToolsList = [
     { name: '@sparkleideas/agent-booster', desc: '52x faster code editing' },
     { name: '@sparkleideas/memory', desc: 'Vector memory for semantic search' },
+    { name: '@ast-grep/napi', desc: 'AST-based pattern matching' },
   ];
   
   output.checks.agentTools.items = agentToolsList.map(t => checkNpmPackage(t.name));
