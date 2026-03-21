@@ -7,6 +7,9 @@
  * 
  *   bunx @hung319/opencode-hive doctor
  *   npx @hung319/opencode-hive doctor
+ * 
+ * Auto-fix issues:
+ *   bunx @hung319/opencode-hive doctor --fix
  */
 
 import { execSync } from 'child_process';
@@ -58,6 +61,7 @@ interface DoctorOutput {
     reason: string;
   }[];
   quickInstall: string;
+  cxxflagsStatus: 'set' | 'not-set' | 'auto-fixed';
 }
 
 // ============================================================================
@@ -72,6 +76,18 @@ const colors = {
   cyan: (text: string) => `\x1b[36m${text}\x1b[0m`,
   gray: (text: string) => `\x1b[90m${text}\x1b[0m`,
 };
+
+const noColors = {
+  green: (text: string) => text,
+  yellow: (text: string) => text,
+  red: (text: string) => text,
+  blue: (text: string) => text,
+  cyan: (text: string) => text,
+  gray: (text: string) => text,
+};
+
+const isTTY = process.stdout.isTTY;
+const c = isTTY ? colors : noColors;
 
 // ============================================================================
 // Check functions
@@ -139,34 +155,56 @@ function checkCliTool(name: string, command: string, description: string): CliCh
 }
 
 // ============================================================================
-// Auto-fix: Add CXXFLAGS to shell config
+// CXXFLAGS: Check and Auto-fix
 // ============================================================================
 
-function ensureCxxFlags(): boolean {
-  const cxxflag = 'CXXFLAGS="-std=c++20"';
-  const exportLine = `export ${cxxflag}`;
-  
-  // Check if already set
+function checkCxxFlags(): 'set' | 'not-set' {
   const shellConfigs = [
     path.join(process.env.HOME || '', '.bashrc'),
+    path.join(process.env.HOME || '', '.bash_profile'),
     path.join(process.env.HOME || '', '.zshrc'),
     path.join(process.env.HOME || '', '.profile'),
   ];
   
+  const pattern = 'CXXFLAGS="-std=c++20"';
+  
   for (const config of shellConfigs) {
     if (fs.existsSync(config)) {
       const content = fs.readFileSync(config, 'utf-8');
-      if (content.includes(cxxflag) || content.includes(exportLine)) {
-        return true; // Already set
+      if (content.includes(pattern)) {
+        return 'set';
       }
     }
   }
   
-  // Try to add to ~/.bashrc
+  return 'not-set';
+}
+
+function autoFixCxxFlags(): boolean {
+  if (checkCxxFlags() === 'set') {
+    return true;
+  }
+  
+  const exportLine = '\nexport CXXFLAGS="-std=c++20"\n';
+  const comment = '# For tree-sitter native modules (e.g., @ast-grep/napi)\n';
+  
   const bashrc = path.join(process.env.HOME || '', '.bashrc');
+  
   try {
-    fs.appendFileSync(bashrc, `\n# For tree-sitter native modules (e.g., @ast-grep/napi)\n${exportLine}\n`);
-    console.log(colors.green(`✓ Added ${exportLine} to ~/.bashrc`));
+    // Check if bashrc exists
+    if (!fs.existsSync(bashrc)) {
+      fs.writeFileSync(bashrc, '');
+    }
+    
+    const content = fs.readFileSync(bashrc, 'utf-8');
+    
+    // Check if already set
+    if (content.includes('CXXFLAGS="-std=c++20"')) {
+      return true;
+    }
+    
+    // Add to bashrc
+    fs.appendFileSync(bashrc, `\n${comment}${exportLine}`);
     return true;
   } catch {
     return false;
@@ -174,13 +212,40 @@ function ensureCxxFlags(): boolean {
 }
 
 // ============================================================================
+// Auto-install CLI tools
+// ============================================================================
+
+function autoInstallCliTools(tools: CliCheck[]): { success: string[]; failed: string[] } {
+  const result = { success: [] as string[], failed: [] as string[] };
+  
+  for (const tool of tools) {
+    if (tool.installed) continue;
+    
+    try {
+      console.log(c.cyan(`  Installing ${tool.name}...`));
+      execSync(`npx -y ${tool.command} --version`, { 
+        stdio: 'ignore',
+        timeout: 60000 
+      });
+      result.success.push(tool.name);
+      console.log(c.green(`    ✓ ${tool.name} ready`));
+    } catch {
+      result.failed.push(tool.name);
+      console.log(c.red(`    ✗ ${tool.name} failed`));
+    }
+  }
+  
+  return result;
+}
+
+// ============================================================================
 // Main check
 // ============================================================================
 
-function runDoctor(): DoctorOutput {
+function runDoctor(autoFix = false): DoctorOutput {
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.6.3',
+    version: '1.6.4',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -188,23 +253,29 @@ function runDoctor(): DoctorOutput {
     },
     actionItems: [],
     quickInstall: '',
+    cxxflagsStatus: checkCxxFlags(),
   };
   
+  // Auto-fix CXXFLAGS if requested
+  if (autoFix && output.cxxflagsStatus === 'not-set') {
+    console.log(c.cyan('\n🔧 Auto-fixing C++20 configuration...\n'));
+    if (autoFixCxxFlags()) {
+      output.cxxflagsStatus = 'auto-fixed';
+    }
+  }
+  
   // Check optional agent tools
-  const agentTools = [
+  const agentToolsList = [
     { name: '@sparkleideas/agent-booster', desc: '52x faster code editing' },
     { name: '@sparkleideas/memory', desc: 'Vector memory for semantic search' },
   ];
   
-  output.checks.agentTools.items = agentTools.map(t => {
-    const result = checkNpmPackage(t.name);
-    return result;
-  });
-  output.checks.agentTools.total = agentTools.length;
+  output.checks.agentTools.items = agentToolsList.map(t => checkNpmPackage(t.name));
+  output.checks.agentTools.total = agentToolsList.length;
   output.checks.agentTools.installed = output.checks.agentTools.items.filter(t => t.installed).length;
   
   // Check CLI tools
-  const cliTools = [
+  const cliToolsList = [
     { name: 'dora', command: '@butttons/dora', desc: 'SCIP-based code navigation' },
     { name: 'auto-cr', command: 'auto-cr-cmd', desc: 'SWC-based code review' },
     { name: 'scip-typescript', command: '@sourcegraph/scip-typescript', desc: 'TypeScript indexer' },
@@ -212,8 +283,8 @@ function runDoctor(): DoctorOutput {
     { name: 'btca', command: 'btca', desc: 'BTC/A blockchain agent' },
   ];
   
-  output.checks.cliTools.items = cliTools.map(t => checkCliTool(t.name, t.command, t.desc));
-  output.checks.cliTools.total = cliTools.length;
+  output.checks.cliTools.items = cliToolsList.map(t => checkCliTool(t.name, t.command, t.desc));
+  output.checks.cliTools.total = cliToolsList.length;
   output.checks.cliTools.available = output.checks.cliTools.items.filter(t => t.installed).length;
   
   // Generate action items
@@ -255,6 +326,22 @@ function runDoctor(): DoctorOutput {
     output.status = 'needs-setup';
   }
   
+  // Auto-install if requested
+  if (autoFix && missingTools.length > 0) {
+    console.log(c.cyan('\n🔧 Auto-installing CLI tools...\n'));
+    const installResult = autoInstallCliTools(missingTools);
+    
+    // Re-check after installation
+    if (installResult.success.length > 0) {
+      for (const name of installResult.success) {
+        const tool = output.checks.cliTools.items.find(t => t.name === name);
+        if (tool) tool.installed = true;
+      }
+      output.checks.cliTools.available = output.checks.cliTools.items.filter(t => t.installed).length;
+      missingTools.length; // Refresh
+    }
+  }
+  
   return output;
 }
 
@@ -263,19 +350,19 @@ function runDoctor(): DoctorOutput {
 // ============================================================================
 
 function printDoctor(output: DoctorOutput) {
-  console.log('\n' + colors.blue('╔═══════════════════════════════════════════════════════════╗'));
-  console.log(colors.blue('║') + '          🐝 Hive Doctor v' + output.version + ' - System Check' + ' '.repeat(14) + colors.blue('║'));
-  console.log(colors.blue('╚═══════════════════════════════════════════════════════════╝'));
+  console.log('\n' + c.blue('╔═══════════════════════════════════════════════════════════╗'));
+  console.log(c.blue('║') + '          🐝 Hive Doctor v' + output.version + ' - System Check' + ' '.repeat(14) + c.blue('║'));
+  console.log(c.blue('╚═══════════════════════════════════════════════════════════╝'));
   
-  console.log('\n' + colors.gray('─'.repeat(55)));
+  console.log('\n' + c.gray('─'.repeat(55)));
   console.log(`  OS: ${output.summary.os}`);
   console.log(`  Node: ${output.summary.nodeVersion}`);
   console.log(`  PM: ${output.summary.packageManager}`);
-  console.log(colors.gray('─'.repeat(55)));
+  console.log(c.gray('─'.repeat(55)));
   
   // Status
-  const statusColor = output.status === 'ready' ? colors.green : 
-                      output.status === 'needs-setup' ? colors.yellow : colors.red;
+  const statusColor = output.status === 'ready' ? c.green : 
+                      output.status === 'needs-setup' ? c.yellow : c.red;
   const statusText = output.status === 'ready' ? '✅ READY' : 
                      output.status === 'needs-setup' ? '⚠️ NEEDS SETUP' : '❌ ACTION REQUIRED';
   
@@ -284,59 +371,46 @@ function printDoctor(output: DoctorOutput) {
   // Agent tools
   console.log('\n🚀 Agent Tools (' + output.checks.agentTools.installed + '/' + output.checks.agentTools.total + ')');
   for (const tool of output.checks.agentTools.items) {
-    const icon = tool.installed ? colors.green('✅') : colors.yellow('○');
-    const version = tool.version ? colors.gray(`v${tool.version}`) : colors.red('not installed');
+    const icon = tool.installed ? c.green('✅') : c.yellow('○');
+    const version = tool.version ? c.gray(`v${tool.version}`) : c.red('not installed');
     console.log(`   ${icon} ${tool.name} ${version}`);
   }
   
   // CLI tools
   console.log('\n🔧 CLI Tools (' + output.checks.cliTools.available + '/' + output.checks.cliTools.total + ')');
   for (const tool of output.checks.cliTools.items) {
-    const icon = tool.installed ? colors.green('✅') : colors.yellow('○');
-    const version = tool.version ? colors.gray(`(${tool.version})`) : colors.red('not available');
+    const icon = tool.installed ? c.green('✅') : c.yellow('○');
+    const version = tool.version ? c.gray(`(${tool.version})`) : c.red('not available');
     console.log(`   ${icon} ${tool.name} - ${tool.description} ${version}`);
   }
   
   // Note about MCPs
-  console.log('\n📦 MCPs: ' + colors.gray('Auto-installed with plugin'));
+  console.log('\n📦 MCPs: ' + c.gray('Auto-installed with plugin'));
   
-  // C++20 tip
-  console.log('\n' + colors.cyan('💡 Tip: ') + colors.gray('Enable C++20 for native modules?'));
-  const shellConfigs = [
-    path.join(process.env.HOME || '', '.bashrc'),
-    path.join(process.env.HOME || '', '.zshrc'),
-  ];
-  let cxxflagsSet = false;
-  for (const config of shellConfigs) {
-    if (fs.existsSync(config)) {
-      const content = fs.readFileSync(config, 'utf-8');
-      if (content.includes('CXXFLAGS="-std=c++20"')) {
-        cxxflagsSet = true;
-        break;
-      }
-    }
-  }
-  
-  if (!cxxflagsSet) {
-    console.log('   ' + colors.yellow('Not detected. Run to fix @ast-grep/napi build:'));
-    console.log('   ' + colors.green('echo \'export CXXFLAGS="-std=c++20"\' >> ~/.bashrc'));
+  // C++20 status
+  console.log('\n⚡ C++20 for native modules:');
+  if (output.cxxflagsStatus === 'set') {
+    console.log('   ' + c.green('✓ Already configured in shell'));
+  } else if (output.cxxflagsStatus === 'auto-fixed') {
+    console.log('   ' + c.green('✓ Auto-configured! (run "source ~/.bashrc" or restart terminal)'));
   } else {
-    console.log('   ' + colors.green('✓ Already configured'));
+    console.log('   ' + c.yellow('○ Not set (needed for @ast-grep/napi)'));
+    console.log('   ' + c.gray('   Run with --fix to auto-configure'));
   }
   
   // Action items
   if (output.actionItems.length > 0) {
-    console.log('\n' + colors.gray('─'.repeat(55)));
+    console.log('\n' + c.gray('─'.repeat(55)));
     console.log('\n📋 Action Items\n');
     
     for (const item of output.actionItems) {
-      const priorityColor = item.priority === 'high' ? colors.red :
-                           item.priority === 'medium' ? colors.yellow : colors.gray;
+      const priorityColor = item.priority === 'high' ? c.red :
+                           item.priority === 'medium' ? c.yellow : c.gray;
       
       console.log(`  [${priorityColor(item.priority.toUpperCase())}] ${item.action}`);
-      console.log(`      ${colors.gray(item.reason)}`);
+      console.log(`      ${c.gray(item.reason)}`);
       if (item.command) {
-        console.log(`      ${colors.green(item.command)}`);
+        console.log(`      ${c.green(item.command)}`);
       }
       console.log();
     }
@@ -344,21 +418,25 @@ function printDoctor(output: DoctorOutput) {
   
   // Quick install
   if (output.quickInstall) {
-    console.log(colors.gray('─'.repeat(55)));
+    console.log(c.gray('─'.repeat(55)));
     console.log('\n🚀 Quick Install\n');
-    console.log('  ' + colors.green(output.quickInstall));
+    console.log('  ' + c.green(output.quickInstall));
   }
   
-  console.log('\n' + colors.blue('═'.repeat(55)));
-  console.log(colors.gray('  Run with: bunx @hung319/opencode-hive doctor'));
-  console.log(colors.blue('═'.repeat(55)) + '\n');
+  console.log('\n' + c.blue('═'.repeat(55)));
+  console.log(c.gray('  bunx @hung319/opencode-hive doctor'));
+  console.log(c.gray('  bunx @hung319/opencode-hive doctor --fix'));
+  console.log(c.blue('═'.repeat(55)) + '\n');
 }
 
 // ============================================================================
 // Main
 // ============================================================================
 
-const output = runDoctor();
+const args = process.argv.slice(2);
+const autoFix = args.includes('--fix') || args.includes('-f');
+
+const output = runDoctor(autoFix);
 printDoctor(output);
 
 process.exit(output.status === 'ready' ? 0 : 1);

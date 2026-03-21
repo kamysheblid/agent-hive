@@ -540,7 +540,8 @@ hive_doctor_quick()
 
 **Standalone (before installing):**
 ```bash
-bunx @hung319/opencode-hive doctor
+bunx @hung319/opencode-hive doctor        # Check system
+bunx @hung319/opencode-hive doctor --fix  # Auto-fix issues
 ```
 
 ### What it checks
@@ -565,6 +566,41 @@ bunx @hung319/opencode-hive doctor
 ### Example Output
 
 ```
+╔═══════════════════════════════════════════════════════════╗
+║          🐝 Hive Doctor v1.6.4 - System Check             ║
+╚═══════════════════════════════════════════════════════════╝
+
+  Status: ⚠️ NEEDS SETUP
+
+🚀 Agent Tools (0/2)
+   ○ @sparkleideas/agent-booster not installed
+   ○ @sparkleideas/memory not installed
+
+🔧 CLI Tools (4/5)
+   ✅ dora (via npx)
+   ○ auto-cr not available
+   ...
+
+📦 MCPs: Auto-installed with plugin
+
+⚡ C++20 for native modules:
+   ○ Not set (needed for @ast-grep/napi)
+   Run with --fix to auto-configure
+
+🚀 Quick Install
+
+  npx -y auto-cr-cmd && npm install @sparkleideas/agent-booster
+```
+
+### Auto-fix Mode
+
+```bash
+bunx @hung319/opencode-hive doctor --fix
+```
+
+This will:
+1. Auto-add CXXFLAGS="-std=c++20" to ~/.bashrc
+2. Install available CLI tools via npx
 ╔═══════════════════════════════════════════════════════════╗
 ║          🐝 Hive Doctor v1.6.3 - System Check             ║
 ╚═══════════════════════════════════════════════════════════╝

@@ -4,22 +4,19 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 /**
- * Hive Doctor - System health check and optimization advisor
+ * Hive Doctor - System health check
  * 
- * Checks:
- * 1. Dependencies - optional packages installed?
- * 2. CLI Tools - dora, auto-cr, btca, etc. available?
- * 3. Config - features and settings properly configured?
+ * Checks optional agent tools and CLI tools.
+ * MCPs are auto-installed with the plugin.
  */
 
-interface DependencyCheck {
+interface CheckResult {
   name: string;
-  package: string;
   installed: boolean;
   version?: string;
 }
 
-interface CliToolCheck {
+interface CliCheck {
   name: string;
   command: string;
   installed: boolean;
@@ -27,52 +24,37 @@ interface CliToolCheck {
   description: string;
 }
 
-interface ConfigCheck {
-  name: string;
-  enabled: boolean;
-  value?: any;
-  recommendation: string;
-}
-
 interface DoctorResult {
-  status: 'healthy' | 'warning' | 'action-required';
-  summary: {
-    dependencies: string;
-    cliTools: string;
-    config: string;
-  };
-  details: {
-    dependencies: {
+  status: 'ready' | 'needs-setup' | 'action-required';
+  version: string;
+  checks: {
+    agentTools: {
       total: number;
       installed: number;
-      missing: DependencyCheck[];
+      items: CheckResult[];
     };
     cliTools: {
       total: number;
       available: number;
-      missing: CliToolCheck[];
+      items: CliCheck[];
     };
-    config: ConfigCheck[];
   };
+  cxxflagsStatus: 'set' | 'not-set' | 'tip';
   actionItems: {
     priority: 'high' | 'medium' | 'low';
     action: string;
     command?: string;
     reason: string;
   }[];
-  quickInstall: {
-    deps: string[];
-    cliTools: string[];
-  };
+  quickInstall: string;
 }
 
 /**
  * Check if a package is installed
  */
-async function checkPackage(packageName: string): Promise<DependencyCheck> {
-  const result: DependencyCheck = {
+async function checkPackage(packageName: string): Promise<CheckResult> {
+  const result: CheckResult = {
     name: packageName,
-    package: packageName,
     installed: false,
   };
   
@@ -94,21 +76,19 @@ async function checkPackage(packageName: string): Promise<DependencyCheck> {
 /**
  * Check if CLI tool is available
  */
-function checkCliTool(name: string, command: string, description: string): CliToolCheck {
-  const result: CliToolCheck = {
+function checkCliTool(name: string, command: string, description: string): CliCheck {
+  const result: CliCheck = {
     name,
     command,
     installed: false,
     description,
   };
   
-  // Try direct command
   try {
     execSync(command.split(' ')[0], { stdio: 'pipe', timeout: 3000 });
     result.installed = true;
     result.version = 'installed';
   } catch {
-    // Try npx with short timeout
     try {
       execSync(`npx -y ${command.split(' ')[0]} --version`, { stdio: 'pipe', timeout: 5000 });
       result.installed = true;
@@ -120,93 +100,24 @@ function checkCliTool(name: string, command: string, description: string): CliTo
 }
 
 /**
- * Check config file
+ * Check if CXXFLAGS is set
  */
-function checkConfig(): ConfigCheck[] {
-  const checks: ConfigCheck[] = [];
-  
-  const configPaths = [
-    path.join(process.env.HOME || '', '.config/opencode/agent_hive.json'),
-    path.join(process.env.HOME || '', '.config/opencode/agent_hive.jsonc'),
+function checkCxxFlags(): 'set' | 'not-set' {
+  const configs = [
+    path.join(process.env.HOME || '', '.bashrc'),
+    path.join(process.env.HOME || '', '.zshrc'),
   ];
   
-  let config: any = null;
-  
-  for (const configPath of configPaths) {
-    if (fs.existsSync(configPath)) {
-      try {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        config = JSON.parse(content.replace(/\\/g, ''));
-        break;
-      } catch {}
+  for (const config of configs) {
+    if (fs.existsSync(config)) {
+      const content = fs.readFileSync(config, 'utf-8');
+      if (content.includes('CXXFLAGS="-std=c++20"')) {
+        return 'set';
+      }
     }
   }
   
-  // Check snip
-  const snipEnabled = config?.snip?.enabled === true;
-  checks.push({
-    name: 'snip',
-    enabled: snipEnabled,
-    value: config?.snip,
-    recommendation: snipEnabled 
-      ? 'snip enabled for 60-90% token reduction'
-      : 'Enable snip: Add { "snip": { "enabled": true } } to config',
-  });
-  
-  // Check vector memory
-  const vectorEnabled = config?.vectorMemory?.enabled === true;
-  checks.push({
-    name: 'vectorMemory',
-    enabled: vectorEnabled,
-    value: config?.vectorMemory,
-    recommendation: vectorEnabled
-      ? 'Vector memory enabled for semantic search'
-      : 'Enable vector memory: Add { "vectorMemory": { "enabled": true } } to config',
-  });
-  
-  // Check agent booster
-  const boosterEnabled = config?.agentBooster?.enabled !== false;
-  checks.push({
-    name: 'agentBooster',
-    enabled: boosterEnabled,
-    value: config?.agentBooster,
-    recommendation: boosterEnabled
-      ? 'Agent booster enabled for 52x faster editing'
-      : 'Agent booster disabled: Set { "agentBooster": { "enabled": true } } to enable',
-  });
-  
-  // Check sandbox
-  const sandboxMode = config?.sandbox?.mode || 'none';
-  const sandboxEnabled = sandboxMode !== 'none';
-  checks.push({
-    name: 'sandbox',
-    enabled: sandboxEnabled,
-    value: sandboxMode,
-    recommendation: sandboxEnabled
-      ? `Sandbox enabled (${sandboxMode} mode)`
-      : 'Enable sandbox: Add { "sandbox": { "mode": "docker" } } to config for isolated testing',
-  });
-  
-  // Check MCPs
-  const disabledMcps = config?.disableMcps || [];
-  
-  checks.push({
-    name: 'veil MCP',
-    enabled: !disabledMcps.includes('veil'),
-    recommendation: !disabledMcps.includes('veil')
-      ? 'veil MCP enabled'
-      : 'Enable veil: Remove "veil" from disableMcps array',
-  });
-  
-  checks.push({
-    name: 'pare_search MCP',
-    enabled: !disabledMcps.includes('pare_search'),
-    recommendation: !disabledMcps.includes('pare_search')
-      ? 'pare_search MCP enabled'
-      : 'Enable pare_search: Remove "pare_search" from disableMcps array',
-  });
-  
-  return checks;
+  return 'not-set';
 }
 
 // ============================================================================
@@ -214,133 +125,105 @@ function checkConfig(): ConfigCheck[] {
 // ============================================================================
 
 export const hiveDoctorTool: ToolDefinition = tool({
-  description: `Hive Doctor - System health check with actionable fixes.
+  description: `Hive Doctor - System health check for Hive plugin.
 
-**Checks performed:**
-1. Dependencies - MCP packages, agent tools, blockchain, etc.
-2. CLI Tools - dora, auto-cr, scip-typescript, veil, btca, etc.
-3. Config - optimizations and MCPs enabled
+**Checks:**
+1. Agent Tools (optional): agent-booster, memory
+2. CLI Tools (optional): dora, auto-cr, scip-typescript, veil, btca
+3. C++20 config: For @ast-grep/napi native modules
 
-**Output includes:**
-- Status summary (healthy/warning/action-required)
-- Missing items with install commands
-- Action items prioritized by impact
-- Quick install commands for all missing items
+**Status:**
+- ready: All good
+- needs-setup: Some optional tools missing
+- action-required: Multiple tools missing
 
-**Tip:** Run standalone before installing: \`bunx @hung319/opencode-hive doctor\``,
+**Tip:** Run standalone for auto-fix: \`bunx @hung319/opencode-hive doctor --fix\``,
 
   args: {},
 
   async execute() {
-    // 1. Check dependencies
-    const dependencyChecks = await Promise.all([
-      // Agent tools
+    const result: DoctorResult = {
+      status: 'ready',
+      version: '1.6.4',
+      checks: {
+        agentTools: { total: 0, installed: 0, items: [] },
+        cliTools: { total: 0, available: 0, items: [] },
+      },
+      cxxflagsStatus: checkCxxFlags(),
+      actionItems: [],
+      quickInstall: '',
+    };
+    
+    // Check agent tools
+    const agentTools = await Promise.all([
       checkPackage('@sparkleideas/agent-booster'),
       checkPackage('@sparkleideas/memory'),
-      // MCPs
-      checkPackage('@paretools/search'),
-      checkPackage('@upstash/context7-mcp'),
-      checkPackage('exa-mcp-server'),
-      checkPackage('grep-mcp'),
-      // Blockchain
-      checkPackage('btca'),
-      checkPackage('opencode-model-selector'),
     ]);
     
-    // 2. Check CLI tools
-    const cliToolChecks = [
+    result.checks.agentTools.items = agentTools;
+    result.checks.agentTools.total = agentTools.length;
+    result.checks.agentTools.installed = agentTools.filter(t => t.installed).length;
+    
+    // Check CLI tools
+    const cliTools = [
       checkCliTool('dora', '@butttons/dora', 'SCIP-based code navigation'),
-      checkCliTool('auto-cr', 'auto-cr-cmd', 'SWC-based automated code review'),
-      checkCliTool('scip-typescript', '@sourcegraph/scip-typescript', 'TypeScript SCIP indexer'),
-      checkCliTool('veil', '@ushiradineth/veil', 'Code discovery and retrieval'),
-      checkCliTool('btca', 'btca', 'BTC/A agent for blockchain tasks'),
+      checkCliTool('auto-cr', 'auto-cr-cmd', 'SWC-based code review'),
+      checkCliTool('scip-typescript', '@sourcegraph/scip-typescript', 'TypeScript indexer'),
+      checkCliTool('veil', '@ushiradineth/veil', 'Code discovery'),
+      checkCliTool('btca', 'btca', 'BTC/A blockchain agent'),
     ];
     
-    // 3. Check config
-    const configChecks = checkConfig();
-    
-    // Calculate status
-    const missingDeps = dependencyChecks.filter(d => !d.installed);
-    const missingTools = cliToolChecks.filter(t => !t.installed);
-    const disabledConfigs = configChecks.filter(c => !c.enabled);
-    
-    let status: 'healthy' | 'warning' | 'action-required' = 'healthy';
-    if (missingTools.length >= 2 || missingDeps.length >= 3) {
-      status = 'action-required';
-    } else if (missingTools.length >= 1 || missingDeps.length >= 1 || disabledConfigs.length >= 2) {
-      status = 'warning';
-    }
+    result.checks.cliTools.items = cliTools;
+    result.checks.cliTools.total = cliTools.length;
+    result.checks.cliTools.available = cliTools.filter(t => t.installed).length;
     
     // Generate action items
-    const actionItems: DoctorResult['actionItems'] = [];
+    const missingTools = cliTools.filter(t => !t.installed);
+    const missingAgent = agentTools.filter(t => !t.installed);
     
-    // High priority: CLI tools
-    for (const tool of missingTools) {
-      actionItems.push({
+    if (missingTools.length > 0) {
+      result.actionItems.push({
         priority: 'high',
-        action: `Install ${tool.name}`,
-        command: `npx -y ${tool.command}`,
-        reason: `${tool.description}`,
+        action: 'Install CLI tools',
+        command: missingTools.map(t => `npx -y ${t.command}`).join(' && '),
+        reason: 'CLI tools enhance code navigation and review',
       });
     }
     
-    // Medium priority: btca
-    if (!dependencyChecks.find(d => d.package === 'btca')?.installed) {
-      actionItems.push({
+    if (missingAgent.length > 0) {
+      result.actionItems.push({
         priority: 'medium',
-        action: 'Install btca for blockchain tasks',
-        command: `npm install btca`,
-        reason: 'BTC/A agent for blockchain analysis and development',
+        action: 'Install agent tools',
+        command: missingAgent.map(t => `npm install ${t.name}`).join(' && '),
+        reason: 'Agent tools provide faster editing and memory',
       });
     }
     
-    // Low priority: Optimizations
-    for (const config of disabledConfigs) {
-      actionItems.push({
+    if (result.cxxflagsStatus === 'not-set') {
+      result.actionItems.push({
         priority: 'low',
-        action: config.recommendation,
-        reason: `Enable ${config.name} for better performance/features`,
+        action: 'Enable C++20 for native modules',
+        command: `echo 'export CXXFLAGS="-std=c++20"' >> ~/.bashrc`,
+        reason: 'Required for @ast-grep/napi tree-sitter build',
       });
     }
     
-    // Quick install lists
-    const quickInstall = {
-      deps: missingDeps.map(d => d.package),
-      cliTools: missingTools.map(t => t.command),
-    };
+    // Quick install
+    const allCommands: string[] = [];
+    for (const tool of missingTools) {
+      allCommands.push(`npx -y ${tool.command}`);
+    }
+    for (const agent of missingAgent) {
+      allCommands.push(`npm install ${agent.name}`);
+    }
+    result.quickInstall = allCommands.join(' && ');
     
-    // Summary strings
-    const summary = {
-      dependencies: missingDeps.length === 0 
-        ? '✅ All dependencies installed' 
-        : `⚠️ ${missingDeps.length} missing: ${missingDeps.map(d => d.name).join(', ')}`,
-      cliTools: missingTools.length === 0
-        ? '✅ All CLI tools available'
-        : `⚠️ ${missingTools.length} missing: ${missingTools.map(t => t.name).join(', ')}`,
-      config: disabledConfigs.length === 0
-        ? '✅ All optimizations enabled'
-        : `💡 ${disabledConfigs.length} disabled: ${disabledConfigs.map(c => c.name).join(', ')}`,
-    };
-    
-    const result: DoctorResult = {
-      status,
-      summary,
-      details: {
-        dependencies: {
-          total: dependencyChecks.length,
-          installed: dependencyChecks.filter(d => d.installed).length,
-          missing: missingDeps,
-        },
-        cliTools: {
-          total: cliToolChecks.length,
-          available: cliToolChecks.filter(t => t.installed).length,
-          missing: missingTools,
-        },
-        config: configChecks,
-      },
-      actionItems,
-      quickInstall,
-    };
+    // Status
+    if (missingTools.length >= 3) {
+      result.status = 'action-required';
+    } else if (missingTools.length > 0 || missingAgent.length > 0) {
+      result.status = 'needs-setup';
+    }
     
     return JSON.stringify(result, null, 2);
   },
@@ -350,19 +233,18 @@ export const hiveDoctorTool: ToolDefinition = tool({
  * Quick check - just status summary
  */
 export const hiveDoctorQuickTool: ToolDefinition = tool({
-  description: `Quick health status - shows summary without details.
+  description: `Quick health status - shows summary only.
 
 **Returns:**
-- healthy: All dependencies and CLI tools available
-- warning: Some items missing (not blocking)
-- action-required: Multiple items missing (fix recommended)`,
+- ready: All optional tools installed
+- needs-setup: Some tools missing (recommended)
+- action-required: Multiple tools missing`,
 
   args: {},
 
   async execute() {
     const checks = await Promise.all([
       checkPackage('@sparkleideas/agent-booster'),
-      checkPackage('btca'),
       checkCliTool('dora', '@butttons/dora', ''),
       checkCliTool('auto-cr', 'auto-cr-cmd', ''),
     ]);
@@ -370,9 +252,9 @@ export const hiveDoctorQuickTool: ToolDefinition = tool({
     const missing = checks.filter(c => !c.installed).length;
     
     return JSON.stringify({
-      status: missing === 0 ? 'healthy' : missing >= 2 ? 'action-required' : 'warning',
+      status: missing === 0 ? 'ready' : missing >= 2 ? 'action-required' : 'needs-setup',
       missingCount: missing,
-      runFullCheck: 'Run hive_doctor for detailed analysis and install commands',
+      autoFix: 'Run standalone: bunx @hung319/opencode-hive doctor --fix',
     }, null, 2);
   },
 });
