@@ -39,7 +39,8 @@ interface DoctorResult {
       items: CliCheck[];
     };
   };
-  cxxflagsStatus: 'set' | 'not-set' | 'tip';
+  cxxflagsStatus: 'ready' | 'in-config' | 'not-set';
+  cxxflagsHint: string;
   actionItems: {
     priority: 'high' | 'medium' | 'low';
     action: string;
@@ -102,22 +103,26 @@ function checkCliTool(name: string, command: string, description: string): CliCh
 /**
  * Check if CXXFLAGS is set
  */
-function checkCxxFlags(): 'set' | 'not-set' {
+function checkCxxFlags(): { inConfig: boolean; inSession: boolean } {
   const configs = [
     path.join(process.env.HOME || '', '.bashrc'),
     path.join(process.env.HOME || '', '.zshrc'),
   ];
   
+  let inConfig = false;
   for (const config of configs) {
     if (fs.existsSync(config)) {
       const content = fs.readFileSync(config, 'utf-8');
-      if (content.includes('CXXFLAGS="-std=c++20"')) {
-        return 'set';
+      if (content.includes('CXXFLAGS')) {
+        inConfig = true;
+        break;
       }
     }
   }
   
-  return 'not-set';
+  const inSession = !!process.env.CXXFLAGS;
+  
+  return { inConfig, inSession };
 }
 
 // ============================================================================
@@ -142,14 +147,19 @@ export const hiveDoctorTool: ToolDefinition = tool({
   args: {},
 
   async execute() {
+    const cxxflags = checkCxxFlags();
+    
     const result: DoctorResult = {
       status: 'ready',
-      version: '1.6.4',
+      version: '1.6.6',
       checks: {
         agentTools: { total: 0, installed: 0, items: [] },
         cliTools: { total: 0, available: 0, items: [] },
       },
-      cxxflagsStatus: checkCxxFlags(),
+      cxxflagsStatus: cxxflags.inSession ? 'ready' : cxxflags.inConfig ? 'in-config' : 'not-set',
+      cxxflagsHint: cxxflags.inSession ? 'Active in session' 
+        : cxxflags.inConfig ? 'Run: source ~/.bashrc' 
+        : 'Run: bunx @hung319/opencode-hive doctor --fix',
       actionItems: [],
       quickInstall: '',
     };
@@ -199,11 +209,11 @@ export const hiveDoctorTool: ToolDefinition = tool({
       });
     }
     
-    if (result.cxxflagsStatus === 'not-set') {
+    if (result.cxxflagsStatus !== 'ready') {
       result.actionItems.push({
         priority: 'low',
         action: 'Enable C++20 for native modules',
-        command: `echo 'export CXXFLAGS="-std=c++20"' >> ~/.bashrc`,
+        command: `bunx @hung319/opencode-hive doctor --fix`,
         reason: 'Required for @ast-grep/napi tree-sitter build',
       });
     }

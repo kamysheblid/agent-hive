@@ -567,28 +567,21 @@ bunx @hung319/opencode-hive doctor --fix  # Auto-fix issues
 
 ```
 ╔═══════════════════════════════════════════════════════════╗
-║          🐝 Hive Doctor v1.6.5 - System Check             ║
+║          🐝 Hive Doctor v1.6.6 - System Check             ║
 ╚═══════════════════════════════════════════════════════════╝
 
-  Status: ⚠️ NEEDS SETUP
+  Status: ✅ READY
 
-🚀 Agent Tools (0/2)
-   ○ @sparkleideas/agent-booster not installed
-   ○ @sparkleideas/memory not installed
-
-🔧 CLI Tools (4/5)
-   ✅ dora (via npx)
-   ✅ auto-cr (check) installed
-   ...
+🚀 Agent Tools (2/2) ✅
+🔧 CLI Tools (5/5) ✅
 
 📦 MCPs: Auto-installed with plugin
 
 ⚡ C++20 for native modules:
-   ✅ Already configured
+   ✓ Active in session
 
 🚀 Quick Install
-
-  npm install @sparkleideas/agent-booster
+  All tools ready!
 ```
 
 ### Auto-fix Mode

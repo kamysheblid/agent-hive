@@ -61,7 +61,7 @@ interface DoctorOutput {
     reason: string;
   }[];
   quickInstall: string;
-  cxxflagsStatus: 'set' | 'not-set' | 'auto-fixed';
+  cxxflagsStatus: 'ready' | 'in-config' | 'not-set' | 'auto-fixed';
 }
 
 // ============================================================================
@@ -168,7 +168,7 @@ function checkCliTool(name: string, command: string, description: string): CliCh
 // CXXFLAGS: Check and Auto-fix
 // ============================================================================
 
-function checkCxxFlags(): 'set' | 'not-set' {
+function checkCxxFlags(): { inConfig: 'set' | 'not-set'; inSession: boolean } {
   const shellConfigs = [
     path.join(process.env.HOME || '', '.bashrc'),
     path.join(process.env.HOME || '', '.bash_profile'),
@@ -176,28 +176,39 @@ function checkCxxFlags(): 'set' | 'not-set' {
     path.join(process.env.HOME || '', '.profile'),
   ];
   
-  const pattern = 'CXXFLAGS="-std=c++20"';
+  const patterns = ['CXXFLAGS="-std=c++20"', "CXXFLAGS='-std=c++20'"];
   
+  // Check if set in shell config files
+  let inConfig: 'set' | 'not-set' = 'not-set';
   for (const config of shellConfigs) {
     if (fs.existsSync(config)) {
       const content = fs.readFileSync(config, 'utf-8');
-      if (content.includes(pattern)) {
-        return 'set';
+      for (const pattern of patterns) {
+        if (content.includes(pattern)) {
+          inConfig = 'set';
+          break;
+        }
       }
     }
+    if (inConfig === 'set') break;
   }
   
-  return 'not-set';
+  // Check if CXXFLAGS is active in current session
+  const inSession = !!process.env.CXXFLAGS;
+  
+  return { inConfig, inSession };
 }
 
 function autoFixCxxFlags(): boolean {
-  if (checkCxxFlags() === 'set') {
+  const cxxflags = checkCxxFlags();
+  
+  if (cxxflags.inConfig === 'set') {
     return true;
   }
   
   const bashrc = path.join(process.env.HOME || '', '.bashrc');
-  const exportLine = '\nexport CXXFLAGS="-std=c++20"\nexport CXXFLAGS="std=c++20"\n';
-  const comment = '\n# For tree-sitter native modules (e.g., @ast-grep/napi)\n';
+  const exportLine = 'export CXXFLAGS="-std=c++20"\n';
+  const comment = '# For tree-sitter native modules (e.g., @ast-grep/napi)\n';
   
   try {
     // Check if bashrc exists
@@ -208,12 +219,12 @@ function autoFixCxxFlags(): boolean {
     const content = fs.readFileSync(bashrc, 'utf-8');
     
     // Check if already set
-    if (content.includes('CXXFLAGS')) {
+    if (content.includes('CXXFLAGS="-std=c++20"')) {
       return true;
     }
     
     // Add to bashrc
-    fs.appendFileSync(bashrc, `${comment}${exportLine}`);
+    fs.appendFileSync(bashrc, `\n${comment}${exportLine}`);
     console.log(c.green(`✓ Added CXXFLAGS to ${bashrc}`));
     return true;
   } catch {
@@ -268,9 +279,11 @@ function autoInstallCliTools(tools: CliCheck[]): { success: string[]; failed: st
 // ============================================================================
 
 function runDoctor(autoFix = false): DoctorOutput {
+  const cxxflags = checkCxxFlags();
+  
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.6.5',
+    version: '1.6.6',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -278,7 +291,7 @@ function runDoctor(autoFix = false): DoctorOutput {
     },
     actionItems: [],
     quickInstall: '',
-    cxxflagsStatus: checkCxxFlags(),
+    cxxflagsStatus: cxxflags.inSession ? 'ready' : cxxflags.inConfig === 'set' ? 'in-config' : 'not-set',
   };
   
   // Auto-fix CXXFLAGS if requested
@@ -289,7 +302,7 @@ function runDoctor(autoFix = false): DoctorOutput {
     setCxxFlagsForCurrentSession();
     
     // Add to shell config
-    if (output.cxxflagsStatus === 'not-set') {
+    if (cxxflags.inConfig !== 'set') {
       autoFixCxxFlags();
       output.cxxflagsStatus = 'auto-fixed';
     }
@@ -422,12 +435,16 @@ function printDoctor(output: DoctorOutput) {
   
   // C++20 status
   console.log('\n⚡ C++20 for native modules:');
-  if (output.cxxflagsStatus === 'set') {
-    console.log('   ' + c.green('✓ Already configured in shell'));
+  if (output.cxxflagsStatus === 'ready') {
+    console.log('   ' + c.green('✓ Active in session'));
+  } else if (output.cxxflagsStatus === 'in-config') {
+    console.log('   ' + c.yellow('⚠ Configured but not active in current session'));
+    console.log('   ' + c.gray('   Run: source ~/.bashrc'));
   } else if (output.cxxflagsStatus === 'auto-fixed') {
-    console.log('   ' + c.green('✓ Auto-configured! (run "source ~/.bashrc" or restart terminal)'));
+    console.log('   ' + c.green('✓ Configured!'));
+    console.log('   ' + c.gray('   Run: source ~/.bashrc to activate'));
   } else {
-    console.log('   ' + c.yellow('○ Not set (needed for @ast-grep/napi)'));
+    console.log('   ' + c.red('○ Not set (needed for @ast-grep/napi)'));
     console.log('   ' + c.gray('   Run with --fix to auto-configure'));
   }
   
