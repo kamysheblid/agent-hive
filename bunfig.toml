@@ -1,3 +1,0 @@
-[install]
-# Allow scripts for native binaries like ast-grep
-trustedDependencies = ["@ast-grep/napi", "@ast-grep/cli"]

@@ -231,15 +231,13 @@ function runDoctor(): DoctorOutput {
   
   // Check dependencies
   const deps = [
-    '@ast-grep/napi',
-    '@notprolands/ast-grep-mcp',
     '@sparkleideas/agent-booster',
     '@sparkleideas/memory',
     '@paretools/search',
     '@upstash/context7-mcp',
     'exa-mcp-server',
     'grep-mcp',
-    'btca-ask',
+    'btca',
     'opencode-model-selector',
   ];
   
@@ -253,8 +251,7 @@ function runDoctor(): DoctorOutput {
     { name: 'auto-cr', command: 'auto-cr-cmd', description: 'SWC-based automated code review' },
     { name: 'veil', command: '@ushiradineth/veil', description: 'Code discovery and retrieval' },
     { name: 'scip-typescript', command: '@sourcegraph/scip-typescript', description: 'TypeScript SCIP indexer' },
-    { name: 'btca', command: 'btca-ask', description: 'BTC/A agent for blockchain tasks' },
-    { name: 'ast-grep', command: '@notprolands/ast-grep-mcp', description: 'AST-based pattern matching' },
+    { name: 'btca', command: 'btca', description: 'BTC/A agent for blockchain tasks' },
   ];
   
   output.checks.cliTools.items = cliTools.map(t => checkCliTool(t.name, t.command, t.description));

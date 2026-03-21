@@ -8,9 +8,8 @@ import * as path from 'path';
  * 
  * Checks:
  * 1. Dependencies - optional packages installed?
- * 2. CLI Tools - dora, auto-cr, ast-grep, etc. available?
- * 3. Native Binaries - @ast-grep/napi tree-sitter binaries?
- * 4. Config - features and settings properly configured?
+ * 2. CLI Tools - dora, auto-cr, btca, etc. available?
+ * 3. Config - features and settings properly configured?
  */
 
 interface DependencyCheck {
@@ -18,7 +17,6 @@ interface DependencyCheck {
   package: string;
   installed: boolean;
   version?: string;
-  optional: boolean;
 }
 
 interface CliToolCheck {
@@ -27,13 +25,6 @@ interface CliToolCheck {
   installed: boolean;
   version?: string;
   description: string;
-}
-
-interface NativeBinaryCheck {
-  name: string;
-  path: string;
-  installed: boolean;
-  reason?: string;
 }
 
 interface ConfigCheck {
@@ -48,7 +39,6 @@ interface DoctorResult {
   summary: {
     dependencies: string;
     cliTools: string;
-    nativeBinaries: string;
     config: string;
   };
   details: {
@@ -61,14 +51,6 @@ interface DoctorResult {
       total: number;
       available: number;
       missing: CliToolCheck[];
-    };
-    nativeBinaries: {
-      status: 'native' | 'cli-mode' | 'unavailable';
-      reason?: string;
-      astGrep?: {
-        available: boolean;
-        version?: string;
-      };
     };
     config: ConfigCheck[];
   };
@@ -92,7 +74,6 @@ async function checkPackage(packageName: string): Promise<DependencyCheck> {
     name: packageName,
     package: packageName,
     installed: false,
-    optional: true,
   };
   
   try {
@@ -133,45 +114,6 @@ function checkCliTool(name: string, command: string, description: string): CliTo
       result.installed = true;
       result.version = 'via npx';
     } catch {}
-  }
-  
-  return result;
-}
-
-/**
- * Check native @ast-grep/napi binaries
- */
-function checkAstGrepNative(): { available: boolean; version?: string; reason?: string } {
-  const result: { available: boolean; version?: string; reason?: string } = { 
-    available: false, 
-    reason: '' 
-  };
-  
-  try {
-    // Check if @ast-grep/napi package exists
-    const napiPath = require.resolve('@ast-grep/napi');
-    const napiDir = path.dirname(napiPath);
-    
-    // Check for native binaries in common locations
-    const binaryPaths = [
-      path.join(napiDir, 'index.node'),
-      path.join(napiDir, 'build', 'Release', 'ast_grep.node'),
-      path.join(napiDir, 'dist', 'index.node'),
-    ];
-    
-    const binaryExists = binaryPaths.some(p => fs.existsSync(p));
-    
-    if (binaryExists) {
-      result.available = true;
-      try {
-        const pkg = JSON.parse(fs.readFileSync(path.join(napiDir, 'package.json'), 'utf-8'));
-        result.version = pkg.version;
-      } catch {}
-    } else {
-      result.reason = 'Native binaries not compiled (tree-sitter failed to build)';
-    }
-  } catch (error) {
-    result.reason = '@ast-grep/napi not installed';
   }
   
   return result;
@@ -249,14 +191,6 @@ function checkConfig(): ConfigCheck[] {
   const disabledMcps = config?.disableMcps || [];
   
   checks.push({
-    name: 'ast_grep MCP',
-    enabled: !disabledMcps.includes('ast_grep'),
-    recommendation: !disabledMcps.includes('ast_grep')
-      ? 'ast_grep MCP enabled'
-      : 'Enable ast_grep: Remove "ast_grep" from disableMcps array',
-  });
-  
-  checks.push({
     name: 'veil MCP',
     enabled: !disabledMcps.includes('veil'),
     recommendation: !disabledMcps.includes('veil')
@@ -283,10 +217,9 @@ export const hiveDoctorTool: ToolDefinition = tool({
   description: `Hive Doctor - System health check with actionable fixes.
 
 **Checks performed:**
-1. Dependencies - All MCP packages, ast-grep, agent-booster, etc.
+1. Dependencies - MCP packages, agent tools, blockchain, etc.
 2. CLI Tools - dora, auto-cr, scip-typescript, veil, btca, etc.
-3. Native Binaries - tree-sitter binaries for ast-grep
-4. Config - optimizations and MCPs enabled
+3. Config - optimizations and MCPs enabled
 
 **Output includes:**
 - Status summary (healthy/warning/action-required)
@@ -301,21 +234,17 @@ export const hiveDoctorTool: ToolDefinition = tool({
   async execute() {
     // 1. Check dependencies
     const dependencyChecks = await Promise.all([
-      // Core
-      checkPackage('@ast-grep/napi'),
-      checkPackage('@notprolands/ast-grep-mcp'),
-      checkPackage('@paretools/search'),
       // Agent tools
       checkPackage('@sparkleideas/agent-booster'),
       checkPackage('@sparkleideas/memory'),
       // MCPs
+      checkPackage('@paretools/search'),
       checkPackage('@upstash/context7-mcp'),
       checkPackage('exa-mcp-server'),
       checkPackage('grep-mcp'),
-      checkPackage('btca-ask'),
       // Blockchain
+      checkPackage('btca'),
       checkPackage('opencode-model-selector'),
-      checkPackage('opencode-model-selector-free'),
     ]);
     
     // 2. Check CLI tools
@@ -324,17 +253,10 @@ export const hiveDoctorTool: ToolDefinition = tool({
       checkCliTool('auto-cr', 'auto-cr-cmd', 'SWC-based automated code review'),
       checkCliTool('scip-typescript', '@sourcegraph/scip-typescript', 'TypeScript SCIP indexer'),
       checkCliTool('veil', '@ushiradineth/veil', 'Code discovery and retrieval'),
-      checkCliTool('btca', 'btca-ask', 'BTC/A agent for blockchain tasks'),
-      checkCliTool('ast-grep', '@notprolands/ast-grep-mcp', 'AST-based pattern matching'),
+      checkCliTool('btca', 'btca', 'BTC/A agent for blockchain tasks'),
     ];
     
-    // 3. Check native binaries
-    const nativeCheck = checkAstGrepNative();
-    const nativeStatus = nativeCheck.available 
-      ? 'native' as const
-      : 'cli-mode' as const;
-    
-    // 4. Check config
+    // 3. Check config
     const configChecks = checkConfig();
     
     // Calculate status
@@ -358,21 +280,21 @@ export const hiveDoctorTool: ToolDefinition = tool({
         priority: 'high',
         action: `Install ${tool.name}`,
         command: `npx -y ${tool.command}`,
-        reason: `${tool.description} - improves code navigation/review`,
+        reason: `${tool.description}`,
       });
     }
     
-    // High priority: MCP deps
-    if (!dependencyChecks.find(d => d.package === '@notprolands/ast-grep-mcp')?.installed) {
+    // Medium priority: btca
+    if (!dependencyChecks.find(d => d.package === 'btca')?.installed) {
       actionItems.push({
         priority: 'medium',
-        action: 'Install ast-grep MCP for YAML rule testing',
-        command: `npm install @notprolands/ast-grep-mcp`,
-        reason: 'Full ast-grep functionality with YAML rules',
+        action: 'Install btca for blockchain tasks',
+        command: `npm install btca`,
+        reason: 'BTC/A agent for blockchain analysis and development',
       });
     }
     
-    // Medium priority: Optimizations
+    // Low priority: Optimizations
     for (const config of disabledConfigs) {
       actionItems.push({
         priority: 'low',
@@ -395,9 +317,6 @@ export const hiveDoctorTool: ToolDefinition = tool({
       cliTools: missingTools.length === 0
         ? '✅ All CLI tools available'
         : `⚠️ ${missingTools.length} missing: ${missingTools.map(t => t.name).join(', ')}`,
-      nativeBinaries: nativeCheck.available
-        ? `✅ Native mode (v${nativeCheck.version || '?'})`
-        : `⚡ CLI mode (${nativeCheck.reason || 'native unavailable'})`,
       config: disabledConfigs.length === 0
         ? '✅ All optimizations enabled'
         : `💡 ${disabledConfigs.length} disabled: ${disabledConfigs.map(c => c.name).join(', ')}`,
@@ -416,14 +335,6 @@ export const hiveDoctorTool: ToolDefinition = tool({
           total: cliToolChecks.length,
           available: cliToolChecks.filter(t => t.installed).length,
           missing: missingTools,
-        },
-        nativeBinaries: {
-          status: nativeStatus,
-          reason: nativeCheck.reason,
-          astGrep: {
-            available: nativeCheck.available,
-            version: nativeCheck.version,
-          },
         },
         config: configChecks,
       },
@@ -450,8 +361,8 @@ export const hiveDoctorQuickTool: ToolDefinition = tool({
 
   async execute() {
     const checks = await Promise.all([
-      checkPackage('@ast-grep/napi'),
       checkPackage('@sparkleideas/agent-booster'),
+      checkPackage('btca'),
       checkCliTool('dora', '@butttons/dora', ''),
       checkCliTool('auto-cr', 'auto-cr-cmd', ''),
     ]);

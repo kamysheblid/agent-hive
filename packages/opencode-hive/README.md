@@ -71,7 +71,7 @@ npm install @hung319/opencode-hive
 2. Set `EXA_API_KEY` to enable `websearch_exa` (optional).
 3. Restart OpenCode.
 
-This enables tools like `grep_app_searchGitHub`, `context7_query-docs`, `websearch_web_search_exa`, and `ast_grep_search`.
+This enables tools like `grep_app_searchGitHub`, `context7_query-docs`, and `websearch_web_search_exa`.
 
 ## The Workflow
 
@@ -206,7 +206,7 @@ Hive uses a config file at `~/.config/opencode/agent_hive.json`. You can customi
 {
   "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
   "disableSkills": ["brainstorming", "writing-plans"],
-  "disableMcps": ["websearch", "ast_grep"]
+  "disableMcps": ["websearch", "pare_search"]
 }
 ```
 
@@ -230,21 +230,8 @@ Hive uses a config file at `~/.config/opencode/agent_hive.json`. You can customi
 | `websearch` | Web search via [Exa AI](https://exa.ai). Real-time web searches and content scraping. | Set `EXA_API_KEY` env var |
 | `context7` | Library documentation lookup via [Context7](https://context7.com). Query up-to-date docs for any programming library. | None |
 | `grep_app` | GitHub code search via [grep.app](https://grep.app). Find real-world code examples from public repositories. | None |
-| `ast_grep` | Native NAPI-powered AST analysis. Pattern matching across 25+ languages. | Built-in (no npx needed) |
 | `pare_search` | Structured ripgrep/fd search with 65-95% token reduction. | None (runs via npx) |
-
-#### Native ast-grep Tools
-
-Instead of MCP-based ast-grep, this plugin includes native tools using `@ast-grep/napi`:
-
-| Tool | Description |
-|------|-------------|
-| `ast_grep_dump_syntax_tree` | Dump code's syntax structure for debugging |
-| `ast_grep_test_match_code_rule` | Test code against YAML rules |
-| `ast_grep_find_code` | Find code matching patterns in project |
-| `ast_grep_scan_code` | Scan for TypeScript bugs and best practices |
-| `ast_grep_rewrite_code` | Transform/refactor code with AST patterns |
-| `ast_grep_analyze_imports` | Analyze import usage in codebase |
+| `veil` | Code discovery and intelligent retrieval. | None (runs via npx) |
 
 ### Per-Agent Skills
 
@@ -559,26 +546,21 @@ bunx @hung319/opencode-hive doctor
 ### What it checks
 
 1. **Dependencies** - npm packages installed?
-   - Core: `@ast-grep/napi`, `@notprolands/ast-grep-mcp`, `@paretools/search`
    - Agent: `@sparkleideas/agent-booster`, `@sparkleideas/memory`
-   - MCPs: `@upstash/context7-mcp`, `exa-mcp-server`, `grep-mcp`
-   - Blockchain: `btca-ask`, `opencode-model-selector`
+   - MCPs: `@paretools/search`, `@upstash/context7-mcp`, `exa-mcp-server`, `grep-mcp`
+   - Blockchain: `btca`, `opencode-model-selector`
 
 2. **CLI Tools** - npx tools available?
    - `dora` - Code navigation (SCIP-based)
    - `auto-cr` - Automated code review (SWC)
    - `scip-typescript` - TypeScript indexer
    - `veil` - Code discovery
-   - `btca` - BTC/A blockchain agent
+   - `btca` - BTC/A blockchain agent (from npmx.dev)
 
-3. **Native Binaries** - @ast-grep/napi tree-sitter?
-   - Native mode: Fastest, uses compiled binaries
-   - CLI mode: Falls back to MCP via npx
-
-4. **Config** - Features enabled?
+3. **Config** - Features enabled?
    - snip, vectorMemory, agentBooster
    - sandbox mode
-   - MCPs: ast_grep, veil, pare_search
+   - MCPs: veil, pare_search
 
 ### Example Output
 
@@ -586,9 +568,8 @@ bunx @hung319/opencode-hive doctor
 {
   "status": "warning",
   "summary": {
-    "dependencies": "⚠️ 2 missing: agent-booster, vector-memory",
+    "dependencies": "⚠️ 2 missing: agent-booster, memory",
     "cliTools": "⚠️ 1 missing: auto-cr",
-    "nativeBinaries": "⚡ CLI mode (native unavailable)",
     "config": "💡 2 disabled: snip, vectorMemory"
   },
   "actionItems": [

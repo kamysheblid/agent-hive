@@ -10,8 +10,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      BUN_INSTALL_ALLOW_SCRIPTS: "@ast-grep/napi @ast-grep/cli"
     steps:
       - uses: actions/checkout@v4
 
