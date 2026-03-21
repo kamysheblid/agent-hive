@@ -26,25 +26,25 @@ Hive: Plan → Review → Approve → Execute → Ship
 
 ### For Humans
 
-**Step 1: Install the plugin**
+**Step 1: Check if your system is ready** (run BEFORE installing)
+```bash
+# Run standalone doctor to see what's needed
+bunx @hung319/opencode-hive doctor
+# or
+npx @hung319/opencode-hive doctor
+```
+
+**Step 2: Install the plugin**
 ```bash
 npm install @hung319/opencode-hive
 ```
 
-**Step 2: Check what's available**
-Open OpenCode and ask: "Run hive_doctor to check the system"
-
 **Step 3: Install extras you want**
-- For **code analysis**: Install `@notprolands/ast-grep-mcp`
-- For **fast code search**: Install `@paretools/search`
-- For **code navigation**: Install `@butttons/dora`
-- For **auto code review**: Install `auto-cr-cmd`
-
-```bash
-# Install all extras at once
-npm install @notprolands/ast-grep-mcp @paretools/search
-npx -y @butttons/dora auto-cr-cmd
-```
+- For **code analysis**: `npm install @notprolands/ast-grep-mcp`
+- For **fast code search**: `npm install @paretools/search`
+- For **code navigation**: `npx -y @butttons/dora`
+- For **auto code review**: `npx -y auto-cr-cmd`
+- For **blockchain tasks**: `npm install btca-ask`
 
 **Step 4: Optional config**
 Create `~/.config/opencode/agent_hive.json`:
@@ -551,21 +551,25 @@ hive_doctor()
 hive_doctor_quick()
 ```
 
+**Standalone (before installing):**
+```bash
+bunx @hung319/opencode-hive doctor
+```
+
 ### What it checks
 
 1. **Dependencies** - npm packages installed?
-   - `@ast-grep/napi` - Native AST analysis
-   - `@sparkleideas/agent-booster` - Fast code editing
-   - `@sparkleideas/memory` - Vector memory
-   - `@paretools/search` - Structured search
-   - `@upstash/context7-mcp` - Library docs
-   - `exa-mcp-server` - Web search
+   - Core: `@ast-grep/napi`, `@notprolands/ast-grep-mcp`, `@paretools/search`
+   - Agent: `@sparkleideas/agent-booster`, `@sparkleideas/memory`
+   - MCPs: `@upstash/context7-mcp`, `exa-mcp-server`, `grep-mcp`
+   - Blockchain: `btca-ask`, `opencode-model-selector`
 
 2. **CLI Tools** - npx tools available?
    - `dora` - Code navigation (SCIP-based)
    - `auto-cr` - Automated code review (SWC)
    - `scip-typescript` - TypeScript indexer
    - `veil` - Code discovery
+   - `btca` - BTC/A blockchain agent
 
 3. **Native Binaries** - @ast-grep/napi tree-sitter?
    - Native mode: Fastest, uses compiled binaries

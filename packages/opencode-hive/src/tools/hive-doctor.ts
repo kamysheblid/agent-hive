@@ -283,8 +283,8 @@ export const hiveDoctorTool: ToolDefinition = tool({
   description: `Hive Doctor - System health check with actionable fixes.
 
 **Checks performed:**
-1. Dependencies - @ast-grep/napi, agent-booster, vector-memory, etc.
-2. CLI Tools - dora, auto-cr, scip-typescript, veil
+1. Dependencies - All MCP packages, ast-grep, agent-booster, etc.
+2. CLI Tools - dora, auto-cr, scip-typescript, veil, btca, etc.
 3. Native Binaries - tree-sitter binaries for ast-grep
 4. Config - optimizations and MCPs enabled
 
@@ -292,21 +292,30 @@ export const hiveDoctorTool: ToolDefinition = tool({
 - Status summary (healthy/warning/action-required)
 - Missing items with install commands
 - Action items prioritized by impact
-- Quick install commands for all missing items`,
+- Quick install commands for all missing items
+
+**Tip:** Run standalone before installing: \`bunx @hung319/opencode-hive doctor\``,
 
   args: {},
 
   async execute() {
     // 1. Check dependencies
     const dependencyChecks = await Promise.all([
+      // Core
       checkPackage('@ast-grep/napi'),
+      checkPackage('@notprolands/ast-grep-mcp'),
+      checkPackage('@paretools/search'),
+      // Agent tools
       checkPackage('@sparkleideas/agent-booster'),
       checkPackage('@sparkleideas/memory'),
-      checkPackage('@paretools/search'),
+      // MCPs
       checkPackage('@upstash/context7-mcp'),
       checkPackage('exa-mcp-server'),
       checkPackage('grep-mcp'),
-      checkPackage('@notprolands/ast-grep-mcp'),
+      checkPackage('btca-ask'),
+      // Blockchain
+      checkPackage('opencode-model-selector'),
+      checkPackage('opencode-model-selector-free'),
     ]);
     
     // 2. Check CLI tools
@@ -315,6 +324,8 @@ export const hiveDoctorTool: ToolDefinition = tool({
       checkCliTool('auto-cr', 'auto-cr-cmd', 'SWC-based automated code review'),
       checkCliTool('scip-typescript', '@sourcegraph/scip-typescript', 'TypeScript SCIP indexer'),
       checkCliTool('veil', '@ushiradineth/veil', 'Code discovery and retrieval'),
+      checkCliTool('btca', 'btca-ask', 'BTC/A agent for blockchain tasks'),
+      checkCliTool('ast-grep', '@notprolands/ast-grep-mcp', 'AST-based pattern matching'),
     ];
     
     // 3. Check native binaries

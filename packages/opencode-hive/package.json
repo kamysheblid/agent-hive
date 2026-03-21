@@ -1,10 +1,13 @@
 {
   "name": "@hung319/opencode-hive",
-  "version": "1.5.8",
+  "version": "1.5.9",
   "type": "module",
   "description": "OpenCode plugin for Agent Hive - from vibe coding to hive coding",
   "license": "MIT WITH Commons-Clause",
   "author": "hung319",
+  "bin": {
+    "hive-doctor": "./bin/doctor.ts"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/hung319/agent-hive.git",
