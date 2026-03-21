@@ -71,7 +71,7 @@ npm install @hung319/opencode-hive
 2. Set `EXA_API_KEY` to enable `websearch_exa` (optional).
 3. Restart OpenCode.
 
-This enables tools like `grep_app_searchGitHub`, `context7_query-docs`, and `websearch_web_search_exa`.
+This enables tools like `grep_app_searchGitHub`, `context7_query-docs`, `websearch_web_search_exa`, and `ast_grep_search`.
 
 ## The Workflow
 
@@ -206,7 +206,7 @@ Hive uses a config file at `~/.config/opencode/agent_hive.json`. You can customi
 {
   "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
   "disableSkills": ["brainstorming", "writing-plans"],
-  "disableMcps": ["websearch", "pare_search"]
+  "disableMcps": ["websearch", "ast_grep"]
 }
 ```
 
@@ -230,6 +230,7 @@ Hive uses a config file at `~/.config/opencode/agent_hive.json`. You can customi
 | `websearch` | Web search via [Exa AI](https://exa.ai). Real-time web searches and content scraping. | Set `EXA_API_KEY` env var |
 | `context7` | Library documentation lookup via [Context7](https://context7.com). Query up-to-date docs for any programming library. | None |
 | `grep_app` | GitHub code search via [grep.app](https://grep.app). Find real-world code examples from public repositories. | None |
+| `ast_grep` | AST-based pattern matching and code analysis. | None (runs via npx) |
 | `pare_search` | Structured ripgrep/fd search with 65-95% token reduction. | None (runs via npx) |
 | `veil` | Code discovery and intelligent retrieval. | None (runs via npx) |
 
@@ -546,6 +547,7 @@ bunx @hung319/opencode-hive doctor
 ### What it checks
 
 1. **Dependencies** - npm packages installed?
+   - Core: `@ast-grep/napi`, `@notprolands/ast-grep-mcp`
    - Agent: `@sparkleideas/agent-booster`, `@sparkleideas/memory`
    - MCPs: `@paretools/search`, `@upstash/context7-mcp`, `exa-mcp-server`, `grep-mcp`
    - Blockchain: `btca`, `opencode-model-selector`
@@ -556,11 +558,12 @@ bunx @hung319/opencode-hive doctor
    - `scip-typescript` - TypeScript indexer
    - `veil` - Code discovery
    - `btca` - BTC/A blockchain agent (from npmx.dev)
+   - `ast-grep` - AST-based pattern matching
 
 3. **Config** - Features enabled?
    - snip, vectorMemory, agentBooster
    - sandbox mode
-   - MCPs: veil, pare_search
+   - MCPs: ast_grep, veil, pare_search
 
 ### Example Output
 
