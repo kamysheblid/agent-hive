@@ -14,6 +14,49 @@ Vibe: "Just make it work"
 Hive: Plan → Review → Approve → Execute → Ship
 ```
 
+## Quick Setup (3 Steps)
+
+### For AI Agents (LLM)
+
+```
+1. Run: hive_doctor
+2. Install missing: npm install <packages> && npx -y <tools>
+3. Config: Add to ~/.config/opencode/agent_hive.json
+```
+
+### For Humans
+
+**Step 1: Install the plugin**
+```bash
+npm install @hung319/opencode-hive
+```
+
+**Step 2: Check what's available**
+Open OpenCode and ask: "Run hive_doctor to check the system"
+
+**Step 3: Install extras you want**
+- For **code analysis**: Install `@notprolands/ast-grep-mcp`
+- For **fast code search**: Install `@paretools/search`
+- For **code navigation**: Install `@butttons/dora`
+- For **auto code review**: Install `auto-cr-cmd`
+
+```bash
+# Install all extras at once
+npm install @notprolands/ast-grep-mcp @paretools/search
+npx -y @butttons/dora auto-cr-cmd
+```
+
+**Step 4: Optional config**
+Create `~/.config/opencode/agent_hive.json`:
+```json
+{
+  "snip": { "enabled": true },
+  "vectorMemory": { "enabled": true }
+}
+```
+
+---
+
 ## Installation
 
 ```bash
@@ -489,69 +532,106 @@ hive_vector_search({
 
 ## Hive Doctor
 
-System health check and optimization advisor. Checks dependencies, features, and provides recommendations.
+System health check with actionable fixes. Run this when setting up or troubleshooting.
 
 ### Tools
 
 | Tool | Description |
 |------|-------------|
-| `hive_doctor` | Full health check with recommendations |
+| `hive_doctor` | Full health check with install commands |
 | `hive_doctor_quick` | Quick status summary |
 
 ### Usage
 
 ```typescript
-// Full health check
+// Full health check with actionable output
 hive_doctor()
 
-// Quick check
+// Quick status
 hive_doctor_quick()
 ```
 
 ### What it checks
 
-1. **Dependencies** - Optional packages installed and working
-   - @sparkleideas/agent-booster
-   - @sparkleideas/memory
-   - @ast-grep/napi
-   - @paretools/search
-   - @upstash/context7-mcp
-   - exa-mcp-server
+1. **Dependencies** - npm packages installed?
+   - `@ast-grep/napi` - Native AST analysis
+   - `@sparkleideas/agent-booster` - Fast code editing
+   - `@sparkleideas/memory` - Vector memory
+   - `@paretools/search` - Structured search
+   - `@upstash/context7-mcp` - Library docs
+   - `exa-mcp-server` - Web search
 
-2. **Optimizations** - Features enabled in config
-   - snip (60-90% token reduction)
-   - vector memory (semantic search)
-   - agent booster (fast code editing)
-   - Docker sandbox (isolated environments)
-   - native ast-grep (fast AST analysis)
-   - pare-search (structured search)
+2. **CLI Tools** - npx tools available?
+   - `dora` - Code navigation (SCIP-based)
+   - `auto-cr` - Automated code review (SWC)
+   - `scip-typescript` - TypeScript indexer
+   - `veil` - Code discovery
 
-3. **Recommendations** - Suggestions for improvements
+3. **Native Binaries** - @ast-grep/napi tree-sitter?
+   - Native mode: Fastest, uses compiled binaries
+   - CLI mode: Falls back to MCP via npx
+
+4. **Config** - Features enabled?
+   - snip, vectorMemory, agentBooster
+   - sandbox mode
+   - MCPs: ast_grep, veil, pare_search
 
 ### Example Output
 
 ```json
 {
   "status": "warning",
-  "checks": {
-    "dependencies": {
-      "total": 6,
-      "installed": 4,
-      "packages": [...]
-    },
-    "optimizations": {
-      "total": 6,
-      "enabled": 3,
-      "features": [...]
-    }
+  "summary": {
+    "dependencies": "⚠️ 2 missing: agent-booster, vector-memory",
+    "cliTools": "⚠️ 1 missing: auto-cr",
+    "nativeBinaries": "⚡ CLI mode (native unavailable)",
+    "config": "💡 2 disabled: snip, vectorMemory"
   },
-  "recommendations": [
-    "Enable vector memory for semantic search across memories"
+  "actionItems": [
+    {
+      "priority": "high",
+      "action": "Install auto-cr",
+      "command": "npx -y auto-cr-cmd",
+      "reason": "SWC-based automated code review"
+    },
+    {
+      "priority": "medium",
+      "action": "Install agent-booster",
+      "command": "npm install @sparkleideas/agent-booster",
+      "reason": "52x faster code editing"
+    }
   ],
-  "quickFixes": [
-    { "command": "npm install @sparkleideas/memory", "description": "Install vector-memory" }
-  ]
+  "quickInstall": {
+    "deps": ["@sparkleideas/agent-booster", "@sparkleideas/memory"],
+    "cliTools": ["auto-cr-cmd"]
+  }
 }
+```
+
+### Setup Workflow
+
+**For AI Agents (LLM):**
+
+```
+1. Run: hive_doctor
+2. Parse: actionItems[] for priority: "high"
+3. Install: Run quickInstall.commands
+4. Config: Apply config recommendations
+5. Verify: Run hive_doctor again to confirm
+```
+
+**For Humans:**
+
+1. **Open OpenCode** and ask "Run hive_doctor"
+2. **Look at the summary** - it tells you what's missing
+3. **Install what you need** - commands are ready to copy
+4. **Optional: Configure** - enable snip, vector memory for extra features
+
+```
+Quick Install All:
+npm install @notprolands/ast-grep-mcp @paretools/search @sparkleideas/memory
+npx -y @butttons/dora auto-cr-cmd
+```
 ```
 
 ## License

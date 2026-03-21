@@ -8,126 +8,181 @@ import * as path from 'path';
  * 
  * Checks:
  * 1. Dependencies - optional packages installed?
- * 2. CLI Tools - dora, auto-cr, etc. available?
- * 3. Optimizations - features enabled?
- * 4. Recommendations - suggestions for improvements
+ * 2. CLI Tools - dora, auto-cr, ast-grep, etc. available?
+ * 3. Native Binaries - @ast-grep/napi tree-sitter binaries?
+ * 4. Config - features and settings properly configured?
  */
 
 interface DependencyCheck {
   name: string;
   package: string;
-  installed?: boolean;
+  installed: boolean;
   version?: string;
-  required: boolean;
+  optional: boolean;
 }
 
 interface CliToolCheck {
   name: string;
   command: string;
-  installed?: boolean;
+  installed: boolean;
   version?: string;
   description: string;
-  installCommand?: string;
 }
 
-interface OptimizationCheck {
+interface NativeBinaryCheck {
+  name: string;
+  path: string;
+  installed: boolean;
+  reason?: string;
+}
+
+interface ConfigCheck {
   name: string;
   enabled: boolean;
-  recommendation?: string;
+  value?: any;
+  recommendation: string;
 }
 
 interface DoctorResult {
-  status: 'healthy' | 'warning' | 'issues';
-  timestamp: string;
-  checks: {
+  status: 'healthy' | 'warning' | 'action-required';
+  summary: {
+    dependencies: string;
+    cliTools: string;
+    nativeBinaries: string;
+    config: string;
+  };
+  details: {
     dependencies: {
       total: number;
       installed: number;
-      packages: DependencyCheck[];
+      missing: DependencyCheck[];
     };
     cliTools: {
       total: number;
       available: number;
-      tools: CliToolCheck[];
-      missing: string[];
+      missing: CliToolCheck[];
     };
-    optimizations: {
-      total: number;
-      enabled: number;
-      features: OptimizationCheck[];
+    nativeBinaries: {
+      status: 'native' | 'cli-mode' | 'unavailable';
+      reason?: string;
+      astGrep?: {
+        available: boolean;
+        version?: string;
+      };
     };
+    config: ConfigCheck[];
   };
-  recommendations: string[];
-  quickFixes: Array<{
-    command: string;
-    description: string;
-  }>;
+  actionItems: {
+    priority: 'high' | 'medium' | 'low';
+    action: string;
+    command?: string;
+    reason: string;
+  }[];
+  quickInstall: {
+    deps: string[];
+    cliTools: string[];
+  };
 }
 
 /**
- * Check if a package is installed in node_modules
+ * Check if a package is installed
  */
-async function checkPackage(packageName: string): Promise<{ installed: boolean; version?: string }> {
+async function checkPackage(packageName: string): Promise<DependencyCheck> {
+  const result: DependencyCheck = {
+    name: packageName,
+    package: packageName,
+    installed: false,
+    optional: true,
+  };
+  
   try {
-    // Try to find package.json of the installed package
     const packageJsonPath = require.resolve(`${packageName}/package.json`, {
-      paths: [
-        process.cwd(),
-        path.join(process.cwd(), 'node_modules'),
-        path.join(process.cwd(), 'packages/opencode-hive/node_modules'),
-      ],
+      paths: [process.cwd(), path.join(process.cwd(), 'node_modules')],
     });
     
     if (fs.existsSync(packageJsonPath)) {
       const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-      return { installed: true, version: pkg.version };
+      result.installed = true;
+      result.version = pkg.version;
     }
-  } catch {
-    // Package not found
-  }
-  return { installed: false };
-}
-
-/**
- * Check if a CLI tool is available (via npx or direct)
- */
-function checkCliTool(tool: CliToolCheck): CliToolCheck {
-  // First try direct command
-  try {
-    const result = execSync(tool.command, { stdio: 'pipe', timeout: 5000 });
-    const output = result.toString().trim();
-    const versionMatch = output.match(/(\d+\.\d+\.\d+)/);
-    return {
-      ...tool,
-      installed: true,
-      version: versionMatch ? versionMatch[1] : output.slice(0, 50),
-    };
-  } catch {
-    // Try npx
-    const npxCmd = tool.command.split(' ')[0];
-    try {
-      execSync(`npx -y ${npxCmd} --version`, { stdio: 'pipe', timeout: 10000 });
-      return {
-        ...tool,
-        installed: true,
-        version: 'via npx',
-      };
-    } catch {
-      return {
-        ...tool,
-        installed: false,
-      };
-    }
-  }
-}
-
-/**
- * Check config file for optimizations
- */
-function checkOptimizations(): OptimizationCheck[] {
-  const checks: OptimizationCheck[] = [];
+  } catch {}
   
-  // Try to read config
+  return result;
+}
+
+/**
+ * Check if CLI tool is available
+ */
+function checkCliTool(name: string, command: string, description: string): CliToolCheck {
+  const result: CliToolCheck = {
+    name,
+    command,
+    installed: false,
+    description,
+  };
+  
+  // Try direct command
+  try {
+    execSync(command.split(' ')[0], { stdio: 'pipe', timeout: 3000 });
+    result.installed = true;
+    result.version = 'installed';
+  } catch {
+    // Try npx with short timeout
+    try {
+      execSync(`npx -y ${command.split(' ')[0]} --version`, { stdio: 'pipe', timeout: 5000 });
+      result.installed = true;
+      result.version = 'via npx';
+    } catch {}
+  }
+  
+  return result;
+}
+
+/**
+ * Check native @ast-grep/napi binaries
+ */
+function checkAstGrepNative(): { available: boolean; version?: string; reason?: string } {
+  const result: { available: boolean; version?: string; reason?: string } = { 
+    available: false, 
+    reason: '' 
+  };
+  
+  try {
+    // Check if @ast-grep/napi package exists
+    const napiPath = require.resolve('@ast-grep/napi');
+    const napiDir = path.dirname(napiPath);
+    
+    // Check for native binaries in common locations
+    const binaryPaths = [
+      path.join(napiDir, 'index.node'),
+      path.join(napiDir, 'build', 'Release', 'ast_grep.node'),
+      path.join(napiDir, 'dist', 'index.node'),
+    ];
+    
+    const binaryExists = binaryPaths.some(p => fs.existsSync(p));
+    
+    if (binaryExists) {
+      result.available = true;
+      try {
+        const pkg = JSON.parse(fs.readFileSync(path.join(napiDir, 'package.json'), 'utf-8'));
+        result.version = pkg.version;
+      } catch {}
+    } else {
+      result.reason = 'Native binaries not compiled (tree-sitter failed to build)';
+    }
+  } catch (error) {
+    result.reason = '@ast-grep/napi not installed';
+  }
+  
+  return result;
+}
+
+/**
+ * Check config file
+ */
+function checkConfig(): ConfigCheck[] {
+  const checks: ConfigCheck[] = [];
+  
   const configPaths = [
     path.join(process.env.HOME || '', '.config/opencode/agent_hive.json'),
     path.join(process.env.HOME || '', '.config/opencode/agent_hive.jsonc'),
@@ -139,192 +194,85 @@ function checkOptimizations(): OptimizationCheck[] {
     if (fs.existsSync(configPath)) {
       try {
         const content = fs.readFileSync(configPath, 'utf-8');
-        config = JSON.parse(content.replace(/\\/g, '')); // Basic JSONC parsing
+        config = JSON.parse(content.replace(/\\/g, ''));
         break;
-      } catch {
-        // Invalid JSON
-      }
+      } catch {}
     }
   }
   
-  // Check snip integration
-  const snipConfig = config?.snip;
+  // Check snip
+  const snipEnabled = config?.snip?.enabled === true;
   checks.push({
     name: 'snip',
-    enabled: snipConfig?.enabled === true,
-    recommendation: !snipConfig?.enabled 
-      ? 'Enable snip in config for 60-90% token reduction on shell output' 
-      : undefined,
+    enabled: snipEnabled,
+    value: config?.snip,
+    recommendation: snipEnabled 
+      ? 'snip enabled for 60-90% token reduction'
+      : 'Enable snip: Add { "snip": { "enabled": true } } to config',
   });
   
   // Check vector memory
-  const vectorConfig = config?.vectorMemory;
+  const vectorEnabled = config?.vectorMemory?.enabled === true;
   checks.push({
     name: 'vectorMemory',
-    enabled: vectorConfig?.enabled === true,
-    recommendation: !vectorConfig?.enabled 
-      ? 'Enable vector memory for semantic search across memories' 
-      : undefined,
+    enabled: vectorEnabled,
+    value: config?.vectorMemory,
+    recommendation: vectorEnabled
+      ? 'Vector memory enabled for semantic search'
+      : 'Enable vector memory: Add { "vectorMemory": { "enabled": true } } to config',
   });
   
   // Check agent booster
-  const boosterConfig = config?.agentBooster;
+  const boosterEnabled = config?.agentBooster?.enabled !== false;
   checks.push({
     name: 'agentBooster',
-    enabled: boosterConfig?.enabled !== false,
-    recommendation: boosterConfig?.enabled === false 
-      ? 'Enable agent booster for 52x faster code editing' 
-      : undefined,
+    enabled: boosterEnabled,
+    value: config?.agentBooster,
+    recommendation: boosterEnabled
+      ? 'Agent booster enabled for 52x faster editing'
+      : 'Agent booster disabled: Set { "agentBooster": { "enabled": true } } to enable',
   });
   
-  // Check sandbox mode
-  const sandboxConfig = config?.sandbox;
+  // Check sandbox
+  const sandboxMode = config?.sandbox?.mode || 'none';
+  const sandboxEnabled = sandboxMode !== 'none';
   checks.push({
     name: 'sandbox',
-    enabled: sandboxConfig !== 'none',
-    recommendation: sandboxConfig === 'none' 
-      ? 'Enable Docker sandbox for isolated test environments' 
-      : undefined,
+    enabled: sandboxEnabled,
+    value: sandboxMode,
+    recommendation: sandboxEnabled
+      ? `Sandbox enabled (${sandboxMode} mode)`
+      : 'Enable sandbox: Add { "sandbox": { "mode": "docker" } } to config for isolated testing',
   });
   
   // Check MCPs
   const disabledMcps = config?.disableMcps || [];
   
-  const hasPareSearch = !disabledMcps.includes('pare_search');
   checks.push({
-    name: 'pareSearch',
-    enabled: hasPareSearch,
-    recommendation: !hasPareSearch 
-      ? 'Enable pare_search for structured ripgrep output (65-95% token reduction)' 
-      : undefined,
+    name: 'ast_grep MCP',
+    enabled: !disabledMcps.includes('ast_grep'),
+    recommendation: !disabledMcps.includes('ast_grep')
+      ? 'ast_grep MCP enabled'
+      : 'Enable ast_grep: Remove "ast_grep" from disableMcps array',
   });
   
-  const hasVeil = !disabledMcps.includes('veil');
   checks.push({
-    name: 'veil',
-    enabled: hasVeil,
-    recommendation: !hasVeil 
-      ? 'Enable veil for code discovery and intelligent retrieval' 
-      : undefined,
+    name: 'veil MCP',
+    enabled: !disabledMcps.includes('veil'),
+    recommendation: !disabledMcps.includes('veil')
+      ? 'veil MCP enabled'
+      : 'Enable veil: Remove "veil" from disableMcps array',
+  });
+  
+  checks.push({
+    name: 'pare_search MCP',
+    enabled: !disabledMcps.includes('pare_search'),
+    recommendation: !disabledMcps.includes('pare_search')
+      ? 'pare_search MCP enabled'
+      : 'Enable pare_search: Remove "pare_search" from disableMcps array',
   });
   
   return checks;
-}
-
-/**
- * Generate recommendations based on checks
- */
-function generateRecommendations(
-  dependencies: DependencyCheck[],
-  cliTools: CliToolCheck[],
-  optimizations: OptimizationCheck[]
-): string[] {
-  const recommendations: string[] = [];
-  
-  // Missing required dependencies
-  const missingRequired = dependencies.filter(d => d.required && !d.installed);
-  if (missingRequired.length > 0) {
-    recommendations.push(
-      `Missing required packages: ${missingRequired.map(d => d.name).join(', ')}`
-    );
-  }
-  
-  // Missing CLI tools
-  const missingCliTools = cliTools.filter(t => !t.installed);
-  if (missingCliTools.length > 0) {
-    recommendations.push(
-      `⚠️ Missing CLI tools: ${missingCliTools.map(t => t.name).join(', ')}`,
-      `Install with: ${missingCliTools.map(t => `npx -y ${t.command}`).join(' | ')}`
-    );
-  }
-  
-  // Disabled optimizations
-  const disabledOptimizations = optimizations.filter(o => !o.enabled && o.recommendation);
-  for (const opt of disabledOptimizations) {
-    if (opt.recommendation) {
-      recommendations.push(opt.recommendation);
-    }
-  }
-  
-  // General recommendations
-  if (recommendations.length === 0) {
-    recommendations.push('✅ System is healthy! All checks passed.');
-  }
-  
-  return recommendations;
-}
-
-/**
- * Generate quick fix commands
- */
-function generateQuickFixes(
-  dependencies: DependencyCheck[],
-  cliTools: CliToolCheck[],
-  optimizations: OptimizationCheck[]
-): Array<{ command: string; description: string }> {
-  const fixes: Array<{ command: string; description: string }> = [];
-  
-  // Missing packages
-  const missingPackages = dependencies.filter(d => !d.installed && !d.required);
-  for (const pkg of missingPackages) {
-    fixes.push({
-      command: `npm install ${pkg.package}`,
-      description: `Install ${pkg.name}`,
-    });
-  }
-  
-  // Missing CLI tools
-  const missingTools = cliTools.filter(t => !t.installed);
-  for (const tool of missingTools) {
-    fixes.push({
-      command: `npx -y ${tool.command}`,
-      description: `Install ${tool.name} via npx`,
-    });
-  }
-  
-  // Disabled features
-  if (optimizations.find(o => o.name === 'snip' && !o.enabled)) {
-    fixes.push({
-      command: 'Add to ~/.config/opencode/agent_hive.json: { "snip": { "enabled": true } }',
-      description: 'Enable snip for token reduction',
-    });
-  }
-  
-  if (optimizations.find(o => o.name === 'vectorMemory' && !o.enabled)) {
-    fixes.push({
-      command: 'Add to ~/.config/opencode/agent_hive.json: { "vectorMemory": { "enabled": true } }',
-      description: 'Enable vector memory for semantic search',
-    });
-  }
-  
-  return fixes;
-}
-
-/**
- * Calculate overall status
- */
-function calculateStatus(
-  dependencies: DependencyCheck[],
-  cliTools: CliToolCheck[],
-  optimizations: OptimizationCheck[]
-): 'healthy' | 'warning' | 'issues' {
-  // Check for missing required packages
-  const missingRequired = dependencies.filter(d => d.required && !d.installed);
-  if (missingRequired.length > 0) {
-    return 'issues';
-  }
-  
-  // Missing CLI tools are warnings (not blocking)
-  const missingTools = cliTools.filter(t => !t.installed);
-  
-  // Check for too many disabled optimizations
-  const disabledCount = optimizations.filter(o => !o.enabled).length;
-  
-  if (missingTools.length > 0 || disabledCount > 2) {
-    return 'warning';
-  }
-  
-  return 'healthy';
 }
 
 // ============================================================================
@@ -332,108 +280,144 @@ function calculateStatus(
 // ============================================================================
 
 export const hiveDoctorTool: ToolDefinition = tool({
-  description: `Hive Doctor - System health check and optimization advisor.
+  description: `Hive Doctor - System health check with actionable fixes.
 
-**What it checks:**
-1. Dependencies - Optional packages installed and working
-2. CLI Tools - dora, auto-cr, etc. available via npx
-3. Optimizations - Features enabled in config
-4. Recommendations - Suggestions for improvements
+**Checks performed:**
+1. Dependencies - @ast-grep/napi, agent-booster, vector-memory, etc.
+2. CLI Tools - dora, auto-cr, scip-typescript, veil
+3. Native Binaries - tree-sitter binaries for ast-grep
+4. Config - optimizations and MCPs enabled
 
-**Use when:**
-- Setting up Hive for the first time
-- Troubleshooting issues
-- Optimizing performance
-- Checking if new features are available
-
-**Example output:**
-- healthy: All checks pass
-- warning: Some optimizations disabled or CLI tools missing
-- issues: Missing required packages`,
+**Output includes:**
+- Status summary (healthy/warning/action-required)
+- Missing items with install commands
+- Action items prioritized by impact
+- Quick install commands for all missing items`,
 
   args: {},
 
   async execute() {
-    // Check dependencies
-    const dependencyChecks: DependencyCheck[] = [
-      { name: 'agent-booster', package: '@sparkleideas/agent-booster', required: false },
-      { name: 'vector-memory', package: '@sparkleideas/memory', required: false },
-      { name: 'pare-search', package: '@paretools/search', required: false },
-      { name: 'context7', package: '@upstash/context7-mcp', required: false },
-      { name: 'Exa search', package: 'exa-mcp-server', required: false },
+    // 1. Check dependencies
+    const dependencyChecks = await Promise.all([
+      checkPackage('@ast-grep/napi'),
+      checkPackage('@sparkleideas/agent-booster'),
+      checkPackage('@sparkleideas/memory'),
+      checkPackage('@paretools/search'),
+      checkPackage('@upstash/context7-mcp'),
+      checkPackage('exa-mcp-server'),
+      checkPackage('grep-mcp'),
+      checkPackage('@notprolands/ast-grep-mcp'),
+    ]);
+    
+    // 2. Check CLI tools
+    const cliToolChecks = [
+      checkCliTool('dora', '@butttons/dora', 'SCIP-based code navigation'),
+      checkCliTool('auto-cr', 'auto-cr-cmd', 'SWC-based automated code review'),
+      checkCliTool('scip-typescript', '@sourcegraph/scip-typescript', 'TypeScript SCIP indexer'),
+      checkCliTool('veil', '@ushiradineth/veil', 'Code discovery and retrieval'),
     ];
     
-    for (const dep of dependencyChecks) {
-      const result = await checkPackage(dep.package);
-      dep.installed = result.installed;
-      dep.version = result.version;
-    }
+    // 3. Check native binaries
+    const nativeCheck = checkAstGrepNative();
+    const nativeStatus = nativeCheck.available 
+      ? 'native' as const
+      : 'cli-mode' as const;
     
-    // Check CLI tools
-    const cliToolChecks: CliToolCheck[] = [
-      { 
-        name: 'dora', 
-        command: '@butttons/dora', 
-        description: 'SCIP-based code navigation',
-        installCommand: 'npx -y @butttons/dora',
-      },
-      { 
-        name: 'auto-cr', 
-        command: 'auto-cr-cmd', 
-        description: 'SWC-based automated code review',
-        installCommand: 'npx -y auto-cr-cmd',
-      },
-      { 
-        name: 'veil', 
-        command: '@ushiradineth/veil', 
-        description: 'Code discovery and retrieval',
-        installCommand: 'npx -y @ushiradineth/veil',
-      },
-      { 
-        name: 'scip-typescript', 
-        command: '@sourcegraph/scip-typescript', 
-        description: 'TypeScript SCIP indexer (for dora)',
-        installCommand: 'npx -y @sourcegraph/scip-typescript',
-      },
-    ];
-    
-    for (const tool of cliToolChecks) {
-      checkCliTool(tool);
-    }
-    
-    // Check optimizations
-    const optimizationChecks = checkOptimizations();
-    
-    // Generate recommendations
-    const recommendations = generateRecommendations(dependencyChecks, cliToolChecks, optimizationChecks);
-    const quickFixes = generateQuickFixes(dependencyChecks, cliToolChecks, optimizationChecks);
+    // 4. Check config
+    const configChecks = checkConfig();
     
     // Calculate status
-    const status = calculateStatus(dependencyChecks, cliToolChecks, optimizationChecks);
+    const missingDeps = dependencyChecks.filter(d => !d.installed);
+    const missingTools = cliToolChecks.filter(t => !t.installed);
+    const disabledConfigs = configChecks.filter(c => !c.enabled);
+    
+    let status: 'healthy' | 'warning' | 'action-required' = 'healthy';
+    if (missingTools.length >= 2 || missingDeps.length >= 3) {
+      status = 'action-required';
+    } else if (missingTools.length >= 1 || missingDeps.length >= 1 || disabledConfigs.length >= 2) {
+      status = 'warning';
+    }
+    
+    // Generate action items
+    const actionItems: DoctorResult['actionItems'] = [];
+    
+    // High priority: CLI tools
+    for (const tool of missingTools) {
+      actionItems.push({
+        priority: 'high',
+        action: `Install ${tool.name}`,
+        command: `npx -y ${tool.command}`,
+        reason: `${tool.description} - improves code navigation/review`,
+      });
+    }
+    
+    // High priority: MCP deps
+    if (!dependencyChecks.find(d => d.package === '@notprolands/ast-grep-mcp')?.installed) {
+      actionItems.push({
+        priority: 'medium',
+        action: 'Install ast-grep MCP for YAML rule testing',
+        command: `npm install @notprolands/ast-grep-mcp`,
+        reason: 'Full ast-grep functionality with YAML rules',
+      });
+    }
+    
+    // Medium priority: Optimizations
+    for (const config of disabledConfigs) {
+      actionItems.push({
+        priority: 'low',
+        action: config.recommendation,
+        reason: `Enable ${config.name} for better performance/features`,
+      });
+    }
+    
+    // Quick install lists
+    const quickInstall = {
+      deps: missingDeps.map(d => d.package),
+      cliTools: missingTools.map(t => t.command),
+    };
+    
+    // Summary strings
+    const summary = {
+      dependencies: missingDeps.length === 0 
+        ? '✅ All dependencies installed' 
+        : `⚠️ ${missingDeps.length} missing: ${missingDeps.map(d => d.name).join(', ')}`,
+      cliTools: missingTools.length === 0
+        ? '✅ All CLI tools available'
+        : `⚠️ ${missingTools.length} missing: ${missingTools.map(t => t.name).join(', ')}`,
+      nativeBinaries: nativeCheck.available
+        ? `✅ Native mode (v${nativeCheck.version || '?'})`
+        : `⚡ CLI mode (${nativeCheck.reason || 'native unavailable'})`,
+      config: disabledConfigs.length === 0
+        ? '✅ All optimizations enabled'
+        : `💡 ${disabledConfigs.length} disabled: ${disabledConfigs.map(c => c.name).join(', ')}`,
+    };
     
     const result: DoctorResult = {
       status,
-      timestamp: new Date().toISOString(),
-      checks: {
+      summary,
+      details: {
         dependencies: {
           total: dependencyChecks.length,
           installed: dependencyChecks.filter(d => d.installed).length,
-          packages: dependencyChecks,
+          missing: missingDeps,
         },
         cliTools: {
           total: cliToolChecks.length,
           available: cliToolChecks.filter(t => t.installed).length,
-          tools: cliToolChecks,
-          missing: cliToolChecks.filter(t => !t.installed).map(t => t.name),
+          missing: missingTools,
         },
-        optimizations: {
-          total: optimizationChecks.length,
-          enabled: optimizationChecks.filter(o => o.enabled).length,
-          features: optimizationChecks,
+        nativeBinaries: {
+          status: nativeStatus,
+          reason: nativeCheck.reason,
+          astGrep: {
+            available: nativeCheck.available,
+            version: nativeCheck.version,
+          },
         },
+        config: configChecks,
       },
-      recommendations,
-      quickFixes,
+      actionItems,
+      quickInstall,
     };
     
     return JSON.stringify(result, null, 2);
@@ -441,40 +425,32 @@ export const hiveDoctorTool: ToolDefinition = tool({
 });
 
 /**
- * Quick check tool - just shows status without details
+ * Quick check - just status summary
  */
 export const hiveDoctorQuickTool: ToolDefinition = tool({
-  description: `Quick health check - shows status summary only.
+  description: `Quick health status - shows summary without details.
 
 **Returns:**
-- healthy: All systems go
-- warning: Some CLI tools missing or optimizations disabled
-- issues: Action required`,
+- healthy: All dependencies and CLI tools available
+- warning: Some items missing (not blocking)
+- action-required: Multiple items missing (fix recommended)`,
 
   args: {},
 
   async execute() {
-    // Quick check - just check key packages
-    const keyPackages = [
-      '@sparkleideas/agent-booster',
-      '@paretools/search',
-    ];
+    const checks = await Promise.all([
+      checkPackage('@ast-grep/napi'),
+      checkPackage('@sparkleideas/agent-booster'),
+      checkCliTool('dora', '@butttons/dora', ''),
+      checkCliTool('auto-cr', 'auto-cr-cmd', ''),
+    ]);
     
-    const results: Record<string, boolean> = {};
-    let healthy = true;
-    
-    for (const pkg of keyPackages) {
-      const result = await checkPackage(pkg);
-      results[pkg] = result.installed;
-      if (!result.installed) {
-        healthy = false;
-      }
-    }
+    const missing = checks.filter(c => !c.installed).length;
     
     return JSON.stringify({
-      status: healthy ? 'healthy' : 'warning',
-      packages: results,
-      runFullCheck: 'Use hive_doctor for detailed analysis with CLI tool checks',
+      status: missing === 0 ? 'healthy' : missing >= 2 ? 'action-required' : 'warning',
+      missingCount: missing,
+      runFullCheck: 'Run hive_doctor for detailed analysis and install commands',
     }, null, 2);
   },
 });
