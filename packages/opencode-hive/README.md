@@ -36,8 +36,16 @@ npx @hung319/opencode-hive doctor
 
 **Step 2: Install the plugin**
 ```bash
+# For Node.js v24+, set CXXFLAGS first to build tree-sitter native modules:
+export CXXFLAGS="-std=c++20"
 npm install @hung319/opencode-hive
 ```
+
+> ⚠️ **Note:** This plugin includes `@ast-grep/napi` which requires C++20 on Node.js v24. If installation fails, try:
+> ```bash
+> export CXXFLAGS="-std=c++20"
+> npm install @hung319/opencode-hive
+> ```
 
 **Step 3: Install extras you want**
 - For **code analysis**: `npm install @notprolands/ast-grep-mcp`
