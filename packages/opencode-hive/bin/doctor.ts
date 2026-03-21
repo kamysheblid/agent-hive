@@ -87,6 +87,7 @@ const colors = {
   yellow: (text: string) => `\x1b[33m${text}\x1b[0m`,
   red: (text: string) => `\x1b[31m${text}\x1b[0m`,
   blue: (text: string) => `\x1b[34m${text}\x1b[0m`,
+  cyan: (text: string) => `\x1b[36m${text}\x1b[0m`,
   gray: (text: string) => `\x1b[90m${text}\x1b[0m`,
 };
 
@@ -416,6 +417,10 @@ function printDoctor(output: DoctorOutput) {
       console.log('\n  ' + colors.cyan('CLI Tools:'));
       console.log('  ' + colors.green(output.installCommands.cliTools));
     }
+    
+    // Note about C++20 for native modules
+    console.log('\n' + colors.yellow('💡 Tip: ') + colors.gray('If @ast-grep/napi fails to build, try:'));
+    console.log('  ' + colors.green('export CXXFLAGS="-std=c++20" && npm install'));
   }
   
   console.log('\n' + colors.blue('═'.repeat(55)));
