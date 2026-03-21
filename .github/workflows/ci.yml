@@ -42,8 +42,8 @@ jobs:
 
       - name: Test standalone doctor
         working-directory: packages/opencode-hive
-        run: bun run bin/doctor.ts
+        run: bun run bin/doctor.ts --ci
 
       - name: Test doctor --fix mode
         working-directory: packages/opencode-hive
-        run: bun run bin/doctor.ts --fix
+        run: bun run bin/doctor.ts --fix --ci

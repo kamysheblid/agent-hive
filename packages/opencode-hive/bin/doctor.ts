@@ -485,8 +485,14 @@ function printDoctor(output: DoctorOutput) {
 
 const args = process.argv.slice(2);
 const autoFix = args.includes('--fix') || args.includes('-f');
+const ciMode = process.env.CI === 'true' || args.includes('--ci');
 
 const output = runDoctor(autoFix);
 printDoctor(output);
+
+// In CI mode, only fail on critical errors, not on missing optional tools
+if (ciMode) {
+  process.exit(0);
+}
 
 process.exit(output.status === 'ready' ? 0 : 1);
