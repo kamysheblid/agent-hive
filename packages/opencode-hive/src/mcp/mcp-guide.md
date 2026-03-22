@@ -13,7 +13,6 @@ MCP (Model Context Protocol) servers extend agent capabilities with specialized 
 | **grep_app** | GitHub code patterns | Fast | Free tier |
 | **ast_grep** | AST code analysis | Very Fast | Free (Native) |
 | **pare_search** | Structured file search | Fast | Free |
-| **veil** | Code discovery | Fast | Free |
 
 ---
 

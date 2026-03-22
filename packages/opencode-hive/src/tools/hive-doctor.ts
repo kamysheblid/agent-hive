@@ -134,7 +134,7 @@ export const hiveDoctorTool: ToolDefinition = tool({
 
 **Checks:**
 1. Agent Tools (optional): agent-booster, memory
-2. CLI Tools (optional): dora, auto-cr, scip-typescript, veil, btca
+2. CLI Tools (optional): dora, auto-cr, btca
 3. C++20 config: For @ast-grep/napi native modules
 
 **Status:**
@@ -178,8 +178,6 @@ export const hiveDoctorTool: ToolDefinition = tool({
     const cliTools = [
       checkCliTool('dora', '@butttons/dora', 'SCIP-based code navigation'),
       checkCliTool('auto-cr', 'auto-cr-cmd', 'SWC-based code review'),
-      checkCliTool('scip-typescript', '@sourcegraph/scip-typescript', 'TypeScript indexer'),
-      checkCliTool('veil', '@ushiradineth/veil', 'Code discovery'),
       checkCliTool('btca', 'btca', 'BTC/A blockchain agent'),
     ];
     

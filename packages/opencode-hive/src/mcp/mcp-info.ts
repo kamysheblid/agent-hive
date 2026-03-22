@@ -50,7 +50,7 @@ Use MCPs strategically based on task:
 
 | Task | Use This MCP |
 |------|--------------|
-| Find code | \`ast_grep\` or \`veil\` |
+| Find code | \`ast_grep\` or \`grep_app\` |
 | Code patterns | \`grep_app\` |
 | Refactoring | \`ast_grep_rewrite_code\` |
 | Library docs | \`context7\` |
@@ -58,7 +58,7 @@ Use MCPs strategically based on task:
 
 **Tips:**
 - ast_grep is fastest (local, 52x faster than regex)
-- Use veil for code discovery
+- grep_app for GitHub code patterns
 - context7 for official library docs
 `;
 }
@@ -75,7 +75,6 @@ Tools enhanced by MCP servers:
 - **grep_app**: GitHub code search
 - **ast_grep**: Fast code analysis (native)
 - **pare_search**: File search
-- **veil**: Code discovery
 
 Use \`skill_mcp\` tool to use MCPs directly.`;
 }
@@ -93,10 +92,9 @@ Available MCP servers for enhanced capabilities:
 3. **grep_app** - GitHub code search
 4. **ast_grep** - AST-based code analysis (fastest)
 5. **pare_search** - Structured file search
-6. **veil** - Code discovery
 
 Use the appropriate MCP for your task:
-- Research → websearch, context7, veil
+- Research → websearch, context7
 - Implementation → ast_grep, grep_app
 - Debugging → ast_grep, context7
 `;
@@ -133,13 +131,6 @@ export const MCP_TOOLS: McpTool[] = [
   { name: 'ast_grep_dump_syntax_tree', mcp: 'ast_grep', description: 'Inspect code structure', category: 'analysis' },
   { name: 'ast_grep_scan-code', mcp: 'ast_grep', description: 'Scan for code issues', category: 'analysis' },
   { name: 'ast_grep_analyze-imports', mcp: 'ast_grep', description: 'Analyze imports', category: 'analysis' },
-  
-  // Veil
-  { name: 'veil_discover', mcp: 'veil', description: 'Discover code (files, symbols, chunks)', category: 'discovery' },
-  { name: 'veil_lookup', mcp: 'veil', description: 'Get relevant context', category: 'discovery' },
-  { name: 'veil_files', mcp: 'veil', description: 'Find files', category: 'discovery' },
-  { name: 'veil_symbols', mcp: 'veil', description: 'Find symbols', category: 'discovery' },
-  { name: 'veil_search', mcp: 'veil', description: 'Search content', category: 'discovery' },
 ];
 
 /**

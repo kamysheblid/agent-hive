@@ -336,8 +336,6 @@ function runDoctor(autoFix = false): DoctorOutput {
   const cliToolsList = [
     { name: 'dora', command: '@butttons/dora', desc: 'SCIP-based code navigation' },
     { name: 'auto-cr', command: 'auto-cr-cmd', desc: 'SWC-based code review' },
-    { name: 'scip-typescript', command: '@sourcegraph/scip-typescript', desc: 'TypeScript indexer' },
-    { name: 'veil', command: '@ushiradineth/veil', desc: 'Code discovery' },
     { name: 'btca', command: 'btca', desc: 'BTC/A blockchain agent' },
   ];
   
