@@ -39,11 +39,11 @@
     "@opencode-ai/plugin": ">=0.13.7"
   },
   "dependencies": {
-    "@ast-grep/napi": "^0.41.1",
     "@sparkleideas/agent-booster": "^0.2.3",
     "simple-git": "^3.27.0"
   },
   "optionalDependencies": {
+    "@ast-grep/napi": "^0.41.1",
     "@sparkleideas/memory": "3.0.0-alpha.11-patch.30",
     "grep-mcp": "^1.1.0",
     "@upstash/context7-mcp": "^2.1.0",

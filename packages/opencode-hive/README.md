@@ -41,7 +41,7 @@ export CXXFLAGS="-std=c++20"
 npm install @hung319/opencode-hive
 ```
 
-> ⚠️ **Note:** This plugin includes `@ast-grep/napi`, `@sparkleideas/agent-booster`, and `@sparkleideas/memory` which require C++20 on Node.js v24. If installation fails, try:
+> ⚠️ **Note:** This plugin optionally includes `@ast-grep/napi`, `@sparkleideas/agent-booster`, and `@sparkleideas/memory` which require C++20 on Node.js v24. If installation fails, the plugin still works (these are optional).
 > ```bash
 > export CXXFLAGS="-std=c++20"
 > npm install @hung319/opencode-hive
