@@ -151,7 +151,7 @@ export const hiveDoctorTool: ToolDefinition = tool({
     
     const result: DoctorResult = {
       status: 'ready',
-      version: '1.7.2',
+      version: '1.7.4',
       checks: {
         agentTools: { total: 0, installed: 0, items: [] },
         cliTools: { total: 0, available: 0, items: [] },
