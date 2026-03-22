@@ -76,7 +76,9 @@
     "@opencode-ai/sdk": "^0.13.0",
     "@types/bun": "^1.2.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@sparkleideas/agent-booster": "^0.2.3",
+    "@ast-grep/napi": "^0.41.1"
   },
   "files": [
     "dist/",
