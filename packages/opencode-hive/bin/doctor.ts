@@ -10,6 +10,10 @@
  * 
  * Auto-fix issues:
  *   bunx @hung319/opencode-hive doctor --fix
+ * 
+ * Auto-install dependencies:
+ *   bunx @hung319/opencode-hive doctor --install
+ *   bunx @hung319/opencode-hive doctor --install /path/to/project
  */
 
 import { execSync } from 'child_process';
@@ -261,6 +265,188 @@ function setCxxFlagsForCurrentSession(): boolean {
 }
 
 // ============================================================================
+// Auto-install dependencies (--install flag)
+// ============================================================================
+
+interface PackageJson {
+  name?: string;
+  version?: string;
+  dependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
+  peerDependenciesMeta?: Record<string, { optional?: boolean }>;
+}
+
+interface InstallResult {
+  installed: string[];
+  failed: string[];
+  skipped: string[];
+}
+
+function findPackageJsons(dir: string, maxDepth = 3): string[] {
+  const results: string[] = [];
+  
+  function search(currentDir: string, depth: number) {
+    if (depth > maxDepth) return;
+    
+    const packageJson = path.join(currentDir, 'package.json');
+    if (fs.existsSync(packageJson)) {
+      results.push(packageJson);
+    }
+    
+    try {
+      const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+          search(path.join(currentDir, entry.name), depth + 1);
+        }
+      }
+    } catch {}
+  }
+  
+  search(dir, 0);
+  return results;
+}
+
+function getOptionalDeps(packageJson: PackageJson): string[] {
+  const optional: string[] = [];
+  
+  // peerDependenciesMeta marks packages as optional
+  if (packageJson.peerDependenciesMeta) {
+    for (const [name, meta] of Object.entries(packageJson.peerDependenciesMeta)) {
+      if (meta.optional) {
+        optional.push(name);
+      }
+    }
+  }
+  
+  return optional;
+}
+
+function checkPackageInstalled(name: string, installPath: string): boolean {
+  try {
+    // Check in node_modules of the project
+    const nodeModulesPath = path.join(installPath, 'node_modules', name);
+    if (fs.existsSync(nodeModulesPath)) {
+      return true;
+    }
+    
+    // Check globally
+    execSync(`npm list ${name} --depth=0 --prefix ${installPath}`, {
+      stdio: 'ignore',
+      timeout: 10000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function installDependencies(projectPath: string, packages: string[]): InstallResult {
+  const result: InstallResult = {
+    installed: [],
+    failed: [],
+    skipped: [],
+  };
+  
+  console.log(c.cyan(`\n📦 Scanning ${projectPath} for dependencies...\n`));
+  
+  for (const pkg of packages) {
+    if (checkPackageInstalled(pkg, projectPath)) {
+      result.skipped.push(pkg);
+      continue;
+    }
+    
+    console.log(c.cyan(`  Installing ${pkg}...`));
+    try {
+      execSync(`npm install ${pkg} --prefix ${projectPath}`, {
+        stdio: 'inherit',
+        timeout: 120000,
+      });
+      result.installed.push(pkg);
+      console.log(c.green(`    ✓ ${pkg} installed`));
+    } catch {
+      // Try with --legacy-peer-deps
+      try {
+        execSync(`npm install ${pkg} --prefix ${projectPath} --legacy-peer-deps`, {
+          stdio: 'inherit',
+          timeout: 120000,
+        });
+        result.installed.push(pkg);
+        console.log(c.green(`    ✓ ${pkg} installed (--legacy-peer-deps)`));
+      } catch {
+        result.failed.push(pkg);
+        console.log(c.red(`    ✗ ${pkg} failed`));
+      }
+    }
+  }
+  
+  return result;
+}
+
+function scanAndInstall(targetPath: string): void {
+  console.log(c.cyan(`\n🔍 Scanning: ${targetPath}\n`));
+  
+  if (!fs.existsSync(targetPath)) {
+    console.log(c.red(`✗ Path not found: ${targetPath}`));
+    return;
+  }
+  
+  // Find all package.json files
+  const packageJsons = findPackageJsons(targetPath);
+  
+  if (packageJsons.length === 0) {
+    console.log(c.yellow('⚠ No package.json found'));
+    return;
+  }
+  
+  console.log(c.gray(`Found ${packageJsons.length} package.json(s)\n`));
+  
+  // Collect all optional dependencies from all packages
+  const allOptionalDeps = new Set<string>();
+  
+  for (const pkgJsonPath of packageJsons) {
+    const dir = path.dirname(pkgJsonPath);
+    const pkgName = path.basename(dir);
+    
+    try {
+      const content = fs.readFileSync(pkgJsonPath, 'utf-8');
+      const pkg: PackageJson = JSON.parse(content);
+      const optional = getOptionalDeps(pkg);
+      
+      if (optional.length > 0) {
+        console.log(c.gray(`  ${pkgJsonPath}:`));
+        console.log(c.gray(`    Optional deps: ${optional.join(', ')}`));
+        optional.forEach(dep => allOptionalDeps.add(dep));
+      }
+    } catch {
+      console.log(c.red(`  ✗ Failed to read: ${pkgJsonPath}`));
+    }
+  }
+  
+  if (allOptionalDeps.size === 0) {
+    console.log(c.yellow('\n⚠ No optional dependencies found'));
+    return;
+  }
+  
+  // Install to the root project (first package.json found)
+  const rootProject = path.dirname(packageJsons[0]);
+  console.log(c.cyan(`\n📦 Installing to: ${rootProject}\n`));
+  
+  const result = installDependencies(rootProject, Array.from(allOptionalDeps));
+  
+  // Summary
+  console.log('\n' + c.blue('═'.repeat(50)));
+  console.log(c.green(`✓ Installed: ${result.installed.length}`));
+  if (result.skipped.length > 0) {
+    console.log(c.gray(`○ Skipped (already installed): ${result.skipped.length}`));
+  }
+  if (result.failed.length > 0) {
+    console.log(c.red(`✗ Failed: ${result.failed.length}`));
+  }
+  console.log(c.blue('═'.repeat(50)));
+}
+
+// ============================================================================
 // Auto-install CLI tools
 // ============================================================================
 
@@ -296,7 +482,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.6.6',
+    version: '1.7.3',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -488,6 +674,8 @@ function printDoctor(output: DoctorOutput) {
   console.log('\n' + c.blue('═'.repeat(55)));
   console.log(c.gray('  bunx @hung319/opencode-hive doctor'));
   console.log(c.gray('  bunx @hung319/opencode-hive doctor --fix'));
+  console.log(c.gray('  bunx @hung319/opencode-hive doctor --install'));
+  console.log(c.gray('  bunx @hung319/opencode-hive doctor --install /path/to/project'));
   console.log(c.blue('═'.repeat(55)) + '\n');
 }
 
@@ -498,6 +686,20 @@ function printDoctor(output: DoctorOutput) {
 const args = process.argv.slice(2);
 const autoFix = args.includes('--fix') || args.includes('-f');
 const ciMode = process.env.CI === 'true' || args.includes('--ci');
+const installMode = args.includes('--install') || args.includes('-i');
+
+// Get target path from args (for --install)
+let targetPath = process.cwd();
+const pathArg = args.find(arg => !arg.startsWith('--') && arg !== '-i' && arg !== '-f');
+if (pathArg) {
+  targetPath = path.resolve(pathArg);
+}
+
+// Handle --install mode
+if (installMode) {
+  scanAndInstall(targetPath);
+  process.exit(0);
+}
 
 const output = runDoctor(autoFix);
 printDoctor(output);
