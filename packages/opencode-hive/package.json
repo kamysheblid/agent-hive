@@ -44,7 +44,7 @@
     "simple-git": "^3.27.0"
   },
   "optionalDependencies": {
-    "@sparkleideas/memory": "^3.0.0-alpha.11",
+    "@sparkleideas/memory": "3.0.0-alpha.11-patch.30",
     "grep-mcp": "^1.1.0",
     "@upstash/context7-mcp": "^2.1.0",
     "exa-mcp-server": "^3.1.5",
