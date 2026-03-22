@@ -1,6 +1,6 @@
 {
   "name": "@hung319/opencode-hive",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "type": "module",
   "description": "OpenCode plugin for Agent Hive - from vibe coding to hive coding",
   "license": "MIT WITH Commons-Clause",
@@ -39,18 +39,36 @@
     "@opencode-ai/plugin": ">=0.13.7"
   },
   "dependencies": {
-    "@sparkleideas/agent-booster": "^0.2.3",
     "simple-git": "^3.27.0"
   },
-  "optionalDependencies": {
-    "@ast-grep/napi": "^0.41.1",
-    "@sparkleideas/memory": "3.0.0-alpha.11-patch.30",
-    "grep-mcp": "^1.1.0",
-    "@upstash/context7-mcp": "^2.1.0",
-    "exa-mcp-server": "^3.1.5",
-    "@paretools/search": "^0.15.0",
-    "@butttons/dora": "^0.1.0",
-    "auto-cr-cmd": "^2.0.112"
+  "peerDependenciesMeta": {
+    "@sparkleideas/agent-booster": {
+      "optional": true
+    },
+    "@ast-grep/napi": {
+      "optional": true
+    },
+    "@sparkleideas/memory": {
+      "optional": true
+    },
+    "grep-mcp": {
+      "optional": true
+    },
+    "@upstash/context7-mcp": {
+      "optional": true
+    },
+    "exa-mcp-server": {
+      "optional": true
+    },
+    "@paretools/search": {
+      "optional": true
+    },
+    "@butttons/dora": {
+      "optional": true
+    },
+    "auto-cr-cmd": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "hive-core": "workspace:*",
