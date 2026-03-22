@@ -3,6 +3,8 @@ import { websearchMcp } from './websearch';
 import { context7Mcp } from './context7';
 import { grepAppMcp } from './grep-app';
 import { pareSearchMcp } from './pare-search';
+import { ddgSearchMcp } from './ddg-search';
+import { searxngMcp } from './searxng';
 
 /**
  * Built-in MCP configurations
@@ -12,6 +14,8 @@ import { pareSearchMcp } from './pare-search';
  * - context7: Remote (Context7) - supports CONTEXT7_API_KEY env var
  * - grep_app: Remote (GitHub code search)
  * - pare_search: Local npx (structured ripgrep/fd output)
+ * - ddg_search: Local npx (DuckDuckGo, free, no API key)
+ * - searxng: Local npx (privacy meta-search)
  * 
  * Note: ast_grep MCP removed - use @ast-grep/napi directly
  * Note: veil removed - requires manual init, redundant with grep-mcp
@@ -24,11 +28,24 @@ const allBuiltinMcps: Record<string, McpConfig> = {
   grep_app: grepAppMcp,
   // @paretools/search (structured ripgrep/fd)
   pare_search: pareSearchMcp,
+  // DuckDuckGo search (free, no API key)
+  ddg_search: ddgSearchMcp,
+  // SearXNG meta-search (privacy)
+  searxng: searxngMcp,
 };
 
-export const createBuiltinMcps = (disabledMcps: string[] = []): Record<string, McpConfig> => {
+// Lazy initialization - MCPs are only resolved when first accessed
+let cachedMcps: Record<string, McpConfig> | null = null;
+
+export const getBuiltinMcps = (disabledMcps: string[] = []): Record<string, McpConfig> => {
+  if (!cachedMcps) {
+    cachedMcps = allBuiltinMcps;
+  }
   const disabled = new Set(disabledMcps);
   return Object.fromEntries(
-    Object.entries(allBuiltinMcps).filter(([name]) => !disabled.has(name)),
+    Object.entries(cachedMcps).filter(([name]) => !disabled.has(name)),
   );
 };
+
+// Backward compatibility alias
+export const createBuiltinMcps = getBuiltinMcps;

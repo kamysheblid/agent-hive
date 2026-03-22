@@ -53,6 +53,14 @@ npm install @hung319/opencode-hive
 - For **code navigation**: `npx -y @butttons/dora`
 - For **auto code review**: `npx -y auto-cr-cmd`
 - For **blockchain tasks**: `npm install btca-ask`
+- For **free web search**: `npm install @oevortex/ddg_search`
+- For **privacy search**: `npm install mcp-searxng`
+
+Or use the quick install command:
+```bash
+npx @hung319/opencode-hive doctor --install
+npx @hung319/opencode-hive doctor --install /path/to/project
+```
 
 **Step 4: Optional config**
 Create `~/.config/opencode/agent_hive.json`:

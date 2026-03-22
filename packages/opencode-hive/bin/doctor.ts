@@ -94,6 +94,31 @@ const isTTY = process.stdout.isTTY;
 const c = isTTY ? colors : noColors;
 
 // ============================================================================
+// First-run detection
+// ============================================================================
+
+function isFirstRun(): boolean {
+  const markerPath = path.join(process.env.HOME || '', '.config', 'opencode', '.hive-doctor-run');
+  if (fs.existsSync(markerPath)) {
+    return false;
+  }
+  // Create marker
+  try {
+    const dir = path.dirname(markerPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(markerPath, JSON.stringify({ firstRun: new Date().toISOString() }));
+  } catch {}
+  return true;
+}
+
+function printFirstRunMessage() {
+  console.log(c.cyan('\n🚀 Welcome to Hive Doctor!'));
+  console.log(c.gray('  This is your first run. Let me check your setup...\n'));
+}
+
+// ============================================================================
 // Check functions
 // ============================================================================
 
@@ -482,7 +507,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.7.3',
+    version: '1.8.0',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -518,11 +543,14 @@ function runDoctor(autoFix = false): DoctorOutput {
   output.checks.agentTools.total = agentToolsList.length;
   output.checks.agentTools.installed = output.checks.agentTools.items.filter(t => t.installed).length;
   
-  // Check CLI tools
+  // Check CLI tools and MCPs
   const cliToolsList = [
     { name: 'dora', command: '@butttons/dora', desc: 'SCIP-based code navigation' },
     { name: 'auto-cr', command: 'auto-cr-cmd', desc: 'SWC-based code review' },
     { name: 'btca', command: 'btca', desc: 'BTC/A blockchain agent' },
+    // MCPs
+    { name: 'ddg_search', command: '@oevortex/ddg_search', desc: 'DuckDuckGo search (free)' },
+    { name: 'searxng', command: 'mcp-searxng', desc: 'SearXNG meta-search (privacy)' },
   ];
   
   output.checks.cliTools.items = cliToolsList.map(t => checkCliTool(t.name, t.command, t.desc));
@@ -699,6 +727,11 @@ if (pathArg) {
 if (installMode) {
   scanAndInstall(targetPath);
   process.exit(0);
+}
+
+// Show first-run message if applicable
+if (isFirstRun()) {
+  printFirstRunMessage();
 }
 
 const output = runDoctor(autoFix);

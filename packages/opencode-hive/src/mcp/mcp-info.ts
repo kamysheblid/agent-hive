@@ -75,6 +75,8 @@ Tools enhanced by MCP servers:
 - **grep_app**: GitHub code search
 - **ast_grep**: Fast code analysis (native)
 - **pare_search**: File search
+- **ddg_search**: DuckDuckGo (free, no API key)
+- **searxng**: Privacy meta-search
 
 Use \`skill_mcp\` tool to use MCPs directly.`;
 }
@@ -92,9 +94,11 @@ Available MCP servers for enhanced capabilities:
 3. **grep_app** - GitHub code search
 4. **ast_grep** - AST-based code analysis (fastest)
 5. **pare_search** - Structured file search
+6. **ddg_search** - DuckDuckGo search (free, no API key)
+7. **searxng** - Privacy meta-search
 
 Use the appropriate MCP for your task:
-- Research → websearch, context7
+- Research → websearch, context7, ddg_search
 - Implementation → ast_grep, grep_app
 - Debugging → ast_grep, context7
 `;
@@ -131,6 +135,12 @@ export const MCP_TOOLS: McpTool[] = [
   { name: 'ast_grep_dump_syntax_tree', mcp: 'ast_grep', description: 'Inspect code structure', category: 'analysis' },
   { name: 'ast_grep_scan-code', mcp: 'ast_grep', description: 'Scan for code issues', category: 'analysis' },
   { name: 'ast_grep_analyze-imports', mcp: 'ast_grep', description: 'Analyze imports', category: 'analysis' },
+  
+  // DuckDuckGo Search (free, no API key)
+  { name: 'ddg_search_search', mcp: 'ddg_search', description: 'DuckDuckGo web search', category: 'search' },
+  
+  // SearXNG (privacy meta-search)
+  { name: 'searxng_search', mcp: 'searxng', description: 'SearXNG meta-search', category: 'search' },
 ];
 
 /**

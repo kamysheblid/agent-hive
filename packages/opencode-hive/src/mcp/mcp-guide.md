@@ -13,6 +13,8 @@ MCP (Model Context Protocol) servers extend agent capabilities with specialized 
 | **grep_app** | GitHub code patterns | Fast | Free tier |
 | **ast_grep** | AST code analysis | Very Fast | Free (Native) |
 | **pare_search** | Structured file search | Fast | Free |
+| **ddg_search** | DuckDuckGo search | Fast | Free (no API key) |
+| **searxng** | Privacy meta-search | Fast | Free (self-hostable) |
 
 ---
 
@@ -184,41 +186,70 @@ npx @paretools/search
 
 ---
 
-### 6. veil
+### 6. ddg_search (DuckDuckGo)
 
-**Purpose**: Code discovery and intelligent retrieval
+**Purpose**: Free web search using DuckDuckGo
 
-**Tools Available**:
-- `veil_discover` - Get files, symbols, and code chunks in one step
-- `veil_lookup` - Get most relevant context for task
-- `veil_files` - Focused file search
-- `veil_symbols` - Symbol search
-- `veil_search` - Content search
+**Type**: Local (runs via npx)
+
+**Tools**: `ddg_search_search` - DuckDuckGo web search
 
 **Best Use Cases**:
-- Finding where code is located
-- Getting context for unfamiliar codebases
-- Discovery phase of new features
+- General web searches
+- No API key required
+- Quick lookups
 
 **Setup**:
 ```bash
-# Auto-installed by plugin
-npx @ushiradineth/veil mcp server
+# Install manually
+npm install @oevortex/ddg_search
 ```
 
 **Tips**:
-- Start with `discover` for exploration
-- Use `lookup` when you know the task but not the code
-- Good for onboarding to new projects
+- Free, no API key needed
+- Good for general queries
+- May have rate limits
+
+---
+
+### 7. searxng (SearXNG)
+
+**Purpose**: Privacy-respecting meta-search engine
+
+**Type**: Local (runs via npx)
+
+**Tools**: `searxng_search` - Meta-search via SearXNG
+
+**Best Use Cases**:
+- Privacy-conscious searches
+- Aggregated results from multiple engines
+- Can use custom SearXNG instance
+
+**Setup**:
+```bash
+# Install manually
+npm install mcp-searxng
+```
+
+**Environment Variables**:
+```bash
+# Optional: Use specific SearXNG instance
+export SEARXNG_URL=https://searx.example.com
+```
+
+**Tips**:
+- More private than Google/DuckDuckGo
+- Aggregates results from multiple search engines
+- Self-hostable for maximum privacy
 
 ---
 
 ## Choosing the Right MCP
 
 ### For Research/Discovery:
-1. **vebsearch** - Current web info
-2. **context7** - Library documentation
-3. **veil** - Code discovery
+1. **websearch** - Current web info (needs API key)
+2. **ddg_search** - Quick web search (free, no API key)
+3. **context7** - Library documentation
 
 ### For Implementation:
 1. **ast_grep** - Code analysis/refactoring
@@ -236,12 +267,11 @@ npx @ushiradineth/veil mcp server
 
 | Task | Primary MCP | Alternative |
 |------|-------------|-------------|
-| Find file location | `veil` | `pare_search` |
-| Understand code | `context7` | `grep_app` |
-| Code refactoring | `ast_grep` | `grep_app` |
-| Find patterns | `grep_app` | `ast_grep` |
-| Current info | `websearch` | `context7` |
+| Web search | `websearch` | `ddg_search`, `searxng` |
 | Library docs | `context7` | `websearch` |
+| Code patterns | `grep_app` | `ast_grep` |
+| Code analysis | `ast_grep` | `grep_app` |
+| File search | `pare_search` | - |
 
 ---
 
