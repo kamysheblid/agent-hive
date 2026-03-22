@@ -90,7 +90,8 @@ describe('Vector Memory Service', () => {
       
       expect(status).toHaveProperty('available');
       expect(status).toHaveProperty('type');
-      expect(status.type).toBe('fallback');
+      // Type depends on whether @sparkleideas/memory is installed
+      expect(['fallback', 'vector']).toContain(status.type);
     });
   });
 });
