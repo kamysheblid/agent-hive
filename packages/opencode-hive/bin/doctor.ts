@@ -221,9 +221,6 @@ function checkCliTool(name: string, command: string, description: string): CliCh
   
   return result;
 }
-  
-  return result;
-}
 
 // ============================================================================
 // CXXFLAGS: Check and Auto-fix
@@ -526,7 +523,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.7',
+    version: '1.10.8',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -786,6 +783,33 @@ if (installMode) {
     } catch {
       console.log(c.red(`    ✗ ${tool.name} failed`));
     }
+  }
+  
+  // Add to shell config if needed
+  const pathEntry = 'export PATH="/root/.local/bin:$PATH"';
+  const shellConfigs = [
+    { path: path.join(process.env.HOME || '', '.bashrc'), shebang: '# bash' },
+    { path: path.join(process.env.HOME || '', '.bash_profile'), shebang: '# bash' },
+    { path: path.join(process.env.HOME || '', '.zshrc'), shebang: '# zsh' },
+  ];
+  
+  let pathAdded = false;
+  for (const config of shellConfigs) {
+    if (!fs.existsSync(config.path)) continue;
+    
+    try {
+      const content = fs.readFileSync(config.path, 'utf-8');
+      if (!content.includes('/root/.local/bin')) {
+        fs.appendFileSync(config.path, `\n# Added by Hive Doctor\n${pathEntry}\n`);
+        pathAdded = true;
+        console.log(c.green(`    ✓ Added PATH to ${config.path}`));
+      }
+    } catch {}
+  }
+  
+  if (pathAdded) {
+    console.log(c.yellow('\n💡 Run this to use new tools in current session:'));
+    console.log(c.gray(`  source ~/.bashrc  # or ~/.zshrc`));
   }
   
   // Show summary
