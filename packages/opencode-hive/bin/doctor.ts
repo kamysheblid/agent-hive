@@ -142,7 +142,29 @@ function exists(cmd: string): boolean {
 function checkNpmPackage(name: string): CheckResult {
   const result: CheckResult = { name, installed: false };
   
-  // Check if package is installed
+  // Check in multiple locations
+  const locations = [
+    process.cwd(),                    // Current project
+    '/root/.local',                   // Common global location
+    '/usr/local',                     // Another common global
+  ];
+  
+  for (const prefix of locations) {
+    const nodeModulesPath = path.join(prefix, 'node_modules', name);
+    if (fs.existsSync(nodeModulesPath)) {
+      result.installed = true;
+      // Try to get version from package.json
+      try {
+        const pkgJson = JSON.parse(fs.readFileSync(path.join(nodeModulesPath, 'package.json'), 'utf-8'));
+        result.version = pkgJson.version;
+      } catch {
+        result.version = 'installed';
+      }
+      return result;
+    }
+  }
+  
+  // Check if package is installed (local project)
   try {
     const output = execSync(`npm list ${name} --depth=0 --json 2>/dev/null`, {
       encoding: 'utf-8',
@@ -155,18 +177,6 @@ function checkNpmPackage(name: string): CheckResult {
     }
   } catch {}
   
-  // Also check if module can be required (actual load test)
-  if (result.installed) {
-    try {
-      require(name);
-      result.installed = true;
-    } catch {
-      // Module installed but failed to load (e.g., native build failed)
-      result.installed = false;
-      result.version = `${result.version || '?'} (load failed)`;
-    }
-  }
-  
   return result;
 }
 
@@ -174,16 +184,31 @@ function checkCliTool(name: string, command: string, description: string): CliCh
   const result: CliCheck = { name, command, installed: false, description };
   const cmdName = command.split(' ')[0];
   
-  // Try direct command with --help (some binaries don't have --version)
-  // Use timeout to prevent hanging on MCP servers that run as daemons
+  // Check if binary exists in common global bin locations
+  const binLocations = [
+    '/root/.local/bin',
+    '/usr/local/bin',
+    '/usr/bin',
+    path.join(process.cwd(), 'node_modules', '.bin'),
+  ];
+  
+  for (const binDir of binLocations) {
+    if (fs.existsSync(path.join(binDir, cmdName))) {
+      result.installed = true;
+      result.version = 'installed';
+      return result;
+    }
+  }
+  
+  // Also check if package is installed globally or locally
   try {
-    execSync(cmdName, { stdio: 'ignore', timeout: 3000 });
+    execSync(`npm list -g ${cmdName} 2>/dev/null`, { stdio: 'ignore', timeout: 3000 });
     result.installed = true;
-    result.version = 'installed';
+    result.version = 'via npm';
     return result;
   } catch {}
   
-  // Try npx with --version or --help (with short timeout for MCP servers)
+  // Try npx to check if available
   try {
     execSync(`npx -y ${cmdName} --version 2>&1 || true`, { 
       stdio: 'pipe', 
@@ -194,15 +219,8 @@ function checkCliTool(name: string, command: string, description: string): CliCh
     return result;
   } catch {}
   
-  // Special case for auto-cr: binary is "check", not "auto-cr"
-  if (name === 'auto-cr') {
-    try {
-      execSync('check --help', { stdio: 'ignore', timeout: 3000 });
-      result.installed = true;
-      result.version = 'installed (check)';
-      return result;
-    } catch {}
-  }
+  return result;
+}
   
   return result;
 }
@@ -508,7 +526,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.6',
+    version: '1.10.7',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
