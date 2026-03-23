@@ -507,7 +507,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.2',
+    version: '1.10.3',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -717,10 +717,14 @@ const ciMode = process.env.CI === 'true' || args.includes('--ci');
 const installMode = args.includes('--install') || args.includes('-i');
 
 // Get target path from args (for --install)
+// Look for path after --install or -i flag
 let targetPath = process.cwd();
-const pathArg = args.find(arg => !arg.startsWith('--') && arg !== '-i' && arg !== '-f');
-if (pathArg) {
-  targetPath = path.resolve(pathArg);
+const installIndex = args.findIndex(arg => arg === '--install' || arg === '-i');
+if (installIndex !== -1 && installIndex + 1 < args.length) {
+  const nextArg = args[installIndex + 1];
+  if (!nextArg.startsWith('--')) {
+    targetPath = path.resolve(nextArg);
+  }
 }
 
 // Handle --install mode
