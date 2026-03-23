@@ -209,6 +209,7 @@ import { createVariantHook } from "./hooks/variant-hook.js";
 import { HIVE_SYSTEM_PROMPT, shouldExecuteHook } from "./hooks/system-hook.js";
 import { buildCompactionPrompt } from "./utils/compaction-prompt.js";
 import { createCompactionHook, needsCompression, compressContext, buildCompressionHint } from "./utils/context-compression.js";
+import { getDelegationHints } from "./utils/delegation-hints.js";
 
 /**
  * Core plugin implementation.
@@ -409,6 +410,17 @@ To unblock: Remove .hive/features/${feature}/BLOCKED`;
     const planResult = planService.read(feature);
     const allTasks = taskService.list(feature);
 
+    // Build dependencies for delegation hints
+    const tasksForDeps = allTasks.map(t => {
+      const status = taskService.getRawStatus(feature, t.folder);
+      return {
+        folder: t.folder,
+        status: t.status,
+        dependsOn: status?.dependsOn,
+      };
+    });
+    const effectiveDeps = buildEffectiveDependencies(tasksForDeps);
+
     const rawContextFiles = contextService.list(feature).map(f => ({
       name: f.name,
       content: f.content,
@@ -584,6 +596,14 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
     }));
     const allWarnings = [...sizeWarnings, ...budgetWarnings];
 
+    // Get delegation hints
+    const delegationHints = getDelegationHints(
+      taskInfo.name,
+      taskInfo.planTitle,
+      allTasks,
+      effectiveDeps
+    );
+
     return respond({
       ...responseBase,
       promptMeta,
@@ -597,6 +617,7 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
         tasksDropped: rawPreviousTasks.length - previousTasks.length,
         droppedTasksHint,
       },
+      delegationHints,
       warnings: allWarnings.length > 0 ? allWarnings : undefined,
     });
   };
@@ -1314,6 +1335,71 @@ Expand your Discovery section and try again.`;
         },
         async execute({ task, feature: explicitFeature }) {
           return executeWorktreeStart({ task, feature: explicitFeature });
+        },
+      }),
+
+      hive_worktree_batch: tool({
+        description: 'Start multiple independent tasks in parallel. Use when tasks have no dependencies on each other. Check hive_status first to find runnable tasks.',
+        args: {
+          tasks: tool.schema.array(tool.schema.string()).describe('Array of task folder names to start in parallel'),
+          feature: tool.schema.string().optional().describe('Feature name (defaults to detection or single feature)'),
+        },
+        async execute({ tasks, feature: explicitFeature }) {
+          const resolvedFeature = resolveFeature(explicitFeature);
+          if (!resolvedFeature) {
+            return respond({
+              success: false,
+              terminal: true,
+              error: 'No feature specified. Create a feature or provide feature param.',
+              reason: 'feature_required',
+              hints: [
+                'Create/select a feature first or pass the feature parameter explicitly.',
+                'Use hive_status to inspect the active feature state before retrying.',
+              ],
+            });
+          }
+          
+          const results: Array<{
+            task: string;
+            success: boolean;
+            response?: string;
+            error?: string;
+          }> = [];
+          
+          // Start each task
+          for (const task of tasks) {
+            try {
+              const result = await executeWorktreeStart({ task, feature: resolvedFeature });
+              const parsed = JSON.parse(result);
+              results.push({
+                task,
+                success: parsed.success,
+                response: parsed.success ? undefined : parsed.error,
+              });
+            } catch (e) {
+              results.push({
+                task,
+                success: false,
+                error: String(e),
+              });
+            }
+          }
+          
+          // Summary
+          const succeeded = results.filter(r => r.success).length;
+          const failed = results.filter(r => !r.success).length;
+          
+          return respond({
+            success: failed === 0,
+            terminal: true,
+            batch: true,
+            feature: resolvedFeature,
+            total: tasks.length,
+            succeeded,
+            failed,
+            results,
+            summary: `Batch dispatch: ${succeeded}/${tasks.length} tasks started${failed > 0 ? `, ${failed} failed` : ''}`,
+          });
         },
       }),
 
