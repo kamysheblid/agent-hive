@@ -33,6 +33,33 @@ Hive: Plan → Review → Approve → Execute → Ship
 
 ---
 
+## Environment Variables
+
+### Required for Optional Features
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `EXA_API_KEY` | API key for Exa AI web search | Only if using `websearch` MCP |
+| `SEARXNG_URL` | URL for self-hosted SearXNG instance | Only if using `searxng` MCP |
+| `CXXFLAGS="-std=c++20"` | C++ compiler flags for native modules | Only on Node.js v24+ |
+
+### Setup Examples
+
+```bash
+# For web search (Exa AI) - get key at https://exa.ai
+export EXA_API_KEY="your-exa-api-key"
+
+# For privacy meta-search (self-hosted)
+export SEARXNG_URL="https://your-searxng-instance.com"
+
+# For Node.js v24+ native modules (ast-grep, agent-booster, memory)
+export CXXFLAGS="-std=c++20"
+```
+
+Add these to your `~/.bashrc` or `~/.zshrc` for persistence.
+
+---
+
 ## Quick Setup
 
 **Step 1: Check system**
