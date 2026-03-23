@@ -175,6 +175,7 @@ function checkCliTool(name: string, command: string, description: string): CliCh
   const cmdName = command.split(' ')[0];
   
   // Try direct command with --help (some binaries don't have --version)
+  // Use timeout to prevent hanging on MCP servers that run as daemons
   try {
     execSync(cmdName, { stdio: 'ignore', timeout: 3000 });
     result.installed = true;
@@ -182,11 +183,11 @@ function checkCliTool(name: string, command: string, description: string): CliCh
     return result;
   } catch {}
   
-  // Try npx with --help
+  // Try npx with --version or --help (with short timeout for MCP servers)
   try {
-    execSync(`npx -y ${cmdName} --help`, { 
-      stdio: 'ignore', 
-      timeout: 10000 
+    execSync(`npx -y ${cmdName} --version 2>&1 || true`, { 
+      stdio: 'pipe', 
+      timeout: 5000 
     });
     result.installed = true;
     result.version = 'via npx';
@@ -507,7 +508,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.5',
+    version: '1.10.6',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -739,13 +740,14 @@ if (installMode) {
   const missingCli = output.checks.cliTools.items.filter(t => !t.installed);
   const missingAgent = output.checks.agentTools.items.filter(t => !t.installed);
   
-  // Install CLI tools via npx (these are self-contained)
+  // Install CLI tools via npm (not running CLI which may hang)
   for (const tool of missingCli) {
     try {
       console.log(c.cyan(`  Installing CLI ${tool.name}...`));
-      execSync(`npx -y ${tool.command} --version`, { 
+      // Install package, not run CLI (which may hang for MCP servers)
+      execSync(`npm install -g ${tool.command}`, {
         stdio: 'inherit',
-        timeout: 120000 
+        timeout: 120000,
       });
       console.log(c.green(`    ✓ ${tool.name} ready`));
     } catch {
