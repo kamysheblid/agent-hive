@@ -229,6 +229,8 @@ Auto-enabled by default. Disable with `disableMcps`:
 | `websearch` | `websearch_web_search_exa` | Web search via Exa AI | `EXA_API_KEY` env var |
 | `context7` | `context7_query-docs` | Library documentation lookup | None |
 | `grep_app` | `grep_app_searchGitHub` | GitHub code search via grep.app | None |
+| `ddg_search` | `ddg_search_search` | DuckDuckGo search (free) | None |
+| `searxng` | `searxng_search` | Privacy meta-search | `SEARXNG_URL` env var |
 | `ast_grep` | `ast_grep_search` | AST-aware code search/replace | None (runs via npx) |
 
 #### Model Variants
