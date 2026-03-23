@@ -507,7 +507,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.3',
+    version: '1.10.4',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -727,9 +727,55 @@ if (installIndex !== -1 && installIndex + 1 < args.length) {
   }
 }
 
-// Handle --install mode
+// Handle --install mode - run doctor first to get what's missing, then install
 if (installMode) {
-  scanAndInstall(targetPath);
+  // Run doctor to see what's missing
+  const output = runDoctor(false);
+  
+  // Auto-install missing tools
+  const missingCli = output.checks.cliTools.items.filter(t => !t.installed);
+  const missingAgent = output.checks.agentTools.items.filter(t => !t.installed);
+  
+  console.log(c.cyan('\n🔧 Auto-installing missing tools...\n'));
+  
+  // Install CLI tools via npx
+  for (const tool of missingCli) {
+    try {
+      console.log(c.cyan(`  Installing CLI ${tool.name}...`));
+      execSync(`npx -y ${tool.command} --version`, { 
+        stdio: 'inherit',
+        timeout: 120000 
+      });
+      console.log(c.green(`    ✓ ${tool.name} installed`));
+    } catch {
+      console.log(c.red(`    ✗ ${tool.name} failed`));
+    }
+  }
+  
+  // Install agent tools via npm
+  for (const tool of missingAgent) {
+    try {
+      console.log(c.cyan(`  Installing agent tool ${tool.name}...`));
+      execSync(`npm install ${tool.name} --prefix ${targetPath}`, {
+        stdio: 'inherit',
+        timeout: 180000,
+      });
+      console.log(c.green(`    ✓ ${tool.name} installed`));
+    } catch {
+      console.log(c.red(`    ✗ ${tool.name} failed`));
+    }
+  }
+  
+  // Show summary
+  console.log('\n' + c.blue('═'.repeat(50)));
+  console.log(c.green('✓ Auto-install complete'));
+  console.log(c.blue('═'.repeat(50)));
+  
+  // Run doctor again to verify
+  console.log(c.cyan('\n🔍 Verifying installation...\n'));
+  const verifyOutput = runDoctor(false);
+  printDoctor(verifyOutput);
+  
   process.exit(0);
 }
 
