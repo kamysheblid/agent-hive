@@ -139,17 +139,33 @@ function exists(cmd: string): boolean {
   }
 }
 
+function getNpmPrefix(): string {
+  try {
+    const output = execSync('npm config get prefix', { encoding: 'utf-8', timeout: 5000 });
+    return output.trim();
+  } catch {
+    return '/usr';  // default npm prefix
+  }
+}
+
 function checkNpmPackage(name: string): CheckResult {
   const result: CheckResult = { name, installed: false };
+  
+  // Get npm prefix dynamically
+  const npmPrefix = getNpmPrefix();
   
   // Check in multiple locations
   const locations = [
     process.cwd(),                    // Current project
     '/root/.local',                   // Common global location
     '/usr/local',                     // Another common global
+    npmPrefix,                        // npm's actual prefix
+    path.join(npmPrefix || '/usr', 'lib', 'node_modules'),  // /usr/lib/node_modules style
   ];
   
   for (const prefix of locations) {
+    if (!prefix) continue;
+    
     const nodeModulesPath = path.join(prefix, 'node_modules', name);
     if (fs.existsSync(nodeModulesPath)) {
       result.installed = true;
@@ -184,15 +200,20 @@ function checkCliTool(name: string, command: string, description: string): CliCh
   const result: CliCheck = { name, command, installed: false, description };
   const cmdName = command.split(' ')[0];
   
+  // Get npm prefix dynamically
+  const npmPrefix = getNpmPrefix();
+  
   // Check if binary exists in common global bin locations
   const binLocations = [
     '/root/.local/bin',
     '/usr/local/bin',
     '/usr/bin',
+    path.join(npmPrefix, 'bin'),
     path.join(process.cwd(), 'node_modules', '.bin'),
   ];
   
   for (const binDir of binLocations) {
+    if (!binDir) continue;
     if (fs.existsSync(path.join(binDir, cmdName))) {
       result.installed = true;
       result.version = 'installed';
@@ -523,7 +544,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.10',
+    version: '1.10.11',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
