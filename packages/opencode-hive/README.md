@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/@hung319/opencode-hive)](https://www.npmjs.com/package/@hung319/opencode-hive)
 [![License: MIT with Commons Clause](https://img.shields.io/badge/License-MIT%20with%20Commons%20Clause-blue.svg)](../../LICENSE)
 
-**From Vibe Coding to Hive Coding** — The OpenCode plugin that brings structure to AI-assisted development.
+**From Vibe Coding to Hive Coding** — The OpenCode plugin that brings structure to AI-assisted development with Smart Context Engine and Multi-Agent Orchestration.
 
 ## Why Hive?
 
@@ -14,80 +14,70 @@ Vibe: "Just make it work"
 Hive: Plan → Review → Approve → Execute → Ship
 ```
 
-## Quick Setup (3 Steps)
+## What's New in v1.10
 
-### For AI Agents (LLM)
+### 🚀 Smart Context Engine
+- **Pattern Learning** — Learns from task execution, predicts next actions
+- **Auto-Summary** — Extracts key changes from diffs automatically
+- **Context Insights** — Suggests next steps based on learned patterns
 
-```
-1. Run: hive_doctor
-2. Install missing: npm install <packages> && npx -y <tools>
-3. Config: Add to ~/.config/opencode/agent_hive.json
-```
+### 🤖 Multi-Agent Orchestration
+- **Delegation Hints** — Complexity scoring, agent recommendation
+- **Batch Dispatch** — Start multiple tasks in parallel with `hive_worktree_batch`
+- **Auto Agent Selection** — Recommends best agent based on task type
 
-### For Humans
+### ⚡ Performance
+- **Incremental Loading** — LRU cache for skills and context
+- **Background Sync** — Non-blocking periodic sync
+- **Lazy MCP Init** — Fast plugin startup
 
-**Step 1: Check if your system is ready** (run BEFORE installing)
+---
+
+## Quick Setup
+
+**Step 1: Check system**
 ```bash
-# Run standalone doctor to see what's needed
 bunx @hung319/opencode-hive doctor
-# or
-npx @hung319/opencode-hive doctor
 ```
 
-**Step 2: Install the plugin**
+**Step 2: Install plugin**
 ```bash
-# For Node.js v24+, set CXXFLAGS first to build tree-sitter native modules:
-export CXXFLAGS="-std=c++20"
 npm install @hung319/opencode-hive
 ```
 
-> ⚠️ **Note:** This plugin optionally includes `@ast-grep/napi`, `@sparkleideas/agent-booster`, and `@sparkleideas/memory` which require C++20 on Node.js v24. If installation fails, the plugin still works (these are optional).
-> ```bash
-> export CXXFLAGS="-std=c++20"
-> npm install @hung319/opencode-hive
-> ```
-
-**Step 3: Install extras you want**
-- For **code analysis**: `npm install @notprolands/ast-grep-mcp`
-- For **fast code search**: `npm install @paretools/search`
-- For **code navigation**: `npx -y @butttons/dora`
-- For **auto code review**: `npx -y auto-cr-cmd`
-- For **blockchain tasks**: `npm install btca-ask`
-- For **free web search**: `npm install @oevortex/ddg_search`
-- For **privacy search**: `npm install mcp-searxng` (requires `SEARXNG_URL` env var)
-
-Or use the quick install command:
+**Step 3: Quick install extras**
 ```bash
 npx @hung319/opencode-hive doctor --install
 npx @hung319/opencode-hive doctor --install /path/to/project
 ```
 
-**Step 4: Optional config**
-Create `~/.config/opencode/agent_hive.json`:
-```json
-{
-  "snip": { "enabled": true },
-  "vectorMemory": { "enabled": true }
-}
-```
-
 ---
 
-## Installation
+## Features Overview
 
-```bash
-npm install @hung319/opencode-hive
-```
+### MCP Servers (6 Search Options)
+| MCP | Best For | API Key |
+|-----|----------|---------|
+| `websearch` | Current web info | Exa AI (free tier) |
+| `context7` | Library docs | Context7 (free tier) |
+| `grep_app` | GitHub code patterns | None |
+| `ddg_search` | DuckDuckGo search | None (free) |
+| `searxng` | Privacy meta-search | Self-hostable |
 
-## Optional: Enable MCP Research Tools
+### Tools
+| Category | Tools |
+|----------|-------|
+| Memory | `hive_memory_*`, `hive_vector_*` |
+| Planning | `hive_plan_*`, `hive_task_*` |
+| Execution | `hive_worktree_*`, `hive_worktree_batch` |
+| Code | `ast_grep_*`, `agent-booster`, LSP tools |
 
-1. Create `.opencode/mcp-servers.json` using the template:
-   - From this repo: `packages/opencode-hive/templates/mcp-servers.json`
-   - Or from npm: `node_modules/@hung319/opencode-hive/templates/mcp-servers.json`
-2. Set `EXA_API_KEY` to enable `websearch_exa` (optional).
-3. Restart OpenCode.
-
-This enables tools like `grep_app_searchGitHub`, `context7_query-docs`, and `websearch_web_search_exa`.
+### Utilities
+| Feature | Description |
+|---------|-------------|
+| PatternLearner | Learn from tasks, predict next actions |
+| AutoSummary | Extract key changes from diffs |
+| DelegationHints | Complexity + agent recommendation |
 
 ## The Workflow
 
