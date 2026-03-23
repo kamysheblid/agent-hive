@@ -507,7 +507,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.4',
+    version: '1.10.5',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -729,6 +729,9 @@ if (installIndex !== -1 && installIndex + 1 < args.length) {
 
 // Handle --install mode - run doctor first to get what's missing, then install
 if (installMode) {
+  // targetPath is the install prefix (e.g., /root/.local for global installs)
+  console.log(c.cyan(`\n🔧 Auto-installing to: ${targetPath}\n`));
+
   // Run doctor to see what's missing
   const output = runDoctor(false);
   
@@ -736,9 +739,7 @@ if (installMode) {
   const missingCli = output.checks.cliTools.items.filter(t => !t.installed);
   const missingAgent = output.checks.agentTools.items.filter(t => !t.installed);
   
-  console.log(c.cyan('\n🔧 Auto-installing missing tools...\n'));
-  
-  // Install CLI tools via npx
+  // Install CLI tools via npx (these are self-contained)
   for (const tool of missingCli) {
     try {
       console.log(c.cyan(`  Installing CLI ${tool.name}...`));
@@ -746,16 +747,17 @@ if (installMode) {
         stdio: 'inherit',
         timeout: 120000 
       });
-      console.log(c.green(`    ✓ ${tool.name} installed`));
+      console.log(c.green(`    ✓ ${tool.name} ready`));
     } catch {
       console.log(c.red(`    ✗ ${tool.name} failed`));
     }
   }
   
-  // Install agent tools via npm
+  // Install agent tools to targetPath (like global npm install)
   for (const tool of missingAgent) {
     try {
-      console.log(c.cyan(`  Installing agent tool ${tool.name}...`));
+      console.log(c.cyan(`  Installing ${tool.name} to ${targetPath}...`));
+      // Use npm install with prefix to install to that location
       execSync(`npm install ${tool.name} --prefix ${targetPath}`, {
         stdio: 'inherit',
         timeout: 180000,
