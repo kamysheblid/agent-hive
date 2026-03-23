@@ -523,7 +523,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.9',
+    version: '1.10.10',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -755,16 +755,34 @@ if (installMode) {
   const missingCli = output.checks.cliTools.items.filter(t => !t.installed);
   const missingAgent = output.checks.agentTools.items.filter(t => !t.installed);
   
-  // Install CLI tools via npm (not running CLI which may hang)
+  // Install CLI tools via npm and create symlinks to bin
   for (const tool of missingCli) {
     try {
       console.log(c.cyan(`  Installing CLI ${tool.name}...`));
-      // Install package, not run CLI (which may hang for MCP servers)
-      execSync(`npm install -g ${tool.command}`, {
+      // Install package to targetPath
+      execSync(`npm install ${tool.command} --prefix ${targetPath}`, {
         stdio: 'inherit',
         timeout: 120000,
       });
-      console.log(c.green(`    ✓ ${tool.name} ready`));
+      
+      // Find and symlink binaries from node_modules/.bin
+      const nodeModulesBin = path.join(targetPath, 'node_modules', '.bin', tool.command);
+      const targetBinDir = path.join(targetPath, 'bin');
+      
+      if (fs.existsSync(nodeModulesBin)) {
+        if (!fs.existsSync(targetBinDir)) {
+          fs.mkdirSync(targetBinDir, { recursive: true });
+        }
+        const targetLink = path.join(targetBinDir, tool.command);
+        if (!fs.existsSync(targetLink)) {
+          fs.symlinkSync(nodeModulesBin, targetLink);
+          console.log(c.green(`    ✓ ${tool.name} ready (symlinked)`));
+        } else {
+          console.log(c.green(`    ✓ ${tool.name} ready`));
+        }
+      } else {
+        console.log(c.green(`    ✓ ${tool.name} ready`));
+      }
     } catch {
       console.log(c.red(`    ✗ ${tool.name} failed`));
     }
