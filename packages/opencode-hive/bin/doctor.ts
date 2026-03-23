@@ -523,7 +523,7 @@ function runDoctor(autoFix = false): DoctorOutput {
   
   const output: DoctorOutput = {
     status: 'ready',
-    version: '1.10.8',
+    version: '1.10.9',
     summary: getSystemInfo(),
     checks: {
       agentTools: { total: 0, installed: 0, items: [] },
@@ -785,8 +785,9 @@ if (installMode) {
     }
   }
   
-  // Add to shell config if needed
-  const pathEntry = 'export PATH="/root/.local/bin:$PATH"';
+  // Add to shell config if needed - use targetPath/bin dynamically
+  const targetBin = path.join(targetPath, 'bin');
+  const pathEntry = `export PATH="${targetBin}:$PATH"`;
   const shellConfigs = [
     { path: path.join(process.env.HOME || '', '.bashrc'), shebang: '# bash' },
     { path: path.join(process.env.HOME || '', '.bash_profile'), shebang: '# bash' },
@@ -799,7 +800,7 @@ if (installMode) {
     
     try {
       const content = fs.readFileSync(config.path, 'utf-8');
-      if (!content.includes('/root/.local/bin')) {
+      if (!content.includes(targetBin)) {
         fs.appendFileSync(config.path, `\n# Added by Hive Doctor\n${pathEntry}\n`);
         pathAdded = true;
         console.log(c.green(`    ✓ Added PATH to ${config.path}`));
