@@ -214,6 +214,8 @@ npm install @oevortex/ddg_search
 
 ### 7. searxng (SearXNG)
 
+> ⚠️ **REQUIRED**: This MCP requires `SEARXNG_URL` environment variable. Without it, MCP will error with `-32000`.
+
 **Purpose**: Privacy-respecting meta-search engine
 
 **Type**: Local (runs via npx)
@@ -223,24 +225,26 @@ npm install @oevortex/ddg_search
 **Best Use Cases**:
 - Privacy-conscious searches
 - Aggregated results from multiple engines
-- Can use custom SearXNG instance
+- Self-hosted for maximum privacy
 
 **Setup**:
 ```bash
 # Install manually
 npm install mcp-searxng
-```
 
-**Environment Variables**:
-```bash
-# Optional: Use specific SearXNG instance
+# REQUIRED: Set your SearXNG instance URL
 export SEARXNG_URL=https://searx.example.com
 ```
 
+**Environment Variables**:
+| Variable | Required | Description |
+|---------|----------|-------------|
+| `SEARXNG_URL` | **YES** | Your SearXNG instance URL |
+
 **Tips**:
-- More private than Google/DuckDuckGo
-- Aggregates results from multiple search engines
-- Self-hostable for maximum privacy
+- Without `SEARXNG_URL`, MCP errors with `-32000`
+- Use public instances or self-host for privacy
+- List of public instances: https://searx.space/
 
 ---
 

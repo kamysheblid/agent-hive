@@ -54,7 +54,7 @@ npm install @hung319/opencode-hive
 - For **auto code review**: `npx -y auto-cr-cmd`
 - For **blockchain tasks**: `npm install btca-ask`
 - For **free web search**: `npm install @oevortex/ddg_search`
-- For **privacy search**: `npm install mcp-searxng`
+- For **privacy search**: `npm install mcp-searxng` (requires `SEARXNG_URL` env var)
 
 Or use the quick install command:
 ```bash
