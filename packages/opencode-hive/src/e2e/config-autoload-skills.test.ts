@@ -429,11 +429,8 @@ describe("config hook autoLoadSkills injection", () => {
   });
 });
 
-// TODO: Custom file-based skill loading tests - these are skipped because the feature
-// is not working correctly. The loadFileSkill function doesn't find skills when
-// HOME and projectRoot are set to different temp directories in tests.
-// See: https://github.com/hung319/agent-hive/issues/XXX
-describe.skip("file-based skill fallback in autoLoadSkills", () => {
+// Custom file-based skill loading tests
+describe("file-based skill fallback in autoLoadSkills", () => {
   let testRoot: string;
   let originalHome: string | undefined;
 

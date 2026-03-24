@@ -2305,7 +2305,17 @@ Expand your Discovery section and try again.`;
         if (firstMessage) {
           const title = generateSmartTitle(firstMessage);
           console.log(`[hive:smart-title] Title for ${sessionID}: "${title}"`);
-          // Note: Full implementation would call client.session.update()
+          
+          // Update session title via client API
+          try {
+            await client.session.update({
+              path: { id: sessionID },
+              body: { title },
+            });
+            console.log(`[hive:smart-title] Successfully updated title for ${sessionID}`);
+          } catch (error) {
+            console.error(`[hive:smart-title] Failed to update title for ${sessionID}:`, error);
+          }
         }
       }
     },

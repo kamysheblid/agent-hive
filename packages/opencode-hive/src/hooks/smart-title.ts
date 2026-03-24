@@ -45,7 +45,10 @@ export interface SmartTitleConfig {
   updateThreshold?: number;
 }
 
-export function createSmartTitleHandler(config: SmartTitleConfig) {
+export function createSmartTitleHandler(
+  config: SmartTitleConfig,
+  client?: { session: { update: (options: { path: { id: string }; body: { title: string } }) => Promise<unknown> } }
+) {
   const threshold = config?.updateThreshold ?? 1;
   
   return async (input: { event: Event }) => {
@@ -73,7 +76,19 @@ export function createSmartTitleHandler(config: SmartTitleConfig) {
       if (firstMessage) {
         const title = generateTitle(firstMessage);
         console.log(`[hive:smart-title] Title for ${sessionID}: "${title}"`);
-        // Note: Full implementation would update session via client API
+        
+        // Update session title via client API if client is provided
+        if (client) {
+          try {
+            await client.session.update({
+              path: { id: sessionID },
+              body: { title },
+            });
+            console.log(`[hive:smart-title] Successfully updated title for ${sessionID}`);
+          } catch (error) {
+            console.error(`[hive:smart-title] Failed to update title for ${sessionID}:`, error);
+          }
+        }
       }
     }
     
