@@ -60,23 +60,37 @@ Auto-generated at `~/.config/opencode/agent_hive.json`:
 
 Variants map to model-specific settings in your `opencode.json` (e.g., Anthropic thinking budgets).
 
-### Custom Subagents
+### Custom Derived Subagents
 
 Define derived agents from `forager-worker` or `hygienic-reviewer`:
 
 ```json
 {
+  "agents": {
+    "forager-worker": {
+      "variant": "medium"
+    },
+    "hygienic-reviewer": {
+      "model": "github-copilot/gpt-5.2-codex"
+    }
+  },
   "customAgents": {
     "forager-ui": {
       "baseAgent": "forager-worker",
       "description": "Use for UI-heavy implementation tasks.",
-      "temperature": 0.2
+      "model": "anthropic/claude-sonnet-4-20250514",
+      "temperature": 0.2,
+      "variant": "high"
+    },
+    "reviewer-security": {
+      "baseAgent": "hygienic-reviewer",
+      "description": "Use for security-focused review passes."
     }
   }
 }
 ```
 
-Omitted fields (`model`, `variant`, `autoLoadSkills`) inherit from the base agent. IDs cannot reuse built-in Hive names.
+Omitted fields (`model`, `variant`, `temperature`) inherit from the base agent. `autoLoadSkills` merges with base defaults, de-duplicates, and applies global `disableSkills`. Custom agent IDs cannot reuse built-in Hive names or reserved plugin IDs.
 
 ### Skills
 
@@ -131,6 +145,15 @@ Resolution order: Hive builtin → Project OpenCode → Global OpenCode → Proj
 | **Memory** | `hive_memory_*`, `hive_vector_*` |
 | **Code** | `hive_code_edit`, `hive_lazy_edit`, `hive_booster_status` |
 | **Other** | `hive_status`, `hive_skill`, `hive_agents_md` |
+
+### Planning-mode delegation
+
+During planning, "don't execute" means "don't implement" (no code edits, no worktrees). Read-only exploration is explicitly allowed and encouraged, both via local tools and by delegating to Scout.
+
+#### Canonical Delegation Threshold
+
+- Delegate to Scout when you cannot name the file path upfront, expect to inspect 2+ files, or the question is open-ended ("how/where does X work?").
+- Local `read`/`grep`/`glob` is acceptable only for a single known file and a bounded question.
 
 ---
 
