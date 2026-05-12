@@ -3,469 +3,142 @@
 [![npm version](https://img.shields.io/npm/v/@hung319/opencode-hive)](https://www.npmjs.com/package/@hung319/opencode-hive)
 [![License: MIT with Commons Clause](https://img.shields.io/badge/License-MIT%20with%20Commons%20Clause-blue.svg)](../../LICENSE)
 
-**From Vibe Coding to Hive Coding** — The OpenCode plugin that brings structure to AI-assisted development with Smart Context Engine and Multi-Agent Orchestration.
-
-## Why Hive?
-
-Stop losing context. Stop repeating decisions. Start shipping with confidence.
-
-```
-Vibe: "Just make it work"
-Hive: Plan → Review → Approve → Execute → Ship
-```
-
-## What's New in v1.10
-
-### 🚀 Smart Context Engine
-- **Pattern Learning** — Learns from task execution, predicts next actions
-- **Auto-Summary** — Extracts key changes from diffs automatically
-- **Context Insights** — Suggests next steps based on learned patterns
-
-### 🤖 Multi-Agent Orchestration
-- **Delegation Hints** — Complexity scoring, agent recommendation
-- **Batch Dispatch** — Start multiple tasks in parallel with `hive_worktree_batch`
-- **Auto Agent Selection** — Recommends best agent based on task type
-
-### ⚡ Performance
-- **Incremental Loading** — LRU cache for skills and context
-- **Background Sync** — Non-blocking periodic sync
-- **Lazy MCP Init** — Fast plugin startup
+**From Vibe Coding to Hive Coding** — The OpenCode plugin for plan-first, structured AI-assisted development with multi-agent orchestration.
 
 ---
 
-## Environment Variables
+## Quick Start
 
-### Required for Optional Features
+Add `@hung319/opencode-hive` to your `opencode.json`:
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `EXA_API_KEY` | API key for Exa AI web search | Only if using `websearch` MCP |
-| `SEARXNG_URL` | URL for self-hosted SearXNG instance | Only if using `searxng` MCP |
-| `CXXFLAGS="-std=c++20"` | C++ compiler flags for native modules | Only on Node.js v24+ |
-
-### Setup Examples
-
-```bash
-# For web search (Exa AI) - get key at https://exa.ai
-export EXA_API_KEY="your-exa-api-key"
-
-# For privacy meta-search (self-hosted)
-export SEARXNG_URL="https://your-searxng-instance.com"
-
-# For Node.js v24+ native modules (ast-grep, agent-booster, memory)
-export CXXFLAGS="-std=c++20"
+```json
+{
+  "plugin": ["@hung319/opencode-hive"]
+}
 ```
 
-Add these to your `~/.bashrc` or `~/.zshrc` for persistence.
+That's it. On first load, Hive auto-installs:
+- **Agent Tools**: `@sparkleideas/agent-booster` (52x faster code editing), `@sparkleideas/memory` (vector memory)
+- **CLI Tools**: `dora` (SCIP code navigation), `auto-cr-cmd` (automated code review), `btca-cli`
+- **Snip binary**: 60-90% token reduction by filtering shell output
+
+All tools fall back gracefully if installation fails — nothing breaks.
 
 ---
-
-## Quick Setup
-
-**Step 1: Check system**
-```bash
-bunx @hung319/opencode-hive doctor
-```
-
-**Step 2: Install plugin**
-```bash
-npm install @hung319/opencode-hive
-```
-
-**Step 3: Quick install extras**
-```bash
-npx @hung319/opencode-hive doctor --install
-npx @hung319/opencode-hive doctor --install /path/to/project
-```
-
----
-
-## Features Overview
-
-### MCP Servers (6 Search Options)
-| MCP | Best For | API Key |
-|-----|----------|---------|
-| `websearch` | Current web info | Exa AI (free tier) |
-| `context7` | Library docs | Context7 (free tier) |
-| `grep_app` | GitHub code patterns | None |
-| `searxng` | Privacy meta-search | Self-hostable |
-
-### Tools
-| Category | Tools |
-|----------|-------|
-| Memory | `hive_memory_*`, `hive_vector_*` |
-| Planning | `hive_plan_*`, `hive_task_*` |
-| Execution | `hive_worktree_*`, `hive_worktree_batch` |
-| Code | `ast_grep_*`, `agent-booster`, LSP tools |
-
-### Utilities
-| Feature | Description |
-|---------|-------------|
-| PatternLearner | Learn from tasks, predict next actions |
-| AutoSummary | Extract key changes from diffs |
-| DelegationHints | Complexity + agent recommendation |
-
-## The Workflow
-
-1. **Create Feature** — `hive_feature_create("dark-mode")`
-2. **Write Plan** — AI generates structured plan
-3. **Review** — You review in VS Code, add comments
-4. **Approve** — `hive_plan_approve()`
-5. **Execute** — Tasks run in isolated git worktrees
-6. **Ship** — Clean commits, full audit trail
-
-### Planning-mode delegation
-
-During planning, "don't execute" means "don't implement" (no code edits, no worktrees). Read-only exploration is explicitly allowed and encouraged, both via local tools and by delegating to Scout.
-
-#### Canonical Delegation Threshold
-
-- Delegate to Scout when you cannot name the file path upfront, expect to inspect 2+ files, or the question is open-ended ("how/where does X work?").
-- Local `read`/`grep`/`glob` is acceptable only for a single known file and a bounded question.
-
-## Tools
-
-### Feature Management
-| Tool | Description |
-|------|-------------|
-| `hive_feature_create` | Create a new feature |
-| `hive_feature_complete` | Mark feature as complete |
-
-### Planning
-| Tool | Description |
-|------|-------------|
-| `hive_plan_write` | Write plan.md |
-| `hive_plan_read` | Read plan and comments |
-| `hive_plan_approve` | Approve plan for execution |
-
-### Tasks
-| Tool | Description |
-|------|-------------|
-| `hive_tasks_sync` | Generate tasks from plan |
-| `hive_task_create` | Create manual task |
-| `hive_task_update` | Update task status/summary |
-
-### Worktree
-| Tool | Description |
-|------|-------------|
-| `hive_worktree_start` | Start normal work on task (creates worktree) |
-| `hive_worktree_create` | Resume blocked task in existing worktree |
-| `hive_worktree_commit` | Complete task (applies changes) |
-| `hive_worktree_discard` | Abort task (discard changes) |
-
-### Troubleshooting
-
-#### Repeated blocked-resume errors / loop
-
-If you see repeated retries around `continueFrom: "blocked"`, use this protocol:
-
-1. Call `hive_status()` first.
-2. If status is `pending` or `in_progress`, start normally with:
-   - `hive_worktree_start({ feature, task })`
-3. Only use blocked resume when status is exactly `blocked`:
-   - `hive_worktree_create({ task, continueFrom: "blocked", decision })`
-
-Do not retry the same blocked-resume call on non-blocked statuses; re-check `hive_status()` and use `hive_worktree_start` for normal starts.
-
-#### Using with DCP plugin
-
-When using Dynamic Context Pruning (DCP), use a Hive-safe config in `~/.config/opencode/dcp.jsonc`:
-
-- `manualMode.enabled: true`
-- `manualMode.automaticStrategies: false`
-- `turnProtection.enabled: true` with `turnProtection.turns: 12`
-- `tools.settings.nudgeEnabled: false`
-- protect key tools in `tools.settings.protectedTools` (at least: `hive_status`, `hive_worktree_start`, `hive_worktree_create`, `hive_worktree_commit`, `hive_worktree_discard`, `question`)
-- disable aggressive auto strategies:
-  - `strategies.deduplication.enabled: false`
-  - `strategies.supersedeWrites.enabled: false`
-  - `strategies.purgeErrors.enabled: false`
-
-For local plugin testing, keep OpenCode plugin entry as `"@hung319/opencode-hive"` (not `"@hung319/opencode-hive@latest"`).
-
-## Prompt Budgeting & Observability
-
-Hive automatically bounds worker prompt sizes to prevent context overflow and tool output truncation.
-
-### Budgeting Defaults
-
-| Limit | Default | Description |
-|-------|---------|-------------|
-| `maxTasks` | 10 | Number of previous tasks included |
-| `maxSummaryChars` | 2,000 | Max chars per task summary |
-| `maxContextChars` | 20,000 | Max chars per context file |
-| `maxTotalContextChars` | 60,000 | Total context budget |
-
-When limits are exceeded, content is truncated with `...[truncated]` markers and file path hints are provided so workers can read the full content.
-
-### Observability
-
-`hive_worktree_start` and blocked-resume `hive_worktree_create` output include metadata fields:
-
-- **`promptMeta`**: Character counts for plan, context, previousTasks, spec, workerPrompt
-- **`payloadMeta`**: JSON payload size, whether prompt is inlined or referenced by file
-- **`budgetApplied`**: Budget limits, tasks included/dropped, path hints for dropped content
-- **`warnings`**: Array of threshold exceedances with severity levels (info/warning/critical)
-
-### Prompt Files
-
-Large prompts are written to `.hive/features/<feature>/tasks/<task>/worker-prompt.md` and passed by file reference (`workerPromptPath`) rather than inlined in tool output. This prevents truncation of large prompts.
-
-## Plan Format
-
-```markdown
-# Feature Name
-
-## Overview
-What we're building and why.
-
-## Tasks
-
-### 1. Task Name
-Description of what to do.
-
-### 2. Another Task
-Description.
-```
 
 ## Configuration
 
-Hive uses a config file at `~/.config/opencode/agent_hive.json`. You can customize agent models, variants, disable skills, and disable MCP servers.
-
-### Disable Skills or MCPs
+Auto-generated at `~/.config/opencode/agent_hive.json`:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
-  "disableSkills": ["brainstorming", "writing-plans"],
-  "disableMcps": ["websearch", "pare_search"]
-}
-```
-
-#### Available Skills
-
-| ID | Description |
-|----|-------------|
-| `brainstorming` | Use before any creative work. Explores user intent, requirements, and design through collaborative dialogue before implementation. |
-| `writing-plans` | Use when you have a spec or requirements for a multi-step task. Creates detailed implementation plans with bite-sized tasks. |
-| `executing-plans` | Use when you have a written implementation plan. Executes tasks in batches with review checkpoints. |
-| `dispatching-parallel-agents` | Use when facing 2+ independent tasks. Dispatches multiple agents to work concurrently on unrelated problems. |
-| `test-driven-development` | Use when implementing any feature or bugfix. Enforces write-test-first, red-green-refactor cycle. |
-| `systematic-debugging` | Use when encountering any bug or test failure. Requires root cause investigation before proposing fixes. |
-| `code-reviewer` | Use when reviewing implementation changes against an approved plan or task to catch missing requirements, YAGNI, dead code, and risky patterns. |
-| `verification-before-completion` | Use before claiming work is complete. Requires running verification commands and confirming output before success claims. |
-
-#### Available MCPs
-
-| ID | Description | Requirements |
-|----|-------------|--------------|
-| `websearch` | Web search via [Exa AI](https://exa.ai). Real-time web searches and content scraping. | Set `EXA_API_KEY` env var |
-| `context7` | Library documentation lookup via [Context7](https://context7.com). Query up-to-date docs for any programming library. | None |
-| `grep_app` | GitHub code search via [grep.app](https://grep.app). Find real-world code examples from public repositories. | None |
-| `pare_search` | Structured ripgrep/fd search with 65-95% token reduction. | None (runs via npx) |
-| `searxng` | Privacy meta-search via [SearXNG](https://searx.space/). Requires self-hosted instance. | Set `SEARXNG_URL` env var |
-
-### Per-Agent Skills
-
-Each agent can have specific skills enabled. If configured, only those skills appear in `hive_skill()`:
-
-```json
-{
+  "agentMode": "unified",
   "agents": {
-    "hive": {
-      "skills": ["brainstorming", "writing-plans", "executing-plans"]
-    },
-    "forager-worker": {
-      "skills": ["test-driven-development", "verification-before-completion"]
-    }
+    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 }
   }
 }
 ```
 
-**How `skills` filtering works:**
+| Option | Default | Description |
+|---|---|---|
+| `agentMode` | `unified` | `dedicated` splits planner + orchestrator into separate agents |
+| `disableSkills` | `[]` | Globally hide skills from `hive_skill()` |
+| `disableMcps` | `[]` | Globally disable MCP servers |
 
-| Config | Result |
-|--------|--------|
-| `skills` omitted | All skills enabled (minus global `disableSkills`) |
-| `skills: []` | All skills enabled (minus global `disableSkills`) |
-| `skills: ["tdd", "debug"]` | Only those skills enabled |
-
-Note: Wildcards like `["*"]` are **not supported** - use explicit skill names or omit the field entirely for all skills.
-
-### Auto-load Skills
-
-Use `autoLoadSkills` to automatically inject skills into an agent's system prompt at session start.
-
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
-  "agents": {
-    "hive": {
-      "autoLoadSkills": ["parallel-exploration"]
-    },
-    "forager-worker": {
-      "autoLoadSkills": ["test-driven-development", "verification-before-completion"]
-    }
-  }
-}
-```
-
-**Supported skill sources:**
-
-`autoLoadSkills` accepts both Hive builtin skill IDs and file-based skill IDs. Resolution order:
-
-1. **Hive builtin** — Skills bundled with opencode-hive (always win if ID matches)
-2. **Project OpenCode** — `<project>/.opencode/skills/<id>/SKILL.md`
-3. **Global OpenCode** — `~/.config/opencode/skills/<id>/SKILL.md`
-4. **Project Claude** — `<project>/.claude/skills/<id>/SKILL.md`
-5. **Global Claude** — `~/.claude/skills/<id>/SKILL.md`
-
-Skill IDs must be safe directory names (no `/`, `\`, `..`, or `.`). Missing or invalid skills emit a warning and are skipped—startup continues without failure.
-
-**How `skills` and `autoLoadSkills` interact:**
-
-- `skills` controls what appears in `hive_skill()` — the agent can manually load these on demand
-- `autoLoadSkills` injects skills unconditionally at session start — no manual loading needed
-- These are **independent**: a skill can be auto-loaded but not appear in `hive_skill()`, or vice versa
-- User `autoLoadSkills` are **merged** with defaults (use global `disableSkills` to remove defaults)
-
-**Default auto-load skills by agent:**
-
-| Agent | autoLoadSkills default |
-|-------|------------------------|
-| `hive` | `parallel-exploration` |
-| `forager-worker` | `test-driven-development`, `verification-before-completion` |
-| `scout-researcher` | (none) |
-| `architect-planner` | `parallel-exploration` |
-| `swarm-orchestrator` | (none) |
-
-### Per-Agent Model Variants
-
-You can set a `variant` for each Hive agent to control model reasoning/effort level. Variants are keys that map to model-specific option overrides defined in your `opencode.json`.
-
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
-  "agents": {
-    "hive": {
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "variant": "high"
-    },
-    "forager-worker": {
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "variant": "medium"
-    },
-    "scout-researcher": {
-      "variant": "low"
-    }
-  }
-}
-```
-
-The `variant` value must match a key in your OpenCode config at `provider.<provider>.models.<model>.variants`. For example, with Anthropic models you might configure thinking budgets:
-
-```json
-// opencode.json
-{
-  "provider": {
-    "anthropic": {
-      "models": {
-        "claude-sonnet-4-20250514": {
-          "variants": {
-            "low": { "thinking": { "budget_tokens": 5000 } },
-            "medium": { "thinking": { "budget_tokens": 10000 } },
-            "high": { "thinking": { "budget_tokens": 25000 } }
-          }
-        }
-      }
-    }
-  }
-}
-```
-
-**Precedence:** If a prompt already has an explicit variant set, the per-agent config acts as a default and will not override it. Invalid or missing variant keys are treated as no-op (the model runs with default settings).
-
-### Custom Derived Subagents
-
-Define plugin-only custom subagents with `customAgents`. Freshly initialized `agent_hive.json` files already include starter template entries under `customAgents`; those seeded `*-example-template` entries are placeholders only, should be renamed or deleted before real use, and are intentionally worded so planners/orchestrators are unlikely to select them as configured. Each custom agent must declare:
-
-- `baseAgent`: one of `forager-worker` or `hygienic-reviewer`
-- `description`: delegation guidance injected into primary planner/orchestrator prompts
-
-Published example (validated by `src/e2e/custom-agent-docs-example.test.ts`):
+### Agent Models & Variants
 
 ```json
 {
   "agents": {
-    "forager-worker": {
-      "variant": "medium"
-    },
-    "hygienic-reviewer": {
-      "model": "github-copilot/gpt-5.2-codex"
-    }
-  },
+    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "variant": "high" },
+    "scout-researcher": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 },
+    "forager-worker": { "model": "anthropic/claude-sonnet-4-20250514", "variant": "medium" },
+    "hygienic-reviewer": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.3 }
+  }
+}
+```
+
+Variants map to model-specific settings in your `opencode.json` (e.g., Anthropic thinking budgets).
+
+### Custom Subagents
+
+Define derived agents from `forager-worker` or `hygienic-reviewer`:
+
+```json
+{
   "customAgents": {
     "forager-ui": {
       "baseAgent": "forager-worker",
       "description": "Use for UI-heavy implementation tasks.",
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "temperature": 0.2,
-      "variant": "high"
-    },
-    "reviewer-security": {
-      "baseAgent": "hygienic-reviewer",
-      "description": "Use for security-focused review passes."
+      "temperature": 0.2
     }
   }
 }
 ```
 
-Inheritance rules when a custom agent field is omitted:
+Omitted fields (`model`, `variant`, `autoLoadSkills`) inherit from the base agent. IDs cannot reuse built-in Hive names.
 
-| Field | Inheritance behavior |
-|-------|----------------------|
-| `model` | Inherits resolved base agent model (including user overrides in `agents`) |
-| `temperature` | Inherits resolved base agent temperature |
-| `variant` | Inherits resolved base agent variant |
-| `autoLoadSkills` | Merges with base agent auto-load defaults/overrides, de-duplicates, and applies global `disableSkills` |
+### Skills
 
-ID guardrails:
+| ID | Use Case |
+|---|---|
+| `brainstorming` | Explore requirements before implementation |
+| `writing-plans` | Create detailed implementation plans |
+| `executing-plans` | Execute tasks in batches with review checkpoints |
+| `dispatching-parallel-agents` | Dispatch 2+ agents for independent work |
+| `test-driven-development` | Red-green-refactor cycle |
+| `systematic-debugging` | Root cause investigation before fixes |
+| `code-reviewer` | Review changes against plan |
+| `verification-before-completion` | Verify before claiming done |
+| `docker-mastery` | Docker container debugging and optimization |
 
-- `customAgents` keys cannot reuse built-in Hive agent IDs
-- plugin-reserved aliases are blocked (`hive`, `architect`, `swarm`, `scout`, `forager`, `hygienic`, `receiver`)
-- operational IDs are blocked (`build`, `plan`, `code`)
+**Per-agent filtering:** `{ "agents": { "forager-worker": { "skills": ["tdd", "verification-before-completion"] } } }`
 
-### Custom Models
-
-Override models for specific agents:
+**Auto-load skills:** Use `autoLoadSkills` to inject skills into agent prompts at session start:
 
 ```json
 {
   "agents": {
-    "hive": {
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "temperature": 0.5
-    }
+    "hive": { "autoLoadSkills": ["parallel-exploration"] }
   }
 }
 ```
 
-## Agent Booster Tools
+Resolution order: Hive builtin → Project OpenCode → Global OpenCode → Project Claude → Global Claude.
 
-Ultra-fast code editing powered by Rust+WASM. **52x faster than Morph LLM, FREE (no API key required).**
+### MCP Servers
 
-### Tools
+| MCP | Tool | Requires |
+|---|---|---|
+| `websearch` | `websearch_web_search_exa` | `EXA_API_KEY` env |
+| `context7` | `context7_query-docs` | None |
+| `grep_app` | `grep_app_searchGitHub` | None |
+| `pare_search` | Structured ripgrep/fd search | None (npx) |
+| `searxng` | `searxng_search` | `SEARXNG_URL` env |
 
-| Tool | Description |
-|------|-------------|
-| `hive_code_edit` | Ultra-fast code editing with automatic fallback |
-| `hive_lazy_edit` | Edit with `// ... existing code ...` markers |
-| `hive_booster_status` | Check agent-booster availability |
+---
 
-### Usage
+## Tools
+
+| Category | Tools |
+|---|---|
+| **Feature** | `hive_feature_create`, `hive_feature_complete` |
+| **Plan** | `hive_plan_write`, `hive_plan_read`, `hive_plan_approve` |
+| **Task** | `hive_tasks_sync`, `hive_task_create`, `hive_task_update` |
+| **Worktree** | `hive_worktree_start`, `hive_worktree_create`, `hive_worktree_commit`, `hive_worktree_discard` |
+| **Merge** | `hive_merge` |
+| **Context** | `hive_context_write` |
+| **Memory** | `hive_memory_*`, `hive_vector_*` |
+| **Code** | `hive_code_edit`, `hive_lazy_edit`, `hive_booster_status` |
+| **Other** | `hive_status`, `hive_skill`, `hive_agents_md` |
+
+---
+
+## Agent Booster (Ultra-Fast Code Editing)
+
+Rust+WASM powered — 52x faster than Morph LLM, no API key needed.
 
 ```typescript
-// Edit with old/new content
 hive_code_edit({
   path: "src/index.ts",
   oldContent: "const old = 'value';",
@@ -473,229 +146,33 @@ hive_code_edit({
 })
 ```
 
-### Lazy Edit Example
+## Vector Memory (Semantic Search)
+
+HNSW indexing for semantic memory search:
 
 ```typescript
-// Use markers for partial code
-hive_lazy_edit({
-  path: "src/component.tsx",
-  snippet: `// ... existing code ...
-export const newFeature = () => { ... };
-// ... existing code ...`
-})
-```
-
-### Configuration
-
-```json
-{
-  "agentBooster": {
-    "enabled": false,
-    "serverUrl": "http://localhost:3001",
-    "serverPort": 3001
-  }
-}
-```
-
-## Vector Memory Tools
-
-Semantic memory search powered by HNSW indexing. Find memories by meaning, not just keywords.
-
-### Tools
-
-| Tool | Description |
-|------|-------------|
-| `hive_vector_search` | Semantic search across memories |
-| `hive_vector_add` | Add memory with vector indexing |
-| `hive_vector_status` | Check vector memory status |
-
-### Memory Types
-
-- `decision`: Architectural decisions, design choices
-- `learning`: Insights, discoveries, patterns found
-- `preference`: User preferences, coding style
-- `blocker`: Known blockers, workarounds
-- `context`: Important context about the project
-- `pattern`: Code patterns, recurring solutions
-
-### Usage
-
-```typescript
-// Add a memory
 hive_vector_add({
   content: "Use async/await instead of .then() chains",
   type: "learning",
-  scope: "async-patterns",
   tags: ["javascript", "best-practice"]
 })
 
-// Search memories
-hive_vector_search({
-  query: "async patterns JavaScript",
-  type: "learning",
-  limit: 10
-})
+hive_vector_search({ query: "async patterns", type: "learning", limit: 10 })
 ```
 
-### Configuration
+## Prompt Budgeting
 
-```json
-{
-  "vectorMemory": {
-    "enabled": false,
-    "indexPath": "~/.config/opencode/hive/vector-index",
-    "dimensions": 384
-  }
-}
-```
+Hive bounds worker prompts to prevent context overflow. Defaults: 10 tasks, 2K chars per summary, 20K per context file, 60K total. Exceeded content is truncated with `...[truncated]` markers and file path hints.
 
-## Hive Doctor
+## Troubleshooting
 
-System health check with actionable fixes. Run this when setting up or troubleshooting.
+If a task gets stuck in a blocked-resume loop:
+1. Call `hive_status()` first
+2. If `pending`/`in_progress`: `hive_worktree_start({ feature, task })`
+3. Only use `hive_worktree_create({ task, continueFrom: "blocked", decision })` when status is exactly `blocked`
 
-### Tools
-
-| Tool | Description |
-|------|-------------|
-| `hive_doctor` | Full health check with install commands |
-| `hive_doctor_quick` | Quick status summary |
-
-### Usage
-
-```typescript
-// Full health check with actionable output
-hive_doctor()
-
-// Quick status
-hive_doctor_quick()
-```
-
-**Standalone (before installing):**
-```bash
-bunx @hung319/opencode-hive doctor        # Check system
-bunx @hung319/opencode-hive doctor --fix  # Auto-fix issues
-```
-
-### What it checks
-
-1. **Agent Tools** (optional)
-   - `@sparkleideas/agent-booster` - 52x faster code editing
-   - `@sparkleideas/memory` - Vector memory for semantic search
-
-2. **CLI Tools** (optional)
-   - `dora` - Code navigation (SCIP-based)
-   - `auto-cr` - Automated code review (SWC)
-   - `scip-typescript` - TypeScript indexer
-   - `btca` - BTC/A blockchain agent
-3. **MCPs** - Auto-installed with plugin
-   - websearch, context7, grep_app
-   - searxng
-
-4. **C++20 Tip** - For @ast-grep/napi native modules
-
-### Example Output
-
-```
-╔═══════════════════════════════════════════════════════════╗
-║          🐝 Hive Doctor v1.6.6 - System Check             ║
-╚═══════════════════════════════════════════════════════════╝
-
-  Status: ✅ READY
-
-🚀 Agent Tools (2/2) ✅
-🔧 CLI Tools (5/5) ✅
-
-📦 MCPs: Auto-installed with plugin
-
-⚡ C++20 for native modules:
-   ✓ Active in session
-
-🚀 Quick Install
-  All tools ready!
-```
-
-### Auto-fix Mode
-
-```bash
-bunx @hung319/opencode-hive doctor --fix
-```
-
-This will:
-1. Set CXXFLAGS for current session
-2. Add to ~/.bashrc for future sessions
-3. Install available CLI tools via npx
-
-### C++20 for Native Modules
-
-Node.js v24+ requires C++20 for native modules like `@ast-grep/napi`.
-
-**Auto-fix:**
-```bash
-bunx @hung319/opencode-hive doctor --fix
-```
-
-**Manual:**
-```bash
-echo 'export CXXFLAGS="-std=c++20"' >> ~/.bashrc
-source ~/.bashrc
-CXXFLAGS="-std=c++20" npm install @ast-grep/napi
-```
-╔═══════════════════════════════════════════════════════════╗
-║          🐝 Hive Doctor v1.6.3 - System Check             ║
-╚═══════════════════════════════════════════════════════════╝
-
-  Status: ⚠️ NEEDS SETUP
-
-🚀 Agent Tools (0/2)
-   ○ @sparkleideas/agent-booster not installed
-   ○ @sparkleideas/memory not installed
-
-🔧 CLI Tools (1/5)
-   ✅ dora (via npx)
-   ○ auto-cr not available
-   ...
-
-📦 MCPs: Auto-installed with plugin
-
-💡 Tip: Enable C++20 for native modules?
-   Not detected. Run to fix @ast-grep/napi build:
-   echo 'export CXXFLAGS="-std=c++20"' >> ~/.bashrc
-
-🚀 Quick Install
-
-  npx -y auto-cr-cmd && npm install @sparkleideas/agent-booster
-```
-
-### Setup Workflow
-
-**For AI Agents (LLM):**
-
-```
-1. Run: hive_doctor
-2. Parse: actionItems[] for priority: "high"
-3. Install: Run quickInstall.commands
-4. Config: Apply config recommendations
-5. Verify: Run hive_doctor again to confirm
-```
-
-**For Humans:**
-
-1. **Open OpenCode** and ask "Run hive_doctor"
-2. **Look at the summary** - it tells you what's missing
-3. **Install what you need** - commands are ready to copy
-4. **Optional: Configure** - enable snip, vector memory for extra features
-
-```
-Quick Install All:
-npm install @notprolands/ast-grep-mcp @paretools/search @sparkleideas/memory
-npx -y @butttons/dora auto-cr-cmd
-```
-```
+---
 
 ## License
 
 MIT with Commons Clause — Free for personal and non-commercial use. See [LICENSE](../../LICENSE) for details.
-
----
-
-**Stop vibing. Start hiving.** 🐝

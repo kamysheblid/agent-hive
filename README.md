@@ -7,91 +7,24 @@
 
 ---
 
-## Demo
-
-https://github.com/user-attachments/assets/6290b435-1566-46b4-ac98-0420ed321204
-
----
-
 ## The Problem
 
-Vibe coding is powerful but chaotic. Without structure:
+Vibe coding is powerful but chaotic without structure: context lost between sessions, subagents conflict, scope spirals, and no audit trail exists when things go wrong.
 
-| Pain Point | What Happens |
-|------------|--------------|
-| **Lost context** | New session = start from scratch. "We discussed this yesterday" means nothing. |
-| **Subagents go wild** | Parallel agents do their own thing. No coordination, duplicated work. |
-| **Scope creep** | "Add dark mode" becomes "rewrite the entire theme system." |
-| **Messes to clean up** | Agent changes 47 files. Half are broken. Good luck reverting. |
-| **No audit trail** | "What happened?" Nobody knows. Logs scattered everywhere. |
-| **Agent hallucination** | Agent invents solutions that don't fit your codebase. No grounding. |
+## The Solution
 
----
-
-## The Hive Solution
-
-| Problem | Hive Solution |
-|---------|---------------|
-| Lost context | **Context persists** — Feature-scoped knowledge survives sessions |
-| Subagents go wild | **Batched parallelism** — Coordinated execution with context flow |
-| Scope creep | **Plan approval gate** — Human shapes, agent builds |
-| Messes to clean up | **Worktree isolation** — Each task isolated, easy discard |
-| No audit trail | **Automatic tracking** — Every task logged to `.hive/` |
-| Agent hallucination | **Context files** — Research and decisions ground agent work |
+| Pain Point | Hive Fix |
+|---|---|
+| Lost context | Feature-scoped knowledge in `.hive/` survives sessions |
+| Subagent chaos | Batch parallelism with context flow between batches |
+| Scope creep | Plan approval gate — human shapes, agent builds |
+| No audit trail | Every task, decision, and change logged automatically |
 
 **Hive doesn't change how you work. It makes what happens traceable, auditable, and grounded.**
 
 ---
 
-## Built on Battle-Tested Principles
-
-We studied what actually works in the AI coding community and built upon it:
-
-| Source | What We Learned | Hive Implementation |
-|--------|-----------------|---------------------|
-| **[Boris Cherny's 13 Tips](https://www.anthropic.com/research/claude-code-best-practices)** | Feedback loops = 2-3x quality | Best-effort worker verification + batch testing |
-| **[Spec Kit](https://github.com/github/spec-kit)** | Specs are valuable | Specs emerge from dialogue, not upfront |
-| **[Conductor](https://github.com/gemini-cli-extensions/conductor)** | Context persistence matters | Feature-scoped `.hive/context/` |
-| **[Ralph Wiggum](https://awesomeclaude.ai/ralph-wiggum)** | Retry loops work for verification | Best-effort verification, not infinite retries |
-| **[Oh My OpenCode](https://github.com/code-yeongyu/oh-my-opencode)** | Agent delegation scales | OMO as Hive Queen, Hive as workflow |
-| **Antigravity** | Plan gates build trust | Plan → Approve → Execute workflow |
-
-> *"Give Claude a way to verify its work. When Claude has a feedback loop, it will 2-3x the quality of the final result."* — Boris Cherny
-
-See [PHILOSOPHY.md](PHILOSOPHY.md) for the full breakdown of what we learned from each tool.
-
----
-
-## Environment Variables
-
-### Required for Optional Features
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `EXA_API_KEY` | API key for Exa AI web search | Only if using `websearch` MCP |
-| `SEARXNG_URL` | URL for self-hosted SearXNG instance | Only if using `searxng` MCP |
-| `CXXFLAGS="-std=c++20"` | C++ compiler flags for native modules | Only on Node.js v24+ |
-
-### Setup Examples
-
-```bash
-# For web search (Exa AI) - get key at https://exa.ai
-export EXA_API_KEY="your-exa-api-key"
-
-# For privacy meta-search (self-hosted)
-export SEARXNG_URL="https://your-searxng-instance.com"
-
-# For Node.js v24+ native modules (ast-grep, agent-booster, memory)
-export CXXFLAGS="-std=c++20"
-```
-
-Add these to your `~/.bashrc` or `~/.zshrc` for persistence.
-
----
-
 ## Quick Start
-
-### OpenCode
 
 Add `@hung319/opencode-hive` to your `opencode.json`:
 
@@ -102,442 +35,79 @@ Add `@hung319/opencode-hive` to your `opencode.json`:
 }
 ```
 
-OpenCode handles the rest — no manual npm install needed.
+OpenCode handles the rest — no manual install needed. On first load, Hive auto-installs all dependencies (snip binary for token reduction, agent-booster for fast editing, CLI tools for code navigation).
 
-For local plugin testing:
+## The Workflow
 
-1. Keep `plugin: ["@hung319/opencode-hive"]` in `opencode.json` (not `"@hung319/opencode-hive@latest"`).
-2. Build `packages/hive-core` first, then `packages/opencode-hive`.
-3. Symlink `~/.cache/opencode/node_modules/@hung319/opencode-hive` to your local `packages/opencode-hive` checkout.
+```
+  PLAN      →   REVIEW      →   EXECUTE      →   SHIP
+Chat with     See plan in      Tasks run in    Clean merges,
+your agent    VS Code sidebar  isolated        full audit trail
+about what    Add comments,    worktrees       Context persists
+to build      refine, approve  in parallel     for next time
+```
 
-### Configuration
+## Core Configuration
 
-Run Agent Hive once to auto-generate a default configuration at `~/.config/opencode/agent_hive.json`. Review it to ensure it matches your local setup.
+Auto-generated at `~/.config/opencode/agent_hive.json` after first run:
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json",
   "agentMode": "unified",
-  "disableSkills": [],
-  "disableMcps": [],
   "agents": {
-    "hive": {
-      "model": "anthropic/claude-sonnet-4-20250514",
-      "temperature": 0.5
-    }
+    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 }
   }
 }
 ```
-
-#### Core Options
 
 | Option | Values | Description |
-|--------|--------|-------------|
-| `agentMode` | `unified` (default), `dedicated` | `unified`: Single `hive` agent handles planning + orchestration. `dedicated`: Separate `architect-planner` and `swarm-orchestrator` agents. |
-| `disableSkills` | `string[]` | Globally disable specific skills (won't appear in `hive_skill` tool). |
-| `disableMcps` | `string[]` | Globally disable MCP servers. Options: `websearch`, `context7`, `grep_app`, `ast_grep`. |
+|---|---|---|
+| `agentMode` | `unified`, `dedicated` | Single agent or separate planner + orchestrator |
+| `disableSkills` | `string[]` | Globally disable skills |
+| `disableMcps` | `string[]` | Globally disable MCP servers |
 
-#### Agent Models
+---
 
-Configure models for each agent role. **Update these to models available on your system:**
+## Environment Variables
 
-```json
-{
-  "agents": {
-    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 },
-    "scout-researcher": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 },
-    "forager-worker": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.3 },
-    "hygienic-reviewer": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.3 }
-  }
-}
-```
-
-All agents: `hive`, `architect-planner`, `swarm-orchestrator`, `scout-researcher`, `forager-worker`, `hygienic-reviewer`.
-
-#### Custom Derived Subagents
-
-You can define plugin-only custom subagents with `customAgents` by deriving from either `forager-worker` or `hygienic-reviewer`.
-
-- Omitted `model`, `temperature`, `variant`, and `autoLoadSkills` inherit from the selected base agent.
-- Custom agent IDs cannot reuse built-in Hive IDs or plugin-reserved IDs (for example, `hive`, `architect`, `swarm`, `build`, `plan`, `code`).
-
-For the full published JSON example and complete inheritance details, see [`packages/opencode-hive/README.md`](./packages/opencode-hive/README.md#custom-derived-subagents).
-
-#### Skills
-
-Skills provide specialized workflows that agents can load on-demand via `hive_skill`.
-
-| Skill | Description |
-|-------|-------------|
-| `brainstorming` | Explores user intent, requirements, and design before implementation |
-| `writing-plans` | Creates detailed implementation plans with bite-sized tasks |
-| `executing-plans` | Executes tasks in batches with review checkpoints |
-| `dispatching-parallel-agents` | Dispatches multiple agents for concurrent independent work |
-| `test-driven-development` | Enforces write-test-first, red-green-refactor cycle |
-| `systematic-debugging` | Requires root cause investigation before proposing fixes |
-| `verification-before-completion` | Requires running verification commands before claiming success |
-| `parallel-exploration` | Fan-out research across multiple Scout agents |
-| `code-reviewer` | Reviews code changes against plan for quality and alignment |
-| `docker-mastery` | Docker container expertise — debugging, docker-compose, optimization |
-| `agents-md-mastery` | AGENTS.md quality review — signal vs noise, when to prune |
-
-**Per-agent skills:** Restrict which skills appear in `hive_skill()` tool:
-
-```json
-{
-  "agents": {
-    "forager-worker": {
-      "skills": ["test-driven-development", "verification-before-completion"]
-    }
-  }
-}
-```
-
-**Auto-load skills:** Automatically inject skills into an agent's system prompt at session start:
-
-```json
-{
-  "agents": {
-    "hive": { "autoLoadSkills": ["parallel-exploration"] },
-    "forager-worker": { "autoLoadSkills": ["test-driven-development", "verification-before-completion"] }
-  }
-}
-```
-
-**Supported skill sources for `autoLoadSkills`:**
-
-1. **Hive builtin** — Skills bundled with opencode-hive (always win if ID matches)
-2. **Project OpenCode** — `<project>/.opencode/skills/<id>/SKILL.md`
-3. **Global OpenCode** — `~/.config/opencode/skills/<id>/SKILL.md`
-4. **Project Claude** — `<project>/.claude/skills/<id>/SKILL.md`
-5. **Global Claude** — `~/.claude/skills/<id>/SKILL.md`
-
-Missing or invalid skills emit a warning and are skipped—startup continues without failure.
-
-**How these interact:**
-- `skills` controls what's available in `hive_skill()` — the agent can manually load these
-- `autoLoadSkills` injects skills unconditionally at session start — no manual loading needed
-- These are **independent**: a skill can be auto-loaded but not appear in `hive_skill()`, or vice versa
-- Default `autoLoadSkills` are merged with user config (use `disableSkills` to remove defaults)
-
-#### MCP Research Tools
-
-Auto-enabled by default. Disable with `disableMcps`:
-
-| MCP | Tool | Description | Requirements |
-|-----|------|-------------|--------------|
-| `websearch` | `websearch_web_search_exa` | Web search via Exa AI | `EXA_API_KEY` env var |
-| `context7` | `context7_query-docs` | Library documentation lookup | None |
-| `grep_app` | `grep_app_searchGitHub` | GitHub code search via grep.app | None |
-| `searxng` | `searxng_search` | Privacy meta-search | `SEARXNG_URL` env var |
-| `ast_grep` | `ast_grep_search` | AST-aware code search/replace | None (runs via npx) |
-
-#### Model Variants
-
-Set reasoning/effort levels per agent:
-
-```json
-{
-  "agents": {
-    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "variant": "high" },
-    "forager-worker": { "variant": "medium" }
-  }
-}
-```
-
-Variants must match keys in your OpenCode config at `provider.<provider>.models.<model>.variants`.
-
-See [packages/opencode-hive/README.md](packages/opencode-hive/README.md) for advanced configuration options.
-
-### Start Hiving
-
-```
-You: "Create a feature for user dashboard"
-```
-
-That's it. You're hiving.
-
-### Troubleshooting
-
-#### Blocked-resume loop recovery
-
-1. Run `hive_status({ feature })` before any resume attempt and read the current task status.
-2. Use `continueFrom: 'blocked'` only when the task is in the exact `blocked` state.
-3. For normal starts (for example `pending` / `in_progress`), call `hive_worktree_start({ feature, task })`.
-4. If a resume attempt is rejected, re-run `hive_status` and recover from the reported status instead of retrying the same blocked resume.
-
-#### Using with DCP plugin (recommended safety config)
-
-If you use Dynamic Context Pruning (DCP), use a Hive-safe profile in `~/.config/opencode/dcp.jsonc` so orchestration state is not aggressively pruned.
-
-Recommended baseline:
-
-```jsonc
-{
-  "manualMode": {
-    "enabled": true,
-    "automaticStrategies": false
-  },
-  "turnProtection": {
-    "enabled": true,
-    "turns": 12
-  },
-  "tools": {
-    "settings": {
-      "nudgeEnabled": false,
-      "protectedTools": [
-        "hive_status",
-        "hive_worktree_start",
-        "hive_worktree_create",
-        "hive_worktree_commit",
-        "hive_worktree_discard",
-        "question"
-      ]
-    }
-  },
-  "strategies": {
-    "deduplication": { "enabled": false },
-    "supersedeWrites": { "enabled": false },
-    "purgeErrors": { "enabled": false }
-  }
-}
-```
-
-Also keep OpenCode plugin config as `"@hung319/opencode-hive"` (not `"@hung319/opencode-hive@latest"`) during local testing.
+| Variable | Required For |
+|---|---|
+| `EXA_API_KEY` | Web search via Exa AI |
+| `SEARXNG_URL` | Privacy meta-search (self-hosted SearXNG) |
 
 ---
 
 ## How It Works
 
-### The Old Way (Chaos)
+Hive runs as an OpenCode plugin with specialized agents:
 
-```
-Main Agent: "Build auth system"
-    │
-    ├── Subagent 1: Does... something?
-    ├── Subagent 2: Also does... something?
-    └── Subagent 3: Conflicts with Subagent 1?
-    │
-You: "What just happened?" 🤷
-```
-
-### The Hive Way (Orchestrated)
-
-```
-Swarm Bee: Creates plan, you approve it
-    │
-    ├── Batch 1 (parallel):
-    │   ├── Forager A (own worktree, tracked)
-    │   ├── Forager B (own worktree, tracked)
-    │   └── Forager C (own worktree, tracked)
-    │           ↓
-    │      Context flows forward
-    │           ↓
-    ├── Batch 2 (parallel):
-    │   ├── Forager D (uses A+B+C results)
-    │   └── Forager E (uses A+B+C results)
-    │
-Hive: Full audit of what each agent did
-You: Clear visibility into everything ✅
-```
-
-**The Hive Colony:**
 | Agent | Role |
-|-------|------|
-| **Hive (Hybrid)** 👑 | Plans + orchestrates (phase-aware, skills on-demand) |
-| **Architect (Planner)** 🏗️ | Discovers requirements, writes plans |
-| **Swarm (Orchestrator)** 🐝 | Orchestrates execution, delegates to workers |
-| **Scout (Explorer/Researcher/Retrieval)** 🔍 | Explores codebase + external docs/data |
-| **Forager (Worker/Coder)** 🍯 | Executes tasks in isolated worktrees |
-| **Hygienic (Consultant/Reviewer/Debugger)** 🧹 | Reviews plan quality, OKAY/REJECT verdict |
+|---|---|
+| **Hive** 👑 | Plans + orchestrates, phase-aware |
+| **Scout** 🔍 | Explores codebase + external docs |
+| **Forager** 🍯 | Implements tasks in isolated worktrees |
+| **Hygienic** 🧹 | Reviews plan/code quality |
 
----
-
-## Real Example: Building Auth with Hive
-
-### Step 1: Start the Conversation
-
-```
-You: "Let's add authentication to the app"
-```
-
-The agent creates a structured plan:
-
-```markdown
-# User Authentication
-
-## Overview
-Add JWT-based authentication with login, signup, and protected routes.
-
-## Tasks
-
-### 1. Extract auth logic to service
-Move scattered auth code to dedicated AuthService class.
-
-### 2. Add token refresh mechanism
-Implement refresh token rotation for security.
-
-### 3. Update API routes
-Convert all routes to use the new AuthService.
-```
-
-### Step 2: Review in VS Code
-
-Open VS Code. The Hive sidebar shows your plan. You can:
-
-- Read through each task
-- Add comments ("Use httpOnly cookies for tokens")
-- Approve when ready
-
-### Step 3: Execute
-
-```
-You: "Execute"
-```
-
-Each task runs in its own worktree. Parallel agents don't conflict. Everything is tracked.
-
-### Step 4: Ship
-
-When done, you have:
-
-- **Working code** — Auth system implemented
-- **Clean git history** — Each task merged cleanly
-- **Full audit trail** — What was done, when, by which agent
-
-```
-.hive/features/user-auth/
-├── feature.json         # Feature metadata
-├── plan.md              # Your approved plan
-├── tasks.json           # Task list with status
-├── contexts/            # Decisions and calibration
-│   └── architecture.md
-└── tasks/
-    ├── 01-extract-auth-logic/
-    │   ├── status.json  # Task state
-    │   ├── spec.md      # Task context, prior/upcoming tasks
-    │   └── report.md    # Summary, files changed, diff stats
-    ├── 02-add-token-refresh/
-    │   ├── status.json
-    │   ├── spec.md
-    │   └── report.md
-    └── 03-update-api-routes/
-        ├── status.json
-        ├── spec.md
-        └── report.md
-```
-
-**That's hiving.** Natural conversation → structured plan → approved execution → documented result.
-
----
-
-## The Workflow
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  1. PLAN                                                    │
-│  Chat with your agent about what to build                   │
-│  Agent creates structured plan in .hive/                    │
-├─────────────────────────────────────────────────────────────┤
-│  2. REVIEW (in VS Code)                                     │
-│  See the plan in sidebar                                    │
-│  Add inline comments, refine, approve                       │
-├─────────────────────────────────────────────────────────────┤
-│  3. EXECUTE (parallel-friendly)                             │
-│  Tasks run in isolated worktrees                            │
-│  Batched parallelism with context flow                      │
-├─────────────────────────────────────────────────────────────┤
-│  4. SHIP                                                    │
-│  Clean merges, full history                                 │
-│  Context persists for next time                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Packages
-
-| Package | Platform | Description |
-|---------|----------|-------------|
-| **[@hung319/opencode-hive](https://www.npmjs.com/package/@hung319/opencode-hive)** | npm | OpenCode plugin — 6 specialized bee agents, 15 tools, 11 skills |
-
-**Agent Selection:** Use `hive`, `architect`, or `swarm` as your primary agent. Use `@scout`, `@forager`, or `@hygienic` to mention subagents directly.
+Workflow: Plan → Approve → Execute (batched parallelism) → Ship.
 
 ---
 
 ## Why Hive?
 
-### 🎯 Plan First
-
-Human shapes the what and why. Agent handles the how. The approval gate is where trust is earned.
-
-### 🤖 Easy Orchestrate
-
-Break work into isolated tasks. Subagents work in parallel without conflicts. Batches coordinate context flow.
-
-### 📊 Easy Audit
-
-Every decision, every change, every agent action — automatically captured in `.hive/`
-
-### 🚀 Easy Ship
-
-Clean git history (worktree merges), full documentation (generated as you work), traceable decisions (who did what, when).
+- **Plan First** — Human owns the _what_, agent owns the _how_. Approval gate builds trust.
+- **Batched Parallelism** — Independent tasks run concurrently. Sequential batches share context.
+- **Context Persists** — Calibration survives sessions. The "3 months later" problem solved.
+- **Good Enough Wins** — Ship working code. Iterate later. Reject over-engineering.
 
 ---
 
-## Comparison
+## Packages
 
-| Feature | Vibe Coding | Spec-First Tools | Agent Hive |
-|---------|-------------|------------------|------------|
-| Setup required | None | Heavy | Minimal |
-| Documentation | None | Upstream | Emerges from work |
-| Planning | Ad-hoc | Required first | Conversational |
-| Tracking | None | Manual | Automatic |
-| Audit trail | None | If maintained | Built-in |
-| Multi-agent ready | Chaos | ❌ | ✅ Native |
-| Subagent tracing | Painful | ❌ | ✅ Automatic |
+| Package | Description |
+|---|---|
+| [@hung319/opencode-hive](https://www.npmjs.com/package/@hung319/opencode-hive) | OpenCode plugin — 6 agents, 17 tools, 12 skills |
 
----
-
-## Philosophy
-
-Hive is built on 7 core principles:
-
-1. **Context Persists** — Calibration survives sessions. The "3 months later" problem solved.
-2. **Plan → Approve → Execute** — Dialogue until approved, then trust. Two phases with a clear gate.
-3. **Human Shapes, Agent Builds** — Human owns the why. Agent owns the how.
-4. **Good Enough Wins** — Capture what works for this context. Reject over-engineering.
-5. **Batched Parallelism** — Parallel tasks in batches. Sequential batches share context.
-6. **Tests Define Done** — Workers do best-effort checks; orchestrator runs full suite after batch merge.
-7. **Iron Laws + Hard Gates** — Non-negotiable constraints enforced by tools, not guidelines.
-
-See [PHILOSOPHY.md](PHILOSOPHY.md) for the full framework.
-
----
-
-## Related Tools
-
-Hive complements these excellent projects:
-
-| Tool | What It Does | How Hive Relates |
-|------|--------------|------------------|
-| **[Oh My OpenCode](https://github.com/code-yeongyu/oh-my-opencode)** | Agent-first delegation with specialized workers | Perfect combo: OMO as Hive Queen orchestrating Hive workers |
-| **[Conductor](https://github.com/gemini-cli-extensions/conductor)** | Context-driven track-based execution | Similar goals; Hive adds worktree isolation + batching |
-| **[Spec Kit](https://github.com/github/spec-kit)** | Heavy upfront specification | Hive: specs emerge from planning, not before |
-| **[Ralph Wiggum](https://awesomeclaude.ai/ralph-wiggum)** | Loop-until-done persistence | Different philosophy; Hive plans first, not retries first |
-
----
-
-## Platform Support
-
-| Platform | Setup | Status |
-|----------|-------|--------|
-| **OpenCode** | Add `@hung319/opencode-hive` plugin | Full support |
-
-Designed to work seamlessly with:
-
-- **[OpenCode](https://opencode.ai)** — The AI coding CLI
-- **Git** — Worktrees for isolation
+See [packages/opencode-hive/README.md](packages/opencode-hive/README.md) for full tool reference, configuration, agent setup, and usage details.
 
 ---
 
