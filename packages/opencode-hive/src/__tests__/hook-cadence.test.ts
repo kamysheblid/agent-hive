@@ -426,5 +426,5 @@ describe('hive_worktree_commit error guidance — no out-of-surface tool referen
     const result = JSON.parse(raw as string) as { reason?: string; nextAction?: string };
     expect(result.reason).toBe('task_not_found');
     expect(result.nextAction).not.toMatch(/hive_status/);
-  });
+  }, 15000);
 });

@@ -36,7 +36,7 @@
     "@opencode-ai/plugin": ">=0.13.7"
   },
   "dependencies": {
-    "simple-git": "^3.27.0"
+    "simple-git": "^3.36.0"
   },
   "peerDependenciesMeta": {
     "@sparkleideas/agent-booster": {
@@ -72,12 +72,12 @@
   },
   "devDependencies": {
     "hive-core": "workspace:*",
-    "@opencode-ai/plugin": "^1.0.143",
-    "@opencode-ai/sdk": "^0.13.0",
-    "@types/bun": "^1.2.0",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "@sparkleideas/agent-booster": "^0.2.3",
+    "@opencode-ai/plugin": "^1.14.48",
+    "@opencode-ai/sdk": "^1.14.48",
+    "@types/bun": "^1.3.13",
+    "@types/node": "^20.19.41",
+    "typescript": "^5.9.3",
+    "@sparkleideas/agent-booster": "^0.2.34",
     "@ast-grep/napi": "^0.41.1"
   },
   "files": [
