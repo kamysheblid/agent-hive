@@ -13,7 +13,6 @@ MCP (Model Context Protocol) servers extend agent capabilities with specialized 
 | **grep_app** | GitHub code patterns | Fast | Free tier |
 | **ast_grep** | AST code analysis | Very Fast | Free (Native) |
 | **pare_search** | Structured file search | Fast | Free |
-| **ddg_search** | DuckDuckGo search | Fast | Free (no API key) |
 | **searxng** | Privacy meta-search | Fast | Free (self-hostable) |
 
 ---
@@ -184,35 +183,7 @@ npx @paretools/search
 - Structured output is easy to parse
 - Works offline
 
----
-
-### 6. ddg_search (DuckDuckGo)
-
-**Purpose**: Free web search using DuckDuckGo
-
-**Type**: Local (runs via npx)
-
-**Tools**: `ddg_search_search` - DuckDuckGo web search
-
-**Best Use Cases**:
-- General web searches
-- No API key required
-- Quick lookups
-
-**Setup**:
-```bash
-# Install manually
-npm install @oevortex/ddg_search
-```
-
-**Tips**:
-- Free, no API key needed
-- Good for general queries
-- May have rate limits
-
----
-
-### 7. searxng (SearXNG)
+### 6. searxng (SearXNG)
 
 > ⚠️ **REQUIRED**: This MCP requires `SEARXNG_URL` environment variable. Without it, MCP will error with `-32000`.
 
@@ -252,8 +223,7 @@ export SEARXNG_URL=https://searx.example.com
 
 ### For Research/Discovery:
 1. **websearch** - Current web info (needs API key)
-2. **ddg_search** - Quick web search (free, no API key)
-3. **context7** - Library documentation
+2. **context7** - Library documentation
 
 ### For Implementation:
 1. **ast_grep** - Code analysis/refactoring
@@ -271,7 +241,7 @@ export SEARXNG_URL=https://searx.example.com
 
 | Task | Primary MCP | Alternative |
 |------|-------------|-------------|
-| Web search | `websearch` | `ddg_search`, `searxng` |
+| Web search | `websearch` | `searxng` |
 | Library docs | `context7` | `websearch` |
 | Code patterns | `grep_app` | `ast_grep` |
 | Code analysis | `ast_grep` | `grep_app` |

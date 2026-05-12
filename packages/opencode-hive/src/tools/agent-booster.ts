@@ -1,6 +1,7 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin";
 import * as fs from 'fs';
 import * as path from 'path';
+import { getHiveNodeModulesPath } from '../utils/tool-installer.js';
 
 /**
  * Agent Booster Tool
@@ -46,9 +47,11 @@ async function initBooster(): Promise<void> {
   
   boosterInitPromise = (async () => {
     try {
-      // Dynamic require - only loads when needed
+      // Dynamic require - try hive packages first, fall back to normal resolution
+      const hiveModules = getHiveNodeModulesPath();
+      const hivePkgPath = path.join(hiveModules, '@sparkleideas/agent-booster');
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const booster = require('@sparkleideas/agent-booster');
+      const booster = fs.existsSync(hivePkgPath) ? require(hivePkgPath) : require('@sparkleideas/agent-booster');
       
       // Initialize the booster
       if (booster && typeof booster.init === 'function') {

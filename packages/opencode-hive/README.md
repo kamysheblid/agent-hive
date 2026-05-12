@@ -88,7 +88,6 @@ npx @hung319/opencode-hive doctor --install /path/to/project
 | `websearch` | Current web info | Exa AI (free tier) |
 | `context7` | Library docs | Context7 (free tier) |
 | `grep_app` | GitHub code patterns | None |
-| `ddg_search` | DuckDuckGo search | None (free) |
 | `searxng` | Privacy meta-search | Self-hostable |
 
 ### Tools
@@ -264,7 +263,6 @@ Hive uses a config file at `~/.config/opencode/agent_hive.json`. You can customi
 | `context7` | Library documentation lookup via [Context7](https://context7.com). Query up-to-date docs for any programming library. | None |
 | `grep_app` | GitHub code search via [grep.app](https://grep.app). Find real-world code examples from public repositories. | None |
 | `pare_search` | Structured ripgrep/fd search with 65-95% token reduction. | None (runs via npx) |
-| `ddg_search` | DuckDuckGo search - free, no API key required. | None |
 | `searxng` | Privacy meta-search via [SearXNG](https://searx.space/). Requires self-hosted instance. | Set `SEARXNG_URL` env var |
 
 ### Per-Agent Skills
@@ -589,11 +587,9 @@ bunx @hung319/opencode-hive doctor --fix  # Auto-fix issues
    - `auto-cr` - Automated code review (SWC)
    - `scip-typescript` - TypeScript indexer
    - `btca` - BTC/A blockchain agent
-   - `ddg_search` - DuckDuckGo search (free)
-
 3. **MCPs** - Auto-installed with plugin
    - websearch, context7, grep_app
-   - ddg_search, searxng
+   - searxng
 
 4. **C++20 Tip** - For @ast-grep/napi native modules
 

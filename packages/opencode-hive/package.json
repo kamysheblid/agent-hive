@@ -5,9 +5,6 @@
   "description": "OpenCode plugin for Agent Hive - from vibe coding to hive coding",
   "license": "MIT WITH Commons-Clause",
   "author": "hung319",
-  "bin": {
-    "hive-doctor": "./bin/doctor.ts"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/hung319/agent-hive.git",
@@ -67,9 +64,6 @@
       "optional": true
     },
     "auto-cr-cmd": {
-      "optional": true
-    },
-    "@oevortex/ddg_search": {
       "optional": true
     },
     "mcp-searxng": {

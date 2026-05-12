@@ -3,7 +3,6 @@ import { websearchMcp } from './websearch';
 import { context7Mcp } from './context7';
 import { grepAppMcp } from './grep-app';
 import { pareSearchMcp } from './pare-search';
-import { ddgSearchMcp } from './ddg-search';
 import { searxngMcp } from './searxng';
 
 /**
@@ -14,7 +13,6 @@ import { searxngMcp } from './searxng';
  * - context7: Remote (Context7) - supports CONTEXT7_API_KEY env var
  * - grep_app: Remote (GitHub code search)
  * - pare_search: Local npx (structured ripgrep/fd output)
- * - ddg_search: Local npx (DuckDuckGo, free, no API key)
  * - searxng: Local npx (privacy meta-search)
  * 
  * Note: ast_grep MCP removed - use @ast-grep/napi directly
@@ -28,8 +26,6 @@ const allBuiltinMcps: Record<string, McpConfig> = {
   grep_app: grepAppMcp,
   // @paretools/search (structured ripgrep/fd)
   pare_search: pareSearchMcp,
-  // DuckDuckGo search (free, no API key)
-  ddg_search: ddgSearchMcp,
   // SearXNG meta-search (privacy)
   searxng: searxngMcp,
 };

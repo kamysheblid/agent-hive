@@ -16,8 +16,6 @@ const FREE_MODEL_TOOLS = [
   'btca_ask',            // Hardware control (doesn't need AI)
   'hive_rename',          // Simple renaming
   'lsp_status',           // Status check
-  'hive_doctor',          // Diagnostics
-  'hive_doctor_quick',    // Quick diagnostics
   'dora_status',          // Status check
   'auto_cr_status',       // Status check
   'auto_cr_rules',        // List rules
@@ -138,8 +136,6 @@ export const TOOL_CATEGORIES: Record<string, 'free' | 'standard' | 'premium'> = 
   'dora_unused': 'free',
   'auto_cr_status': 'free',
   'auto_cr_rules': 'free',
-  'hive_doctor': 'free',
-  'hive_doctor_quick': 'free',
   'hive_memory_list': 'free',
   'hive_memory_forget': 'free',
   'hive_vector_status': 'free',

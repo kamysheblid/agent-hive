@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { getHiveNodeModulesPath } from '../utils/tool-installer.js';
 
 /**
  * Vector Memory Service
@@ -58,9 +59,11 @@ async function initMemory(options?: {
   
   memoryInitPromise = (async () => {
     try {
-      // Dynamic require - only loads when needed
+      // Dynamic require - try hive packages first, fall back to normal resolution
+      const hiveModules = getHiveNodeModulesPath();
+      const hivePkgPath = path.join(hiveModules, '@sparkleideas/memory');
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const memory = require('@sparkleideas/memory');
+      const memory = fs.existsSync(hivePkgPath) ? require(hivePkgPath) : require('@sparkleideas/memory');
       
       // Initialize with options
       const indexPath = options?.indexPath || path.join(os.homedir(), '.config', 'opencode', 'hive', 'vector-index');

@@ -32,11 +32,8 @@ import { hiveCodeEditTool, hiveLazyEditTool, hiveBoosterStatusTool } from './too
 // Vector Memory Tools (semantic search)
 import { hiveVectorSearchTool, hiveVectorAddTool, hiveVectorStatusTool } from './tools/vector-memory.js';
 
-// Hive Doctor Tools (health check and optimization)
-import { hiveDoctorTool, hiveDoctorQuickTool } from './tools/hive-doctor.js';
-
 // Dora CLI Tools (SCIP-based code navigation)
-import { 
+import {
   doraStatusTool, 
   doraSymbolTool, 
   doraFileTool, 
@@ -70,6 +67,8 @@ import { PATTERN_FINDER_PROMPT } from './agents/pattern-finder.js';
 import { PROJECT_INITIALIZER_PROMPT } from './agents/project-initializer.js';
 import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
+import { ensureSnipInstalled } from './utils/snip-installer.js';
+import { ensureToolsInstalled, getHiveBinPath } from './utils/tool-installer.js';
 
 // ============================================================================
 // Skill Tool - Uses generated registry (no file-based discovery)
@@ -222,15 +221,15 @@ type ToolContext = {
 };
 
 // ============================================================================
-// Snip Integration (from opencode-snip)
+// Snip Integration
 // Prefix shell commands with snip to reduce 60-90% token usage
+// Snip: https://github.com/edouard-claude/snip
 // ============================================================================
 
 const ENV_VAR_RE = /^([A-Za-z_][A-Za-z0-9_]*=[^\s]* +)*/;
 
 /**
  * Prefix a command with snip to reduce output token usage
- * Based on: https://github.com/VincentHardouin/opencode-snip
  */
 function prefixWithSnip(command: string, snipCommand = 'snip'): string {
   // Don't double-prefix already snipped commands
@@ -249,6 +248,10 @@ function prefixWithSnip(command: string, snipCommand = 'snip'): string {
 
   return `${envPrefix}${snipCommand} ${bareCmd}${rest}`;
 }
+
+// Auto-install snip + tools on plugin load (fire-and-forget, completes before first hook fires)
+const snipBootPromise = ensureSnipInstalled();
+const toolsBootPromise = ensureToolsInstalled();
 
 const plugin: Plugin = async (ctx) => {
   const { directory, client } = ctx;
@@ -1015,12 +1018,19 @@ ${snapshot}
         return;
       }
 
-      // Apply snip prefix if enabled (reduces 60-90% token usage for shell output)
+      // Apply snip prefix (auto-enabled when snip binary installed successfully)
       const snipConfig = configService.get().snip;
+      const snipBinary = await snipBootPromise;
+      const snipAutoInstalled = snipBinary !== 'snip';
+      const isSnipEnabled = snipConfig?.enabled ?? snipAutoInstalled;
+      const snipCmd = snipConfig?.command || snipBinary;
+      const hiveBinPath = getHiveBinPath();
       let finalCommand = command;
-      if (snipConfig?.enabled) {
-        finalCommand = prefixWithSnip(command, snipConfig.command ?? 'snip');
+      if (isSnipEnabled) {
+        finalCommand = prefixWithSnip(command, snipCmd);
       }
+      // Prepend hive bin dir to PATH so auto-installed CLI tools are findable
+      finalCommand = `PATH="${hiveBinPath}:$PATH" ${finalCommand}`;
       
       const sandboxConfig = configService.getSandboxConfig();
       if (sandboxConfig.mode !== 'none') {
@@ -1038,10 +1048,7 @@ ${snapshot}
         }
       }
       
-      // If we prefixed with snip, apply the prefixed command
-      if (snipConfig?.enabled && finalCommand !== command) {
-        output.args.command = finalCommand;
-      }
+      output.args.command = finalCommand;
     },
 
     // Token truncation hook - compress large tool outputs to save context
@@ -1116,10 +1123,6 @@ ${snapshot}
       hive_vector_search: hiveVectorSearchTool,
       hive_vector_add: hiveVectorAddTool,
       hive_vector_status: hiveVectorStatusTool,
-
-      // Hive Doctor Tools (health check and optimization)
-      hive_doctor: hiveDoctorTool,
-      hive_doctor_quick: hiveDoctorQuickTool,
 
       // Dora CLI Tools (SCIP-based code navigation)
       dora_status: doraStatusTool,
