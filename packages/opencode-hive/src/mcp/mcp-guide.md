@@ -12,8 +12,7 @@ MCP (Model Context Protocol) servers extend agent capabilities with specialized 
 | **context7** | Library docs | Fast | Free tier |
 | **grep_app** | GitHub code patterns | Fast | Free tier |
 | **ast_grep** | AST code analysis | Very Fast | Free (Native) |
-| **pare_search** | Structured file search | Fast | Free |
-| **searxng** | Privacy meta-search | Fast | Free (self-hostable) |
+
 
 ---
 
@@ -159,65 +158,6 @@ logger.info($MSG)
 
 ---
 
-### 5. pare_search
-
-**Purpose**: Structured file and content search
-
-**Type**: Local (runs via npx)
-
-**Tools**: Uses structured ripgrep/fd output
-
-**Best Use Cases**:
-- Finding files by name pattern
-- Searching file contents with filters
-- Structured output for parsing
-
-**Setup**:
-```bash
-# Auto-installed by plugin
-npx @paretools/search
-```
-
-**Tips**:
-- Good for combining with other tools
-- Structured output is easy to parse
-- Works offline
-
-### 6. searxng (SearXNG)
-
-> ⚠️ **REQUIRED**: This MCP requires `SEARXNG_URL` environment variable. Without it, MCP will error with `-32000`.
-
-**Purpose**: Privacy-respecting meta-search engine
-
-**Type**: Local (runs via npx)
-
-**Tools**: `searxng_search` - Meta-search via SearXNG
-
-**Best Use Cases**:
-- Privacy-conscious searches
-- Aggregated results from multiple engines
-- Self-hosted for maximum privacy
-
-**Setup**:
-```bash
-# Install manually
-npm install mcp-searxng
-
-# REQUIRED: Set your SearXNG instance URL
-export SEARXNG_URL=https://searx.example.com
-```
-
-**Environment Variables**:
-| Variable | Required | Description |
-|---------|----------|-------------|
-| `SEARXNG_URL` | **YES** | Your SearXNG instance URL |
-
-**Tips**:
-- Without `SEARXNG_URL`, MCP errors with `-32000`
-- Use public instances or self-host for privacy
-- List of public instances: https://searx.space/
-
----
 
 ## Choosing the Right MCP
 
@@ -228,7 +168,6 @@ export SEARXNG_URL=https://searx.example.com
 ### For Implementation:
 1. **ast_grep** - Code analysis/refactoring
 2. **grep_app** - Pattern examples
-3. **pare_search** - File search
 
 ### For Debugging:
 1. **ast_grep** - Scan for issues
@@ -241,11 +180,10 @@ export SEARXNG_URL=https://searx.example.com
 
 | Task | Primary MCP | Alternative |
 |------|-------------|-------------|
-| Web search | `websearch` | `searxng` |
+| Web search | `websearch` | — |
 | Library docs | `context7` | `websearch` |
 | Code patterns | `grep_app` | `ast_grep` |
 | Code analysis | `ast_grep` | `grep_app` |
-| File search | `pare_search` | - |
 
 ---
 
@@ -294,6 +232,6 @@ Disable MCPs in `~/.config/opencode/agent_hive.json`:
 
 ```json
 {
-  "disableMcps": ["grep_app", "pare_search"]
+  "disableMcps": ["grep_app"]
 }
 ```

@@ -57,18 +57,13 @@
     "exa-mcp-server": {
       "optional": true
     },
-    "@paretools/search": {
-      "optional": true
-    },
     "@butttons/dora": {
       "optional": true
     },
     "auto-cr-cmd": {
       "optional": true
     },
-    "mcp-searxng": {
-      "optional": true
-    }
+
   },
   "devDependencies": {
     "hive-core": "workspace:*",

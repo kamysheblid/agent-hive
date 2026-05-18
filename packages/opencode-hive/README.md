@@ -127,8 +127,7 @@ Resolution order: Hive builtin → Project OpenCode → Global OpenCode → Proj
 | `websearch` | `websearch_web_search_exa` | `EXA_API_KEY` env |
 | `context7` | `context7_query-docs` | None |
 | `grep_app` | `grep_app_searchGitHub` | None |
-| `pare_search` | Structured ripgrep/fd search | None (npx) |
-| `searxng` | `searxng_search` | `SEARXNG_URL` env |
+
 
 ---
 

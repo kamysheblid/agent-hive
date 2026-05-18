@@ -74,8 +74,6 @@ Tools enhanced by MCP servers:
 - **context7**: Library documentation
 - **grep_app**: GitHub code search
 - **ast_grep**: Fast code analysis (native)
-- **pare_search**: File search
-- **searxng**: Privacy meta-search
 
 Use \`skill_mcp\` tool to use MCPs directly.`;
 }
@@ -92,8 +90,6 @@ Available MCP servers for enhanced capabilities:
 2. **context7** - Official library documentation
 3. **grep_app** - GitHub code search
 4. **ast_grep** - AST-based code analysis (fastest)
-5. **pare_search** - Structured file search
-6. **searxng** - Privacy meta-search
 
 Use the appropriate MCP for your task:
 - Research → websearch, context7
@@ -135,8 +131,6 @@ export const MCP_TOOLS: McpTool[] = [
   { name: 'ast_grep_analyze-imports', mcp: 'ast_grep', description: 'Analyze imports', category: 'analysis' },
   
 
-  // SearXNG (privacy meta-search)
-  { name: 'searxng_search', mcp: 'searxng', description: 'SearXNG meta-search', category: 'search' },
 ];
 
 /**
