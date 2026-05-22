@@ -68,8 +68,7 @@
   "mcp": [
     "websearch",
     "context7",
-    "grep_app",
-    "veil"
+    "grep_app"
   ],
   "hooks": [
     "hive.todo-enforcer",

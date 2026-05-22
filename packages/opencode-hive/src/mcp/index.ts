@@ -10,9 +10,6 @@ import { grepAppMcp } from './grep-app';
  * - websearch: Remote (Exa AI) - supports EXA_API_KEY env var
  * - context7: Remote (Context7) - supports CONTEXT7_API_KEY env var
  * - grep_app: Remote (GitHub code search)
- * 
- * Note: ast_grep MCP removed - use @ast-grep/napi directly
- * Note: veil removed - requires manual init, redundant with grep-mcp
  */
 
 const allBuiltinMcps: Record<string, McpConfig> = {

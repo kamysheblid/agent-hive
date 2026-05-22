@@ -129,8 +129,6 @@ export const MCP_TOOLS: McpTool[] = [
   { name: 'ast_grep_dump_syntax_tree', mcp: 'ast_grep', description: 'Inspect code structure', category: 'analysis' },
   { name: 'ast_grep_scan-code', mcp: 'ast_grep', description: 'Scan for code issues', category: 'analysis' },
   { name: 'ast_grep_analyze-imports', mcp: 'ast_grep', description: 'Analyze imports', category: 'analysis' },
-  
-
 ];
 
 /**
