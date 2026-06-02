@@ -34,6 +34,7 @@ import { hiveVectorSearchTool, hiveVectorAddTool, hiveVectorStatusTool } from '.
 import { listMemories, searchMemories, addMemory, setShardingConfig, setQualityConfig, setMemoryFilterConfig as setVectorMemoryFilterConfig } from './services/vector-memory.js';
 import { formatAutoRecallInjection, buildCaptureSnapshot } from './utils/auto-recall.js';
 import { setMemoryFilterConfig as setBlockMemoryFilterConfig } from './tools/memory.js';
+import { reInjectMemoriesAfterCompact } from './utils/compaction-restoration.js';
 
 // Dora CLI Tools (SCIP-based code navigation)
 import {
@@ -1072,6 +1073,17 @@ ${snapshot}
           // Silently fail - auto-capture is best-effort
           console.warn('[auto-capture] Failed to save session snapshot:', error instanceof Error ? error.message : error);
         }
+      }
+
+      // Compaction restoration: re-inject memories after compact (fire-and-forget)
+      // Pattern from opencode-mem — ensures memories survive compaction
+      // 0-risk: never blocks compaction, always catches errors
+      const crConfig = configService.get().vectorMemory?.compactionRestoration;
+      if (crConfig?.enabled !== false && client) {
+        reInjectMemoriesAfterCompact(input.sessionID, client, crConfig)
+          .catch((err: unknown) => {
+            console.warn('[compaction-restoration] Unexpected error:', err instanceof Error ? err.message : err);
+          });
       }
 
       // Auto-save to project.md: append session context for cross-session persistence

@@ -351,6 +351,12 @@ export interface HiveConfig {
       /** Maximum auto-saved entries to keep (default: 20, oldest removed when exceeded) */
       maxEntries?: number;
     };
+    /** Compaction restoration: re-inject memories into session after compact (from opencode-mem) */
+    compactionRestoration?: {
+      enabled?: boolean;
+      /** Maximum memories to re-inject per compact event (default: 5) */
+      maxMemories?: number;
+    };
   };
 }
 
@@ -452,5 +458,9 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     enabled: false,
     indexPath: path.join(os.homedir(), '.config', 'opencode', 'hive', 'vector-index'),
     dimensions: 384,
+    compactionRestoration: {
+      enabled: true,
+      maxMemories: 5,
+    },
   },
 };
