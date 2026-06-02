@@ -71,9 +71,7 @@ jobs:
 
       - name: Publish to npm
         working-directory: packages/opencode-hive
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_KEY }}
+        run: npm publish --access public --provenance
 
   release:
     needs: build
