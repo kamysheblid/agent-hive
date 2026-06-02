@@ -8,17 +8,23 @@ on:
     {}
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    # BẮT BUỘC: Cấp đủ quyền cho cả việc sinh OIDC token (npm) và tạo Release (GitHub)
+    permissions:
+      contents: write
+      id-token: write
 
-      - name: Setup Bun
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cài đặt Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
-      - name: Install dependencies
+      - name: Cài đặt dependencies
         run: bun install
 
       - name: Build hive-core
@@ -40,49 +46,24 @@ jobs:
         working-directory: packages/opencode-hive
         run: bun test
 
-      - name: Upload npm package artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-package
-          path: packages/opencode-hive/
-
-  publish-npm:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    continue-on-error: true
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download npm package artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: npm-package
-          path: packages/opencode-hive
-
-      - name: Setup Node.js
+      # --- TIẾN HÀNH PUBLISH LÊN NPM (Chỉ chạy khi có push tag v*) ---
+      - name: Cài đặt Node.js (Để dùng npm chính chủ xác thực OIDC)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Publish to npm
+      - name: Đẩy gói lên NPM Registry
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         working-directory: packages/opencode-hive
-        run: npm publish --access public --provenance
+        run: |
+          npm install -g npm@latest
+          npm publish --access public --provenance
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-
+      # --- TẠO GITHUB RELEASE ---
       - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v1
         with:
           body_path: docs/releases/${{ github.ref_name }}.md
