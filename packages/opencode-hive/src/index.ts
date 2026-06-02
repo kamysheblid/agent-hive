@@ -35,6 +35,7 @@ import { listMemories, searchMemories, addMemory, setShardingConfig, setQualityC
 import { formatAutoRecallInjection, buildCaptureSnapshot } from './utils/auto-recall.js';
 import { setMemoryFilterConfig as setBlockMemoryFilterConfig } from './tools/memory.js';
 import { reInjectMemoriesAfterCompact } from './utils/compaction-restoration.js';
+import { HiddenJudgeService } from './services/hidden-judge.js';
 
 // Dora CLI Tools (SCIP-based code navigation)
 import {
@@ -1141,6 +1142,73 @@ ${snapshot}
         } catch (error) {
           console.warn('[auto-save-project] Failed to update project.md:', error instanceof Error ? error.message : error);
         }
+      }
+    },
+
+    // Hidden-session judge: evaluate task completion after agent turns
+    // Pattern from dzianisv/opencode-plugins — opt-in (consumes LLM tokens when enabled)
+    // 0-risk: best-effort, never blocks the session, anti-recursion guard
+    "session.idle": async (input: { sessionID: string; messages?: unknown[] }, _output: unknown) => {
+      const judgeConfig = configService.get().hiddenJudge;
+      if (!judgeConfig?.enabled) return;
+
+      // Anti-recursion: skip judge sessions
+      if (input.sessionID?.startsWith('judge-')) return;
+
+      try {
+        // Build task context from recent messages
+        const messages = (input.messages ?? []) as Array<{ role?: string; content?: string; tool_calls?: unknown[] }>;
+        const lastMessage = messages
+          .filter(m => m.role === 'assistant')
+          .pop()?.content ?? '';
+
+        // Count tool calls and write operations from recent messages
+        const recentMessages = messages.slice(-20);
+        let toolCalls = 0;
+        let writeOps = 0;
+        let consecutiveIdenticalCommands = 0;
+        let lastCommand = '';
+
+        for (const msg of recentMessages) {
+          if (msg.role === 'assistant' && msg.tool_calls) {
+            toolCalls += msg.tool_calls.length;
+          }
+          // Estimate write ratio from tool call content
+          if (msg.content) {
+            const isWriteTool = /write|edit|create|delete|rename|mkdir/i.test(msg.content);
+            if (isWriteTool) writeOps++;
+
+            // Track consecutive identical commands for ACTION_LOOP
+            const command = msg.content?.slice(0, 100);
+            if (command === lastCommand) {
+              consecutiveIdenticalCommands++;
+            } else {
+              consecutiveIdenticalCommands = 0;
+              lastCommand = command;
+            }
+          }
+        }
+
+        const writeRatio = toolCalls > 0 ? writeOps / toolCalls : 0;
+
+        const judge = new HiddenJudgeService(judgeConfig);
+
+        // Fire-and-forget: never await on the idle path
+        judge.evaluateAndFeedback({
+          sessionId: input.sessionID,
+          client, // client is captured from the plugin closure
+          taskContext: {
+            toolCalls,
+            writeRatio,
+            lastMessage,
+            consecutiveIdenticalCommands,
+          },
+        }).catch((err: unknown) => {
+          console.warn('[hidden-judge] Unexpected error:', err instanceof Error ? err.message : err);
+        });
+      } catch (error) {
+        // 0-risk: never throw from a hook
+        console.warn('[hidden-judge] Hook error:', error instanceof Error ? error.message : error);
       }
     },
 
