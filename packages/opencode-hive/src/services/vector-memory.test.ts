@@ -117,9 +117,9 @@ describe('Vector Memory Service', () => {
     test('should respect limit', async () => {
       const { VectorMemoryService } = await import('../services/vector-memory.js');
 
-      await VectorMemoryService.add('Mem 1', { type: 'learning' });
-      await VectorMemoryService.add('Mem 2', { type: 'learning' });
-      await VectorMemoryService.add('Mem 3', { type: 'learning' });
+      await VectorMemoryService.add('Memory entry 1', { type: 'learning' });
+      await VectorMemoryService.add('Memory entry 2', { type: 'learning' });
+      await VectorMemoryService.add('Memory entry 3', { type: 'learning' });
 
       const results = await VectorMemoryService.list({ limit: 2 });
 
@@ -149,8 +149,8 @@ describe('Vector Memory Service', () => {
       const { VectorMemoryService } = await import('../services/vector-memory.js');
 
       await VectorMemoryService.add('Auth decision', { type: 'decision', scope: 'auth' });
-      await VectorMemoryService.add('API design', { type: 'decision', scope: 'api' });
-      await VectorMemoryService.add('Auth flow', { type: 'learning', scope: 'auth' });
+      await VectorMemoryService.add('API design patterns', { type: 'decision', scope: 'api' });
+      await VectorMemoryService.add('Auth flow patterns', { type: 'learning', scope: 'auth' });
 
       const results = await VectorMemoryService.list({ scope: 'auth' });
 
