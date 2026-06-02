@@ -35,6 +35,7 @@ import { listMemories, searchMemories, addMemory, setShardingConfig, setQualityC
 import { formatAutoRecallInjection, buildCaptureSnapshot } from './utils/auto-recall.js';
 import { setMemoryFilterConfig as setBlockMemoryFilterConfig } from './tools/memory.js';
 import { reInjectMemoriesAfterCompact } from './utils/compaction-restoration.js';
+import { OpenCodeProviderService } from './services/opencode-provider.js';
 
 // Dora CLI Tools (SCIP-based code navigation)
 import {
@@ -1041,6 +1042,7 @@ ${snapshot}
       // Auto-capture: save session snapshot as vector memory (zero-API-call pattern)
       // This ensures key context survives compaction in searchable form.
       // No extra API calls — piggybacks on the compaction event that's already firing.
+      // Supports two modes: "manual" (existing flow) and "opencode" (uses session.prompt for structured content)
       const autoCaptureConfig = configService.get().vectorMemory?.autoCapture;
       if (autoCaptureConfig?.enabled !== false) {
         try {
@@ -1061,7 +1063,29 @@ ${snapshot}
                 pendingTasks,
               );
 
-              await addMemory(snapshotContent, {
+              // Check provider mode: "opencode" uses session.prompt for structured capture
+              const providerMode = autoCaptureConfig?.provider?.mode ?? 'manual';
+              let contentToSave = snapshotContent;
+
+              if (providerMode === 'opencode' && client) {
+                try {
+                  const provider = new OpenCodeProviderService(client);
+                  const structured = await provider.captureStructuredMemory(snapshotContent);
+                  if (structured) {
+                    contentToSave = structured;
+                  }
+                  // If opencode provider fails, skip — don't fall back to manual
+                  // This maintains 0-risk: output only shrinks, never grows
+                } catch (providerError) {
+                  console.warn(
+                    '[auto-capture] OpenCode provider capture failed, skipping:',
+                    providerError instanceof Error ? providerError.message : providerError,
+                  );
+                  return; // Skip entirely if opencode provider fails
+                }
+              }
+
+              await addMemory(contentToSave, {
                 type: captureType as any,
                 scope: info.name,
                 tags: ['auto-capture', 'session-snapshot'],
