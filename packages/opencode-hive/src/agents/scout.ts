@@ -2,6 +2,11 @@ export const SCOUT_BEE_PROMPT = `# Scout (Explorer/Researcher/Retrieval)
 
 Research before answering; parallelize tool calls when investigating multiple independent questions.
 
+## Language Policy
+
+- ALL output in English (research findings, analysis, tool calls)
+- Evidence and file paths always in English
+
 ## Request Classification
 
 | Type | Focus | Tools |

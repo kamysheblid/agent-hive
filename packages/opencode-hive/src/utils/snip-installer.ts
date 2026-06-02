@@ -34,6 +34,25 @@ export function isSnipInstalled(): boolean {
   return fs.existsSync(getSnipBinaryPath());
 }
 
+/**
+ * Check if snip is available on PATH (e.g., globally installed).
+ */
+export function isSnipOnPath(): boolean {
+  try {
+    execSync('which snip 2>/dev/null', { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if snip is available (either auto-installed or on PATH).
+ */
+export function isSnipAvailable(): boolean {
+  return isSnipInstalled() || isSnipOnPath();
+}
+
 async function getLatestVersion(): Promise<string> {
   const response = await fetch(
     `https://api.github.com/repos/${SNIP_REPO}/releases/latest`,
@@ -108,8 +127,15 @@ export async function ensureSnipInstalled(): Promise<string> {
     }
     const message = error instanceof Error ? error.message : String(error);
     console.warn(`[hive:snip] Auto-install failed: ${message}`);
+    
+    // Fallback: check if snip is on PATH (globally installed)
+    if (isSnipOnPath()) {
+      console.log('[hive:snip] Found snip on PATH, will use it');
+      return 'snip';  // let PATH resolve it
+    }
+    
     console.warn('[hive:snip] Commands will pass through without filtering - no impact on functionality');
-    return 'snip';
+    return '';  // snip not available
   }
 
   return binaryPath;

@@ -1,4 +1,7 @@
 import { tool, type ToolDefinition, type ToolContext } from "@opencode-ai/plugin";
+import * as fs from 'fs';
+import * as path from 'path';
+import { getHiveNodeModulesPath } from '../utils/tool-installer.js';
 
 /**
  * PTY (Pseudo-Terminal) tools
@@ -14,9 +17,8 @@ import { tool, type ToolDefinition, type ToolContext } from "@opencode-ai/plugin
  * - Interactive programs (REPLs, prompts)
  * - Long-running processes
  * 
- * Before using, you need to:
- * 1. Install opencode-pty plugin OR
- * 2. Install bun-pty: npm install -g bun-pty
+ * bun-pty is auto-installed when the plugin loads.
+ * You can also install it manually: npm install -g bun-pty
  * 
  * Note: These tools provide a wrapper around the opencode-pty functionality.
  * For full PTY support, consider using the opencode-pty plugin directly.
@@ -54,12 +56,27 @@ const ptySessions = new Map<string, {
   startedAt: Date;
 }>();
 
+/**
+ * Try to load bun-pty, checking auto-installed hive packages first.
+ */
+async function loadBunPty(): Promise<any> {
+  // Check hive auto-installed packages first
+  const hiveModules = getHiveNodeModulesPath();
+  const hivePkgPath = path.join(hiveModules, 'bun-pty');
+  
+  if (fs.existsSync(hivePkgPath)) {
+    return await import(hivePkgPath);
+  }
+  
+  // Fall back to normal module resolution via eval
+  // to bypass TypeScript static module resolution for non-declared deps
+  // eslint-disable-next-line no-eval
+  return await eval('import("bun-pty")');
+}
+
 async function startPty(args: PtyStartArgs): Promise<string> {
   try {
-    // Try to use bun-pty if available
-    // Use eval to bypass TypeScript static module resolution
-    // eslint-disable-next-line no-eval
-    const bunPty = await eval('import("bun-pty")');
+    const bunPty = await loadBunPty();
     const open = bunPty.open;
     
     const pty = open({
@@ -88,13 +105,16 @@ Working Directory: ${args.cwd ?? process.cwd()}
 
 Use pty_read with id "${id}" to read output, pty_send to send input, and pty_kill to terminate.`;
   } catch (error) {
-    if (error instanceof Error && (error.message.includes("not found") || error.message.includes("MODULE_NOT_FOUND") || error.message.includes("Cannot find module"))) {
+    if (error instanceof Error && (error.message.includes("not found") || error.message.includes("MODULE_NOT_FOUND") || error.message.includes("Cannot find module") || error.message.includes("Cannot find package"))) {
       return `pty_start requires bun-pty to be installed:
       
-Option 1 - Use opencode-pty plugin (recommended):
+The plugin attempted to auto-install bun-pty but it may have failed due to
+native compilation requirements on this system.
+
+Option 1 - Use opencode-pty plugin (recommended, no native deps):
 Add "opencode-pty" to your plugins in opencode.json
 
-Option 2 - Install bun-pty directly:
+Option 2 - Install bun-pty manually:
 npm install -g bun-pty
 
 The PTY tools provide interactive terminal sessions for:
@@ -103,7 +123,7 @@ The PTY tools provide interactive terminal sessions for:
 - Long-running processes
 - Watch modes
 
-Note: bun-pty may require native compilation which can fail on some systems.
+Note: bun-pty requires native compilation which can fail on some systems.
 The opencode-pty plugin handles this more gracefully.`;
     }
     throw error;

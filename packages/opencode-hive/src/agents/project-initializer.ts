@@ -8,6 +8,11 @@ export const PROJECT_INITIALIZER_PROMPT = `# Project Initializer Agent
 
 You are a SUBAGENT - use task tool to spawn other subagents for parallel execution.
 
+## Language Policy
+
+- ALL output in English (documentation, analysis, sub-agent prompts)
+- File paths and code references always in English
+
 ## Purpose
 Rapidly analyze any project and generate ARCHITECTURE.md and CODE_STYLE.md
 

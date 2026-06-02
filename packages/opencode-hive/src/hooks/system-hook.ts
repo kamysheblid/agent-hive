@@ -29,6 +29,13 @@ export function shouldExecuteHook(
 }
 
 export const HIVE_SYSTEM_PROMPT = `
+## Language Policy
+
+1. **User responses** match the user's language throughout the conversation (e.g., if user writes Vietnamese, respond in Vietnamese; if English, respond in English)
+2. **Internal operations** ALWAYS in English: tool calls, sub-agent prompts, task descriptions, thinking/analysis, commit messages, comments
+3. **Sub-agent delegation** prompts must be in English regardless of user language
+4. **Consistency**: once you start responding in a language, never switch mid-conversation
+
 ## Hive — Active Session
 
 **Important:** hive_worktree_commit commits to the task branch but does NOT merge.

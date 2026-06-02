@@ -309,18 +309,70 @@ export interface HiveConfig {
     indexPath?: string;
     /** Embedding dimensions (default: 384) */
     dimensions?: number;
+    /** Auto-recall: automatically inject relevant vector memories into system prompt */
+    autoRecall?: {
+      enabled?: boolean;
+      /** Maximum memories to inject per turn (default: 5) */
+      maxMemories?: number;
+      /** Filter by memory types (e.g., ['decision', 'learning', 'context']) */
+      types?: string[];
+      /** Filter by scope (e.g., 'auth', 'api') */
+      scope?: string;
+    };
+    /** Auto-capture: automatically save session snapshots as vector memories during compaction (zero-API-call pattern) */
+    autoCapture?: {
+      enabled?: boolean;
+      /** Memory type to use for captured snapshots (default: 'context') */
+      type?: string;
+      /** Include pending tasks (default: true) */
+      includePendingTasks?: boolean;
+    };
+    /** Sharding: split vector memory into shards when it grows large */
+    sharding?: {
+      /** Maximum entries per shard before rotating (default: 500) */
+      maxEntriesPerShard?: number;
+    };
+    /** Quality guards and deduplication */
+    quality?: {
+      /** Minimum content length to accept (default: 10) */
+      minContentLength?: number;
+      /** Reject content with excessive repeated characters like 'aaa...' (default: true) */
+      rejectRepeatedChars?: boolean;
+      /** Enable exact content dedup (default: true) */
+      enableDedup?: boolean;
+      /** Enable near-duplicate detection (default: false, requires scanning) */
+      enableNearDedup?: boolean;
+    };
+    /** Memory filter: redact sensitive data before saving to memory */
+    memoryFilter?: {
+      enabled?: boolean;
+      /** Custom regex patterns (each with name and pattern string, e.g., { name: "my-key", pattern: "MY_KEY_\\d+" }) */
+      customPatterns?: Array<{ name: string; pattern: string }>;
+      /** Also redact email addresses (default: false) */
+      redactEmails?: boolean;
+    };
+    /** Auto-save: automatically save session context to project.md during compaction */
+    autoSaveProject?: {
+      enabled?: boolean;
+      /** Maximum auto-saved entries to keep (default: 20, oldest removed when exceeded) */
+      maxEntries?: number;
+    };
   };
 }
 
-/** Default models for Hive agents */
-export const DEFAULT_AGENT_MODELS = {
-  'zetta': 'github-copilot/claude-opus-4.5',
-  'architect-planner': 'github-copilot/gpt-5.2-codex',
-  'swarm-orchestrator': 'github-copilot/claude-opus-4.5',
-  'scout-researcher': 'zai-coding-plan/glm-4.7',
-  'forager-worker': 'github-copilot/gpt-5.2-codex',
-  'hygienic-reviewer': 'github-copilot/gpt-5.2-codex',
-} as const;
+/**
+ * Default models for Hive agents.
+ * All set to undefined by default so OpenCode uses the user's default provider/model.
+ * Users can override via agent_hive.json → agents.<name>.model.
+ */
+export const DEFAULT_AGENT_MODELS: Record<string, string | undefined> = {
+  'zetta': undefined,
+  'architect-planner': undefined,
+  'swarm-orchestrator': undefined,
+  'scout-researcher': undefined,
+  'forager-worker': undefined,
+  'hygienic-reviewer': undefined,
+};
 
 export const DEFAULT_HIVE_CONFIG: HiveConfig = {
   $schema: 'https://raw.githubusercontent.com/hung319/agent-hive/main/packages/opencode-hive/schema/agent_hive.schema.json',
@@ -346,36 +398,30 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
   },
   agents: {
     'zetta': {
-      model: DEFAULT_AGENT_MODELS['zetta'],
       temperature: 0.5,
       skills: [],
       autoLoadSkills: ['parallel-exploration'],
     },
     'architect-planner': {
-      model: DEFAULT_AGENT_MODELS['architect-planner'],
       temperature: 0.7,
       skills: [],
       autoLoadSkills: ['parallel-exploration'],
     },
     'swarm-orchestrator': {
-      model: DEFAULT_AGENT_MODELS['swarm-orchestrator'],
       temperature: 0.5,
       skills: [],
       autoLoadSkills: [],
     },
     'scout-researcher': {
-      model: DEFAULT_AGENT_MODELS['scout-researcher'],
       temperature: 0.5,
       skills: [],
       autoLoadSkills: [],
     },
     'forager-worker': {
-      model: DEFAULT_AGENT_MODELS['forager-worker'],
       temperature: 0.3,
       autoLoadSkills: ['test-driven-development', 'verification-before-completion'],
     },
     'hygienic-reviewer': {
-      model: DEFAULT_AGENT_MODELS['hygienic-reviewer'],
       temperature: 0.3,
       skills: [],
       autoLoadSkills: [],

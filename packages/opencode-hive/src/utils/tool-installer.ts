@@ -22,6 +22,7 @@ interface ToolEntry {
 const TOOLS: ToolEntry[] = [
   { name: '@sparkleideas/agent-booster', category: 'agent' },
   { name: '@sparkleideas/memory', category: 'agent' },
+  { name: 'bun-pty', category: 'agent' },
   { name: '@butttons/dora', category: 'cli', binaries: ['dora'] },
   { name: 'auto-cr-cmd', category: 'cli', binaries: ['auto-cr-cmd'] },
   { name: 'btca-cli', category: 'cli', binaries: ['btca'] },

@@ -233,8 +233,8 @@ export class ConfigService {
       const temperatureValue = declaration['temperature'];
       const variantValue = declaration['variant'];
       const model = typeof modelValue === 'string'
-        ? modelValue.trim() || baseAgentConfig.model
-        : baseAgentConfig.model;
+        ? modelValue.trim() || ''
+        : (baseAgentConfig.model || '');
       const variant = typeof variantValue === 'string'
         ? variantValue.trim() || baseAgentConfig.variant
         : baseAgentConfig.variant;

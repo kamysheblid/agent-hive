@@ -31,8 +31,9 @@ export function buildCustomSubagents({
     }
 
     const autoLoadedSkillsContent = autoLoadedSkills[agentName] ?? '';
+    const agentModel = customConfig.model ?? baseAgent.model;
     derived[agentName] = {
-      model: customConfig.model ?? baseAgent.model,
+      ...(agentModel ? { model: agentModel } : {}),
       variant: customConfig.variant ?? baseAgent.variant,
       temperature: customConfig.temperature ?? baseAgent.temperature,
       mode: 'subagent',

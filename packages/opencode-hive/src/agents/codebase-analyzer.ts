@@ -8,6 +8,11 @@ export const CODEBASE_ANALYZER_PROMPT = `# Codebase Analyzer Agent
 
 You are a SUBAGENT for analyzing and explaining code behavior.
 
+## Language Policy
+
+- ALL output in English (analysis, code traces, documentation)
+- File paths and references always in English
+
 ## Purpose
 Explain HOW code works. Document what IS, not what SHOULD BE.
 

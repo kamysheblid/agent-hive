@@ -100,11 +100,26 @@ Tags: javascript, promises, best-practice
 
     const result = await VectorMemoryService.add(content, metadata);
 
+    if ('rejected' in result && result.rejected) {
+      return JSON.stringify({
+        success: false,
+        rejected: true,
+        reason: result.reason || 'Unknown quality gate rejection',
+        id: result.id,
+        hints: [
+          'Content was rejected by quality guards (too short, repeated chars, or duplicate)',
+          'Use longer, more descriptive content',
+          'Check vectorMemory.quality config in agent_hive.json to adjust thresholds',
+        ],
+      }, null, 2);
+    }
+
     return JSON.stringify({
       success: result.success,
       id: result.id,
       fallback: result.fallback || false,
       message: `Memory stored${result.fallback ? ' (text search mode)' : ' (vector indexed)'}`,
+      quality: 'passed',
     }, null, 2);
   },
 });
@@ -122,19 +137,32 @@ export const hiveVectorStatusTool: ToolDefinition = tool({
   async execute() {
     const status = await VectorMemoryService.status();
 
-    return JSON.stringify({
+    const info: Record<string, unknown> = {
       status: status.available ? 'ready' : 'fallback',
       type: status.type,
       backend: status.available 
         ? '@sparkleideas/memory (HNSW + Vector)'
-        : 'Simple text search',
+        : 'Simple text search (sharded)',
       stats: status.stats,
-      tips: status.available
-        ? []
-        : [
-            'Install @sparkleideas/memory for vector search',
-            'npm install @sparkleideas/memory',
-          ],
-    }, null, 2);
+    };
+
+    // Include shard info for fallback mode
+    if (status.shard) {
+      info.shard = {
+        active: status.shard.index,
+        entries: status.shard.entryCount,
+        maxPerShard: status.shard.maxEntries,
+      };
+      info.totalShards = status.shard.index; // best estimate: latest index = count
+    }
+
+    if (!status.available) {
+      info.tips = [
+        'Install @sparkleideas/memory for vector search',
+        'npm install @sparkleideas/memory',
+      ];
+    }
+
+    return JSON.stringify(info, null, 2);
   },
 });

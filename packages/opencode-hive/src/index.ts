@@ -31,6 +31,9 @@ import { hiveMemoryListTool, hiveMemorySetTool, hiveMemoryReplaceTool, hiveJourn
 import { hiveCodeEditTool, hiveLazyEditTool, hiveBoosterStatusTool } from './tools/agent-booster.js';
 // Vector Memory Tools (semantic search)
 import { hiveVectorSearchTool, hiveVectorAddTool, hiveVectorStatusTool } from './tools/vector-memory.js';
+import { listMemories, searchMemories, addMemory, setShardingConfig, setQualityConfig, setMemoryFilterConfig as setVectorMemoryFilterConfig } from './services/vector-memory.js';
+import { formatAutoRecallInjection, buildCaptureSnapshot } from './utils/auto-recall.js';
+import { setMemoryFilterConfig as setBlockMemoryFilterConfig } from './tools/memory.js';
 
 // Dora CLI Tools (SCIP-based code navigation)
 import {
@@ -67,7 +70,7 @@ import { PATTERN_FINDER_PROMPT } from './agents/pattern-finder.js';
 import { PROJECT_INITIALIZER_PROMPT } from './agents/project-initializer.js';
 import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
-import { ensureSnipInstalled } from './utils/snip-installer.js';
+import { ensureSnipInstalled, isSnipOnPath } from './utils/snip-installer.js';
 import { ensureToolsInstalled, getHiveBinPath } from './utils/tool-installer.js';
 
 // ============================================================================
@@ -264,6 +267,20 @@ const plugin: Plugin = async (ctx) => {
   const configService = new ConfigService(); // User config at ~/.config/opencode/agent_hive.json
   const disabledMcps = configService.getDisabledMcps();
   const disabledSkills = configService.getDisabledSkills();
+  // Initialize vector memory sharding + quality from user config
+  const vmConfig = configService.get().vectorMemory;
+  if (vmConfig?.sharding) {
+    setShardingConfig(vmConfig.sharding);
+  }
+  if (vmConfig?.quality) {
+    setQualityConfig(vmConfig.quality);
+  }
+  // Initialize memory filter from user config
+  const memoryFilterConfig = vmConfig?.memoryFilter;
+  if (memoryFilterConfig !== undefined) {
+    setVectorMemoryFilterConfig(memoryFilterConfig);
+    setBlockMemoryFilterConfig(memoryFilterConfig);
+  }
   const builtinMcps = createBuiltinMcps(disabledMcps);
   
   // Get filtered skills (globally disabled skills removed)
@@ -869,6 +886,37 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
         output.system.push(memoryInjection);
       }
 
+      // Auto-recall: inject recent vector memories (configurable via vectorMemory.autoRecall)
+      const autoRecallConfig = configService.get().vectorMemory?.autoRecall;
+      if (autoRecallConfig?.enabled !== false) {
+        try {
+          const maxMemories = autoRecallConfig?.maxMemories ?? 5;
+          const typeFilter = autoRecallConfig?.types;
+          const scopeFilter = autoRecallConfig?.scope;
+
+          const listOptions: { limit: number; type?: string; scope?: string } = { limit: maxMemories };
+          if (typeFilter && typeFilter.length > 0) {
+            // If types are specified, use search with the first type as filter
+            // (the list API currently supports single type filter)
+            listOptions.type = typeFilter[0];
+          }
+          if (scopeFilter) {
+            listOptions.scope = scopeFilter;
+          }
+
+          const { results } = await listMemories(listOptions);
+          if (results && results.length > 0) {
+            const formatted = formatAutoRecallInjection(results, 300);
+            if (formatted) {
+              output.system.push('\n' + formatted);
+            }
+          }
+        } catch (error) {
+          // Silently fail - auto-recall is best-effort
+          console.warn('[auto-recall] Failed to inject vector memories:', error instanceof Error ? error.message : error);
+        }
+      }
+
       // NOTE: autoLoadSkills injection is now done in the config hook (prompt field)
       // to ensure skills are present from the first message. The system.transform hook
       // may not receive the agent name at runtime, so we removed legacy auto-load here.
@@ -988,6 +1036,100 @@ ${snapshot}
       } else {
         output.context.push(buildCompactionPrompt());
       }
+
+      // Auto-capture: save session snapshot as vector memory (zero-API-call pattern)
+      // This ensures key context survives compaction in searchable form.
+      // No extra API calls — piggybacks on the compaction event that's already firing.
+      const autoCaptureConfig = configService.get().vectorMemory?.autoCapture;
+      if (autoCaptureConfig?.enabled !== false) {
+        try {
+          const active = featureService.getActive();
+          if (active) {
+            const info = featureService.getInfo(active.name);
+            if (info) {
+              const captureType = autoCaptureConfig?.type || 'context';
+              const pendingTasks = autoCaptureConfig?.includePendingTasks !== false
+                ? info.tasks.filter(t => t.status === 'pending' || t.status === 'in_progress').map(t => t.name)
+                : undefined;
+              const doneCount = info.tasks.filter(t => t.status === 'done').length;
+              const snapshotContent = buildCaptureSnapshot(
+                info.name,
+                info.status,
+                doneCount,
+                info.tasks.length,
+                pendingTasks,
+              );
+
+              await addMemory(snapshotContent, {
+                type: captureType as any,
+                scope: info.name,
+                tags: ['auto-capture', 'session-snapshot'],
+                source: 'compaction-hook',
+              });
+            }
+          }
+        } catch (error) {
+          // Silently fail - auto-capture is best-effort
+          console.warn('[auto-capture] Failed to save session snapshot:', error instanceof Error ? error.message : error);
+        }
+      }
+
+      // Auto-save to project.md: append session context for cross-session persistence
+      const autoSaveConfig = configService.get().vectorMemory?.autoSaveProject;
+      if (autoSaveConfig?.enabled !== false) {
+        try {
+          const active = featureService.getActive();
+          if (active) {
+            const info = featureService.getInfo(active.name);
+            if (info) {
+              const maxEntries = autoSaveConfig?.maxEntries ?? 20;
+              const projectMdPath = path.join(directory, '.hive', 'memory', 'project', 'project.md');
+
+              // Read current content (if exists)
+              let currentBody = '';
+              if (fs.existsSync(projectMdPath)) {
+                const raw = fs.readFileSync(projectMdPath, 'utf-8');
+                // Strip YAML frontmatter
+                const bodyMatch = raw.match(/^---[\s\S]*?---\n([\s\S]*)$/);
+                currentBody = bodyMatch ? bodyMatch[1].trim() : raw.trim();
+              }
+
+              // Build new entry
+              const doneCount = info.tasks.filter(t => t.status === 'done').length;
+              const pendingNames = info.tasks
+                .filter(t => t.status === 'pending' || t.status === 'in_progress')
+                .map(t => t.name);
+              const entry = [
+                `[${new Date().toISOString().slice(0, 10)}] Feature: ${info.name} (${info.status})`,
+                `  Tasks: ${doneCount}/${info.tasks.length} completed`,
+                pendingNames.length > 0 ? `  Pending: ${pendingNames.join(', ')}` : '',
+                '',
+              ].filter(Boolean).join('\n');
+
+              // Prepend new entry, keep under maxEntries
+              const existingEntries = currentBody ? currentBody.split('\n\n') : [];
+              const allEntries = [entry.trim(), ...existingEntries].slice(0, maxEntries);
+              const newBody = allEntries.join('\n\n') + '\n';
+
+              // Write with frontmatter
+              const frontmatter = [
+                '---',
+                'label: project',
+                `description: Project-specific knowledge: commands, architecture, conventions, gotchas.`,
+                'limit: 5000',
+                'read_only: false',
+                '---',
+                '',
+              ].join('\n');
+
+              fs.mkdirSync(path.dirname(projectMdPath), { recursive: true });
+              fs.writeFileSync(projectMdPath, frontmatter + newBody, 'utf-8');
+            }
+          }
+        } catch (error) {
+          console.warn('[auto-save-project] Failed to update project.md:', error instanceof Error ? error.message : error);
+        }
+      }
     },
 
     // Apply per-agent variant to messages (covers built-in and accepted custom task() agents)
@@ -1018,15 +1160,17 @@ ${snapshot}
         return;
       }
 
-      // Apply snip prefix (auto-enabled when snip binary installed successfully)
+      // Apply snip prefix (auto-enabled when snip binary available)
       const snipConfig = configService.get().snip;
       const snipBinary = await snipBootPromise;
-      const snipAutoInstalled = snipBinary !== 'snip';
-      const isSnipEnabled = snipConfig?.enabled ?? snipAutoInstalled;
-      const snipCmd = snipConfig?.command || snipBinary;
+      // snipBinary: ''=unavailable, 'snip'=PATH, '/path/...'=auto-installed
+      const snipAvailable = snipBinary !== '';
+      const isSnipEnabled = snipConfig?.enabled ?? snipAvailable;
+      // Use configured command, then auto-installed path, then PATH lookup
+      const snipCmd = snipConfig?.command || (snipBinary || 'snip');
       const hiveBinPath = getHiveBinPath();
       let finalCommand = command;
-      if (isSnipEnabled) {
+      if (isSnipEnabled && snipAvailable) {
         finalCommand = prefixWithSnip(command, snipCmd);
       }
       // Prepend hive bin dir to PATH so auto-installed CLI tools are findable
@@ -2133,6 +2277,15 @@ Expand your Discovery section and try again.`;
         'project-initializer': projectInitializerConfig,
       };
 
+      // Remove undefined/empty model fields from all agent configs
+      // so OpenCode uses its default model when no model is specified.
+      for (const cfg of Object.values(builtInAgentConfigs)) {
+        if (cfg && typeof cfg === 'object' && !('model' in cfg)) continue;
+        if (cfg && typeof cfg === 'object' && !cfg.model) {
+          delete (cfg as Record<string, unknown>).model;
+        }
+      }
+
       const customAutoLoadedSkills = Object.fromEntries(
         await Promise.all(
           Object.entries(customAgentConfigs).map(async ([customAgentName, customAgentConfig]) => {
@@ -2193,6 +2346,14 @@ Expand your Discovery section and try again.`;
       }
 
       Object.assign(allAgents, customSubagents);
+
+      // Final sanitization: remove undefined/empty model fields from ALL agents
+      // so OpenCode uses its default model when none is explicitly configured.
+      for (const cfg of Object.values(allAgents)) {
+        if (cfg && typeof cfg === 'object' && 'model' in cfg && !(cfg as Record<string, unknown>).model) {
+          delete (cfg as Record<string, unknown>).model;
+        }
+      }
 
       // Determine the primary agent
       const primaryAgent = agentMode === 'unified' ? 'zetta' : 'architect-planner';

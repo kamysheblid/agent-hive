@@ -2,6 +2,7 @@ import { tool, type ToolDefinition } from "@opencode-ai/plugin";
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { filterSensitiveData } from '../utils/sensitive-data-filter.js';
 
 /**
  * Hive Memory System
@@ -14,6 +15,13 @@ import * as os from 'os';
 // ============================================================================
 // Types
 // ============================================================================
+
+// Shared memory filter config (set from index.ts config hook)
+let memoryFilterConfig: { enabled?: boolean; redactEmails?: boolean } | undefined;
+
+export function setMemoryFilterConfig(config: { enabled?: boolean; redactEmails?: boolean } | undefined): void {
+  memoryFilterConfig = config;
+}
 
 export interface MemoryBlock {
   scope: 'global' | 'project';
@@ -337,8 +345,11 @@ export const hiveMemorySetTool: ToolDefinition = tool({
       }, null, 2);
     }
     
+    // Apply sensitive data filter before saving
+    const filteredValue = filterSensitiveData(value, memoryFilterConfig);
+    
     // Check size limit
-    if (value.length > limit) {
+    if (filteredValue.length > limit) {
       return JSON.stringify({
         success: false,
         error: `Value too large (${value.length} chars, limit: ${limit})`,
@@ -369,13 +380,13 @@ export const hiveMemorySetTool: ToolDefinition = tool({
       read_only: readOnly,
     });
     
-    fs.writeFileSync(filePath, content + value + '\n', 'utf-8');
+    fs.writeFileSync(filePath, content + filteredValue + '\n', 'utf-8');
     
     return JSON.stringify({
       success: true,
       scope,
       label,
-      charsWritten: value.length,
+      charsWritten: filteredValue.length,
       charsLimit: limit,
     }, null, 2);
   },

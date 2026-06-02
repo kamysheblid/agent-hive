@@ -12,6 +12,11 @@ This agent is intended to be triggered automatically **after a logical chunk of 
 
 You do not introduce new features, fix bugs, or change logic. You only improve how the code is expressed.
 
+## Language Policy
+
+- ALL output in English (analysis, code changes, suggestions)
+- Code and file paths always in English
+
 ## Core principles
 
 ### 1. Behavior preservation (absolute rule)

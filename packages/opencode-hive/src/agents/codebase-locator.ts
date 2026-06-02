@@ -8,6 +8,11 @@ export const CODEBASE_LOCATOR_PROMPT = `# Codebase Locator Agent
 
 You are a SUBAGENT for finding file locations in the codebase.
 
+## Language Policy
+
+- ALL output in English
+- File paths and categories always in English
+
 ## Purpose
 Find WHERE files live. No content analysis, no suggestions, no opinions, just locations.
 

@@ -39,15 +39,9 @@ describe("ConfigService defaults", () => {
       "swarm-orchestrator",
       "zetta",
     ]);
-    expect(config.agents?.["architect-planner"]?.model).toBe(
-      "github-copilot/gpt-5.2-codex",
-    );
-    expect(config.agents?.["zetta"]?.model).toBe(
-      "github-copilot/claude-opus-4.5",
-    );
-    expect(config.agents?.["swarm-orchestrator"]?.model).toBe(
-      "github-copilot/claude-opus-4.5",
-    );
+    expect(config.agents?.["architect-planner"]?.model).toBeUndefined();
+    expect(config.agents?.["zetta"]?.model).toBeUndefined();
+    expect(config.agents?.["swarm-orchestrator"]?.model).toBeUndefined();
     expect(config.customAgents).toEqual({
       'forager-example-template': {
         baseAgent: 'forager-worker',
@@ -168,13 +162,12 @@ describe("ConfigService defaults", () => {
 
     const config = service.get();
     expect(config.agents?.["zetta"]?.temperature).toBe(0.8);
-    expect(config.agents?.["zetta"]?.model).toBe(
-      "github-copilot/claude-opus-4.5",
-    );
+    // No model configured → undefined (uses OpenCode default)
+    expect(config.agents?.["zetta"]?.model).toBeUndefined();
 
     const agentConfig = service.getAgentConfig("zetta");
     expect(agentConfig.temperature).toBe(0.8);
-    expect(agentConfig.model).toBe("github-copilot/claude-opus-4.5");
+    expect(agentConfig.model).toBeUndefined();
   });
 
   it("deep-merges variant field from user config", () => {
@@ -200,16 +193,14 @@ describe("ConfigService defaults", () => {
     // variant should be merged from user config
     expect(config.agents?.["forager-worker"]?.variant).toBe("high");
     expect(config.agents?.["scout-researcher"]?.variant).toBe("low");
-    // other defaults should still be present
-    expect(config.agents?.["forager-worker"]?.model).toBe(
-      "github-copilot/gpt-5.2-codex",
-    );
+    // No model configured → undefined (uses OpenCode default)
+    expect(config.agents?.["forager-worker"]?.model).toBeUndefined();
     expect(config.agents?.["scout-researcher"]?.temperature).toBe(0.2);
 
     // getAgentConfig should also return variant
     const foragerConfig = service.getAgentConfig("forager-worker");
     expect(foragerConfig.variant).toBe("high");
-    expect(foragerConfig.model).toBe("github-copilot/gpt-5.2-codex");
+    expect(foragerConfig.model).toBeUndefined();
 
     const scoutConfig = service.getAgentConfig("scout-researcher");
     expect(scoutConfig.variant).toBe("low");
@@ -331,7 +322,7 @@ describe("ConfigService defaults", () => {
 
     expect(custom["forager-lite"]).toMatchObject({
       baseAgent: "forager-worker",
-      model: "github-copilot/gpt-5.2-codex",
+      // No model set → empty string → OpenCode uses default
       temperature: 0.3,
     });
 
@@ -524,7 +515,8 @@ describe("ConfigService defaults", () => {
     );
 
     const custom = service.getCustomAgentConfigs();
-    expect(custom["forager-ui"]?.model).toBe("github-copilot/gpt-5.2-codex");
+    // Empty string model → undefined (OpenCode uses default)
+    expect(custom["forager-ui"]?.model).toBe("");
     expect(custom["forager-ui"]?.variant).toBeUndefined();
   });
 
