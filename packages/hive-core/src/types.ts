@@ -320,6 +320,11 @@ export interface HiveConfig {
       type?: string;
       /** Include pending tasks (default: true) */
       includePendingTasks?: boolean;
+      /** Provider mode: "manual" (use external API keys) or "opencode" (piggyback on session.prompt, from opencode-mem) */
+      provider?: {
+        /** Mode of auto-capture: "manual" or "opencode" (default: "manual" for backward compat) */
+        mode?: 'manual' | 'opencode';
+      };
     };
     /** Sharding: split vector memory into shards when it grows large */
     sharding?: {
