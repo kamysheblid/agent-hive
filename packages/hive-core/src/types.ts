@@ -358,6 +358,16 @@ export interface HiveConfig {
       maxMemories?: number;
     };
   };
+  /** Hidden-session judge: task completion verification via heuristic + LLM evaluation (from dzianisv/opencode-plugins) */
+  hiddenJudge?: {
+    enabled?: boolean;
+    /** Maximum retries per task before stopping (default: 3, Reflexion-style) */
+    maxRetries?: number;
+    /** Minimum tool calls before judge activates (default: 5) */
+    minToolCalls?: number;
+    /** Write ratio threshold — if writes/total < this, flagged as planning loop (default: 0.1) */
+    writeRatioThreshold?: number;
+  };
 }
 
 /**
@@ -462,5 +472,12 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
       enabled: true,
       maxMemories: 5,
     },
+  },
+  // Hidden judge: opt-in task completion verification
+  hiddenJudge: {
+    enabled: false,
+    maxRetries: 3,
+    minToolCalls: 5,
+    writeRatioThreshold: 0.1,
   },
 };
