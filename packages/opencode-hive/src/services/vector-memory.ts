@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as crypto from 'crypto';
 import { getHiveNodeModulesPath } from '../utils/tool-installer.js';
 import { filterSensitiveData } from '../utils/sensitive-data-filter.js';
+import { safeStageAsync } from '../utils/safe-stage.js';
 
 /**
  * Vector Memory Service
@@ -751,13 +752,24 @@ function getActiveShardInfo(): { index: number; entryCount: number; maxEntries: 
 // ============================================================================
 
 export const VectorMemoryService = {
-  init: initMemory,
-  add: addMemory,
-  search: searchMemories,
-  list: listMemories,
-  get: getMemory,
-  delete: deleteMemory,
-  status: getMemoryStatus,
+  init: (options?: { indexPath?: string; dimensions?: number }) =>
+    safeStageAsync('memory.init', () => initMemory(options), undefined),
+  add: (content: string, metadata: MemoryMetadata) =>
+    safeStageAsync('memory.add', () => addMemory(content, metadata),
+      { success: false, id: '', fallback: true, rejected: false } as Awaited<ReturnType<typeof addMemory>>),
+  search: (query: string, options?: { limit?: number; type?: string; scope?: string; minScore?: number }) =>
+    safeStageAsync('memory.search', () => searchMemories(query, options),
+      { results: [], fallback: true } as Awaited<ReturnType<typeof searchMemories>>),
+  list: (options?: { limit?: number; type?: string; scope?: string }) =>
+    safeStageAsync('memory.list', () => listMemories(options),
+      { results: [], fallback: true } as Awaited<ReturnType<typeof listMemories>>),
+  get: (id: string) =>
+    safeStageAsync('memory.get', () => getMemory(id), null as Awaited<ReturnType<typeof getMemory>>),
+  delete: (id: string) =>
+    safeStageAsync('memory.delete', () => deleteMemory(id), false as Awaited<ReturnType<typeof deleteMemory>>),
+  status: () =>
+    safeStageAsync('memory.status', () => getMemoryStatus(),
+      { available: false, type: 'error', stats: {} as any, shard: undefined } as Awaited<ReturnType<typeof getMemoryStatus>>),
   setShardingConfig,
   setQualityConfig,
   setMemoryFilterConfig,

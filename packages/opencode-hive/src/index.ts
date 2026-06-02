@@ -35,6 +35,7 @@ import { listMemories, searchMemories, addMemory, setShardingConfig, setQualityC
 import { formatAutoRecallInjection, buildCaptureSnapshot } from './utils/auto-recall.js';
 import { setMemoryFilterConfig as setBlockMemoryFilterConfig } from './tools/memory.js';
 import { reInjectMemoriesAfterCompact } from './utils/compaction-restoration.js';
+import { safeHook } from './utils/safe-stage.js';
 import { HiddenJudgeService } from './services/hidden-judge.js';
 import { OpenCodeProviderService } from './services/opencode-provider.js';
 import { UserProfileService } from './services/user-profile.js';
@@ -890,95 +891,98 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
   };
 
   return {
-    "experimental.chat.system.transform": async (
-      input: { agent?: string } | unknown,
-      output: { system: string[] },
-    ) => {
-      // Cadence gate: check if this hook should execute this turn
-      if (!shouldExecuteHook("experimental.chat.system.transform", configService, turnCounters)) {
-        return;
-      }
+    "experimental.chat.system.transform": safeHook(
+      'experimental.chat.system.transform',
+      async (input: { agent?: string } | unknown, output: { system: string[] }) => {
+        // Cadence gate: check if this hook should execute this turn
+        if (!shouldExecuteHook("experimental.chat.system.transform", configService, turnCounters)) {
+          return;
+        }
 
-      output.system.push(HIVE_SYSTEM_PROMPT);
+        output.system.push(HIVE_SYSTEM_PROMPT);
 
-      // Inject memory blocks into system prompt
-      const memoryInjection = await buildMemoryInjection(directory);
-      if (memoryInjection) {
-        output.system.push(memoryInjection);
-      }
-
-      // Auto-recall: inject recent vector memories (configurable via vectorMemory.autoRecall)
-      const autoRecallConfig = configService.get().vectorMemory?.autoRecall;
-      if (autoRecallConfig?.enabled !== false) {
+        // Inject memory blocks into system prompt
         try {
-          const maxMemories = autoRecallConfig?.maxMemories ?? 5;
-          const typeFilter = autoRecallConfig?.types;
-          const scopeFilter = autoRecallConfig?.scope;
-
-          const listOptions: { limit: number; type?: string; scope?: string } = { limit: maxMemories };
-          if (typeFilter && typeFilter.length > 0) {
-            // If types are specified, use search with the first type as filter
-            // (the list API currently supports single type filter)
-            listOptions.type = typeFilter[0];
+          const memoryInjection = await buildMemoryInjection(directory);
+          if (memoryInjection) {
+            output.system.push(memoryInjection);
           }
-          if (scopeFilter) {
-            listOptions.scope = scopeFilter;
-          }
+        } catch {
+          // 0-risk: memory injection failure
+        }
 
-          const { results } = await listMemories(listOptions);
-          if (results && results.length > 0) {
-            const formatted = formatAutoRecallInjection(results, 300);
-            if (formatted) {
-              output.system.push('\n' + formatted);
+        // Auto-recall: inject recent vector memories (configurable via vectorMemory.autoRecall)
+        const autoRecallConfig = configService.get().vectorMemory?.autoRecall;
+        if (autoRecallConfig?.enabled !== false) {
+          try {
+            const maxMemories = autoRecallConfig?.maxMemories ?? 5;
+            const typeFilter = autoRecallConfig?.types;
+            const scopeFilter = autoRecallConfig?.scope;
+
+            const listOptions: { limit: number; type?: string; scope?: string } = { limit: maxMemories };
+            if (typeFilter && typeFilter.length > 0) {
+              listOptions.type = typeFilter[0];
+            }
+            if (scopeFilter) {
+              listOptions.scope = scopeFilter;
+            }
+
+            const { results } = await listMemories(listOptions);
+            if (results && results.length > 0) {
+              const formatted = formatAutoRecallInjection(results, 300);
+              if (formatted) {
+                output.system.push('\n' + formatted);
+              }
+            }
+          } catch (error) {
+            console.warn('[auto-recall] Failed to inject vector memories:', error instanceof Error ? error.message : error);
+          }
+        }
+
+        const activeFeature = resolveFeature();
+        if (activeFeature) {
+          try {
+            const info = featureService.getInfo(activeFeature);
+            if (info) {
+              let statusHint = `\n### Current Hive Status\n`;
+              statusHint += `**Active Feature**: ${info.name} (${info.status})\n`;
+              statusHint += `**Progress**: ${info.tasks.filter(t => t.status === 'done').length}/${info.tasks.length} tasks\n`;
+
+              if (info.commentCount > 0) {
+                statusHint += `**Comments**: ${info.commentCount} unresolved - address with hive_plan_read\n`;
+              }
+
+              output.system.push(statusHint);
+            }
+          } catch {
+            // 0-risk: feature status injection failure
+          }
+        }
+
+        // User profile: inject learned preferences into system prompt (opt-in)
+        try {
+          const upService = ensureUserProfile();
+          if (upService) {
+            const profileInjection = upService.getProfileInjection();
+            if (profileInjection) {
+              output.system.push('\n### User Profile (Learned Preferences)\n' + profileInjection);
             }
           }
-        } catch (error) {
-          // Silently fail - auto-recall is best-effort
-          console.warn('[auto-recall] Failed to inject vector memories:', error instanceof Error ? error.message : error);
+        } catch {
+          // 0-risk: best-effort injection
         }
-      }
-
-      // NOTE: autoLoadSkills injection is now done in the config hook (prompt field)
-      // to ensure skills are present from the first message. The system.transform hook
-      // may not receive the agent name at runtime, so we removed legacy auto-load here.
-
-      const activeFeature = resolveFeature();
-      if (activeFeature) {
-        const info = featureService.getInfo(activeFeature);
-        if (info) {
-          let statusHint = `\n### Current Hive Status\n`;
-          statusHint += `**Active Feature**: ${info.name} (${info.status})\n`;
-          statusHint += `**Progress**: ${info.tasks.filter(t => t.status === 'done').length}/${info.tasks.length} tasks\n`;
-
-          if (info.commentCount > 0) {
-            statusHint += `**Comments**: ${info.commentCount} unresolved - address with hive_plan_read\n`;
-          }
-
-          output.system.push(statusHint);
-        }
-      }
-
-      // User profile: inject learned preferences into system prompt (opt-in)
-      try {
-        const upService = ensureUserProfile();
-        if (upService) {
-          const profileInjection = upService.getProfileInjection();
-          if (profileInjection) {
-            output.system.push('\n### User Profile (Learned Preferences)\n' + profileInjection);
-          }
-        }
-      } catch {
-        // 0-risk: best-effort injection
-      }
-    },
+      },
+    ),
 
     // Context compression hook - auto compresses at 50% context threshold
     // Similar to DCP (Dynamic Context Pruning) or oh-my-openagent
     // Also captures session snapshot for continuity
-    "experimental.session.compacting": async (
-      input: { sessionID: string; messages?: unknown[]; contextLimit?: number },
-      output: { context: string[]; prompt?: string },
-    ) => {
+    "experimental.session.compacting": safeHook(
+      'experimental.session.compacting',
+      async (
+        input: { sessionID: string; messages?: unknown[]; contextLimit?: number },
+        output: { context: string[]; prompt?: string },
+      ) => {
       // Get config
       const snapshotConfig = configService.get().sessionSnapshot;
       const compressionConfig = configService.get().contextCompression;
@@ -1198,179 +1202,185 @@ ${snapshot}
           console.warn('[auto-save-project] Failed to update project.md:', error instanceof Error ? error.message : error);
         }
       }
-    },
+    ),
 
     // Hidden-session judge: evaluate task completion after agent turns
     // Pattern from dzianisv/opencode-plugins — opt-in (consumes LLM tokens when enabled)
     // 0-risk: best-effort, never blocks the session, anti-recursion guard
-    "session.idle": async (input: { sessionID: string; messages?: unknown[] }, _output: unknown) => {
-      const judgeConfig = configService.get().hiddenJudge;
-      if (!judgeConfig?.enabled) return;
+    "session.idle": safeHook(
+      'session.idle',
+      async (input: { sessionID: string; messages?: unknown[] }, _output: unknown) => {
+        const judgeConfig = configService.get().hiddenJudge;
+        if (!judgeConfig?.enabled) return;
 
-      // Anti-recursion: skip judge sessions
-      if (input.sessionID?.startsWith('judge-')) return;
+        // Anti-recursion: skip judge sessions
+        if (input.sessionID?.startsWith('judge-')) return;
 
-      try {
-        // Build task context from recent messages
-        const messages = (input.messages ?? []) as Array<{ role?: string; content?: string; tool_calls?: unknown[] }>;
-        const lastMessage = messages
-          .filter(m => m.role === 'assistant')
-          .pop()?.content ?? '';
+        try {
+          // Build task context from recent messages
+          const messages = (input.messages ?? []) as Array<{ role?: string; content?: string; tool_calls?: unknown[] }>;
+          const lastMessage = messages
+            .filter(m => m.role === 'assistant')
+            .pop()?.content ?? '';
 
-        // Count tool calls and write operations from recent messages
-        const recentMessages = messages.slice(-20);
-        let toolCalls = 0;
-        let writeOps = 0;
-        let consecutiveIdenticalCommands = 0;
-        let lastCommand = '';
+          // Count tool calls and write operations from recent messages
+          const recentMessages = messages.slice(-20);
+          let toolCalls = 0;
+          let writeOps = 0;
+          let consecutiveIdenticalCommands = 0;
+          let lastCommand = '';
 
-        for (const msg of recentMessages) {
-          if (msg.role === 'assistant' && msg.tool_calls) {
-            toolCalls += msg.tool_calls.length;
-          }
-          // Estimate write ratio from tool call content
-          if (msg.content) {
-            const isWriteTool = /write|edit|create|delete|rename|mkdir/i.test(msg.content);
-            if (isWriteTool) writeOps++;
+          for (const msg of recentMessages) {
+            if (msg.role === 'assistant' && msg.tool_calls) {
+              toolCalls += msg.tool_calls.length;
+            }
+            if (msg.content) {
+              const isWriteTool = /write|edit|create|delete|rename|mkdir/i.test(msg.content);
+              if (isWriteTool) writeOps++;
 
-            // Track consecutive identical commands for ACTION_LOOP
-            const command = msg.content?.slice(0, 100);
-            if (command === lastCommand) {
-              consecutiveIdenticalCommands++;
-            } else {
-              consecutiveIdenticalCommands = 0;
-              lastCommand = command;
+              const command = msg.content?.slice(0, 100);
+              if (command === lastCommand) {
+                consecutiveIdenticalCommands++;
+              } else {
+                consecutiveIdenticalCommands = 0;
+                lastCommand = command;
+              }
             }
           }
+
+          const writeRatio = toolCalls > 0 ? writeOps / toolCalls : 0;
+
+          const judge = new HiddenJudgeService(judgeConfig);
+
+          // Fire-and-forget: never await on the idle path
+          judge.evaluateAndFeedback({
+            sessionId: input.sessionID,
+            client,
+            taskContext: {
+              toolCalls,
+              writeRatio,
+              lastMessage,
+              consecutiveIdenticalCommands,
+            },
+          }).catch((err: unknown) => {
+            console.warn('[hidden-judge] Unexpected error:', err instanceof Error ? err.message : err);
+          });
+        } catch (error) {
+          console.warn('[hidden-judge] Hook error:', error instanceof Error ? error.message : error);
         }
-
-        const writeRatio = toolCalls > 0 ? writeOps / toolCalls : 0;
-
-        const judge = new HiddenJudgeService(judgeConfig);
-
-        // Fire-and-forget: never await on the idle path
-        judge.evaluateAndFeedback({
-          sessionId: input.sessionID,
-          client, // client is captured from the plugin closure
-          taskContext: {
-            toolCalls,
-            writeRatio,
-            lastMessage,
-            consecutiveIdenticalCommands,
-          },
-        }).catch((err: unknown) => {
-          console.warn('[hidden-judge] Unexpected error:', err instanceof Error ? err.message : err);
-        });
-      } catch (error) {
-        // 0-risk: never throw from a hook
-        console.warn('[hidden-judge] Hook error:', error instanceof Error ? error.message : error);
-      }
-    },
+      },
+    ),
 
     // Apply per-agent variant to messages (covers built-in and accepted custom task() agents)
-    // Type assertion needed because TypeScript's contravariance rules are too strict
-    // for the hook's output parameter type. The hook only accesses output.message.variant
-    // which exists on UserMessage.
-    "chat.message": (async (input: any, output: any) => {
-      // Apply variant hook
-      await createVariantHook(configService)(input, output);
-      // User profile: track user messages (best-effort, 0-risk)
-      try {
-        const inputMsg = input?.message ?? input?.body ?? {};
-        if (inputMsg.role === 'user') {
-          const text = inputMsg.text ?? inputMsg.content ?? '';
-          if (text) {
-            const upService = ensureUserProfile();
-            if (upService) {
-              upService.onUserMessage(text).catch(() => {});
+    "chat.message": safeHook(
+      'chat.message',
+      async (input: any, output: any) => {
+        // Apply variant hook
+        try {
+          await createVariantHook(configService)(input, output);
+        } catch {
+          // 0-risk: variant assignment failure
+        }
+        // User profile: track user messages (best-effort, 0-risk)
+        try {
+          const inputMsg = input?.message ?? input?.body ?? {};
+          if (inputMsg.role === 'user') {
+            const text = inputMsg.text ?? inputMsg.content ?? '';
+            if (text) {
+              const upService = ensureUserProfile();
+              if (upService) {
+                upService.onUserMessage(text).catch(() => {});
+              }
             }
           }
+        } catch {
+          // 0-risk: never throw from hook
         }
-      } catch {
-        // 0-risk: never throw from hook
-      }
-    }) as any,
+      },
+    ) as any,
 
-    "tool.execute.before": async (input, output) => {
-      // Cadence gate: check if this hook should execute this turn
-      // SAFETY-CRITICAL: This hook wraps commands for Docker sandbox isolation.
-      // Setting cadence > 1 could allow unsafe commands through.
-      // The safetyCritical flag enforces cadence=1 regardless of config.
-      if (!shouldExecuteHook("tool.execute.before", configService, turnCounters, { safetyCritical: true })) {
-        return;
-      }
+    "tool.execute.before": safeHook(
+      'tool.execute.before',
+      async (input: { tool?: string; args?: Record<string, unknown> }, output: { args?: { command?: string; workdir?: string } }) => {
+        // Cadence gate: check if this hook should execute this turn
+        if (!shouldExecuteHook("tool.execute.before", configService, turnCounters, { safetyCritical: true })) {
+          return;
+        }
 
-      if (input.tool !== "bash") return;
-      
-      const command = output.args?.command?.trim();
-      if (!command) return;
-      
-      // Escape hatch: HOST: prefix (case-insensitive) - skip all processing
-      if (/^HOST:\s*/i.test(command)) {
-        const strippedCommand = command.replace(/^HOST:\s*/i, '');
-        console.warn(`[hive:sandbox] HOST bypass: ${strippedCommand.slice(0, 80)}${strippedCommand.length > 80 ? '...' : ''}`);
-        output.args.command = strippedCommand;
-        return;
-      }
+        if (input.tool !== "bash") return;
+        
+        const command = output.args?.command?.trim();
+        if (!command) return;
+        
+        // Escape hatch: HOST: prefix (case-insensitive)
+        if (/^HOST:\s*/i.test(command)) {
+          const strippedCommand = command.replace(/^HOST:\s*/i, '');
+          console.warn(`[hive:sandbox] HOST bypass: ${strippedCommand.slice(0, 80)}${strippedCommand.length > 80 ? '...' : ''}`);
+          output.args.command = strippedCommand;
+          return;
+        }
 
-      // Apply snip prefix (auto-enabled when snip binary available)
-      const snipConfig = configService.get().snip;
-      const snipBinary = await snipBootPromise;
-      // snipBinary: ''=unavailable, 'snip'=PATH, '/path/...'=auto-installed
-      const snipAvailable = snipBinary !== '';
-      const isSnipEnabled = snipConfig?.enabled ?? snipAvailable;
-      // Use configured command, then auto-installed path, then PATH lookup
-      const snipCmd = snipConfig?.command || (snipBinary || 'snip');
-      const hiveBinPath = getHiveBinPath();
-      let finalCommand = command;
-      if (isSnipEnabled && snipAvailable) {
-        finalCommand = prefixWithSnip(command, snipCmd);
-      }
-      // Prepend hive bin dir to PATH so auto-installed CLI tools are findable
-      finalCommand = `PATH="${hiveBinPath}:$PATH" ${finalCommand}`;
-      
-      const sandboxConfig = configService.getSandboxConfig();
-      if (sandboxConfig.mode !== 'none') {
-        // Only wrap commands with explicit workdir inside hive worktrees
-        const workdir = output.args?.workdir;
-        if (workdir) {
-          const hiveWorktreeBase = path.join(directory, '.hive', '.worktrees');
-          if (workdir.startsWith(hiveWorktreeBase)) {
-            // Wrap command using static method (with persistent config)
-            const wrapped = DockerSandboxService.wrapCommand(workdir, finalCommand, sandboxConfig);
-            output.args.command = wrapped;
-            output.args.workdir = undefined; // docker command runs on host
-            return;
+        try {
+          const snipConfig = configService.get().snip;
+          const snipBinary = await snipBootPromise;
+          const snipAvailable = snipBinary !== '';
+          const isSnipEnabled = snipConfig?.enabled ?? snipAvailable;
+          const snipCmd = snipConfig?.command || (snipBinary || 'snip');
+          const hiveBinPath = getHiveBinPath();
+          let finalCommand = command;
+          if (isSnipEnabled && snipAvailable) {
+            finalCommand = prefixWithSnip(command, snipCmd);
           }
+          finalCommand = `PATH="${hiveBinPath}:$PATH" ${finalCommand}`;
+          
+          const sandboxConfig = configService.getSandboxConfig();
+          if (sandboxConfig.mode !== 'none') {
+            const workdir = output.args?.workdir;
+            if (workdir) {
+              const hiveWorktreeBase = path.join(directory, '.hive', '.worktrees');
+              if (workdir.startsWith(hiveWorktreeBase)) {
+                const wrapped = DockerSandboxService.wrapCommand(workdir, finalCommand, sandboxConfig);
+                output.args.command = wrapped;
+                output.args.workdir = undefined;
+                return;
+              }
+            }
+          }
+          
+          output.args.command = finalCommand;
+        } catch {
+          // 0-risk: if any processing fails, use the original command unchanged
+          output.args.command = command;
         }
-      }
-      
-      output.args.command = finalCommand;
-    },
+      },
+    ),
 
     // Token truncation hook - compress large tool outputs to save context
-    "tool.execute.after": async (input: { tool: string; sessionID: string; callID: string; args: any }, output: { title: string; output: string; metadata: any }) => {
-      const truncationConfig = configService.get().tokenTruncation;
-      if (!truncationConfig?.enabled) return;
-      
-      const result = output.output;
-      if (!result) return;
-      
-      const maxChars = truncationConfig.maxChars ?? 30000;
-      if (result.length <= maxChars) return;
-      
-      const keepFirst = truncationConfig.keepFirstPercent ?? 40;
-      const keepLast = truncationConfig.keepLastPercent ?? 40;
-      
-      const firstChars = Math.floor((result.length * keepFirst) / 100);
-      const lastChars = Math.floor((result.length * keepLast) / 100);
-      
-      const truncated = result.slice(0, firstChars) + 
-        `\n\n[... ${result.length - firstChars - lastChars} characters truncated ...]\n\n` + 
-        result.slice(-lastChars);
-      
-      output.output = truncated;
-    },
+    "tool.execute.after": safeHook(
+      'tool.execute.after',
+      async (input: { tool: string; sessionID: string; callID: string; args: any }, output: { title: string; output: string; metadata: any }) => {
+        const truncationConfig = configService.get().tokenTruncation;
+        if (!truncationConfig?.enabled) return;
+        
+        const result = output.output;
+        if (!result) return;
+        
+        const maxChars = truncationConfig.maxChars ?? 30000;
+        if (result.length <= maxChars) return;
+        
+        const keepFirst = truncationConfig.keepFirstPercent ?? 40;
+        const keepLast = truncationConfig.keepLastPercent ?? 40;
+        
+        const firstChars = Math.floor((result.length * keepFirst) / 100);
+        const lastChars = Math.floor((result.length * keepLast) / 100);
+        
+        const truncated = result.slice(0, firstChars) + 
+          `\n\n[... ${result.length - firstChars - lastChars} characters truncated ...]\n\n` + 
+          result.slice(-lastChars);
+        
+        output.output = truncated;
+      },
+    ),
 
     mcp: builtinMcps,
 
