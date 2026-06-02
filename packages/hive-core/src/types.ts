@@ -373,6 +373,16 @@ export interface HiveConfig {
     /** Write ratio threshold — if writes/total < this, flagged as planning loop (default: 0.1) */
     writeRatioThreshold?: number;
   };
+  /** User profile learning: periodic AI analysis of user preferences (from opencode-mem). Opt-in only for privacy. */
+  userProfile?: {
+    enabled?: boolean;
+    /** Number of user messages between profile analyses (default: 10) */
+    analysisInterval?: number;
+    /** Maximum stored preferences (default: 20) */
+    maxPreferences?: number;
+    /** Days before preference confidence decays by half (default: 30) */
+    confidenceDecayDays?: number;
+  };
 }
 
 /**
@@ -484,5 +494,12 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     maxRetries: 3,
     minToolCalls: 5,
     writeRatioThreshold: 0.1,
+  },
+  // User profile: opt-in periodic AI analysis of preferences
+  userProfile: {
+    enabled: false,
+    analysisInterval: 10,
+    maxPreferences: 20,
+    confidenceDecayDays: 30,
   },
 };

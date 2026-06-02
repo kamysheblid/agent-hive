@@ -37,6 +37,7 @@ import { setMemoryFilterConfig as setBlockMemoryFilterConfig } from './tools/mem
 import { reInjectMemoriesAfterCompact } from './utils/compaction-restoration.js';
 import { HiddenJudgeService } from './services/hidden-judge.js';
 import { OpenCodeProviderService } from './services/opencode-provider.js';
+import { UserProfileService } from './services/user-profile.js';
 
 // Dora CLI Tools (SCIP-based code navigation)
 import {
@@ -285,6 +286,23 @@ const plugin: Plugin = async (ctx) => {
     setBlockMemoryFilterConfig(memoryFilterConfig);
   }
   const builtinMcps = createBuiltinMcps(disabledMcps);
+
+  // User profile service: lazily initialized when enabled
+  let userProfileService: UserProfileService | null = null;
+  const ensureUserProfile = (): UserProfileService | null => {
+    const upConfig = configService.get().userProfile;
+    if (!upConfig?.enabled) return null;
+    if (!userProfileService) {
+      try {
+        const provider = new OpenCodeProviderService(client);
+        userProfileService = new UserProfileService(upConfig, provider, directory);
+      } catch {
+        console.warn('[user-profile] Failed to initialize');
+        return null;
+      }
+    }
+    return userProfileService;
+  };
   
   // Get filtered skills (globally disabled skills removed)
   // Per-agent skill filtering could be added here based on agent context
@@ -939,6 +957,19 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
           output.system.push(statusHint);
         }
       }
+
+      // User profile: inject learned preferences into system prompt (opt-in)
+      try {
+        const upService = ensureUserProfile();
+        if (upService) {
+          const profileInjection = upService.getProfileInjection();
+          if (profileInjection) {
+            output.system.push('\n### User Profile (Learned Preferences)\n' + profileInjection);
+          }
+        }
+      } catch {
+        // 0-risk: best-effort injection
+      }
     },
 
     // Context compression hook - auto compresses at 50% context threshold
@@ -1240,7 +1271,25 @@ ${snapshot}
     // Type assertion needed because TypeScript's contravariance rules are too strict
     // for the hook's output parameter type. The hook only accesses output.message.variant
     // which exists on UserMessage.
-    "chat.message": createVariantHook(configService) as any,
+    "chat.message": (async (input: any, output: any) => {
+      // Apply variant hook
+      await createVariantHook(configService)(input, output);
+      // User profile: track user messages (best-effort, 0-risk)
+      try {
+        const inputMsg = input?.message ?? input?.body ?? {};
+        if (inputMsg.role === 'user') {
+          const text = inputMsg.text ?? inputMsg.content ?? '';
+          if (text) {
+            const upService = ensureUserProfile();
+            if (upService) {
+              upService.onUserMessage(text).catch(() => {});
+            }
+          }
+        }
+      } catch {
+        // 0-risk: never throw from hook
+      }
+    }) as any,
 
     "tool.execute.before": async (input, output) => {
       // Cadence gate: check if this hook should execute this turn
