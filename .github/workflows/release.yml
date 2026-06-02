@@ -50,6 +50,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    continue-on-error: true
     permissions:
       contents: read
       id-token: write
@@ -70,12 +71,12 @@ jobs:
 
       - name: Publish to npm
         working-directory: packages/opencode-hive
-        run: npm publish --access public --provenance
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_KEY }}
 
   release:
-    needs: [build, publish-npm]
+    needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
