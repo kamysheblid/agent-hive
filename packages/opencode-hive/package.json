@@ -1,6 +1,6 @@
 {
   "name": "@hung319/opencode-hive",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "type": "module",
   "description": "OpenCode plugin for Agent Hive - from vibe coding to hive coding",
   "license": "MIT WITH Commons-Clause",
@@ -62,8 +62,7 @@
     },
     "auto-cr-cmd": {
       "optional": true
-    },
-
+    }
   },
   "devDependencies": {
     "hive-core": "workspace:*",

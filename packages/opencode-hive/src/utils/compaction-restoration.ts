@@ -49,7 +49,7 @@ export async function reInjectMemoriesAfterCompact(
 
     // Step 1: Fetch recent vector memories
     // Uses searchMemories with empty query to get most recent entries
-    const { results: memories } = await searchMemories({
+    const { results: memories } = await searchMemories('', {
       limit: maxMemories,
     });
 

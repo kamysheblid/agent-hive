@@ -769,7 +769,7 @@ export const VectorMemoryService = {
     safeStageAsync('memory.delete', () => deleteMemory(id), false as Awaited<ReturnType<typeof deleteMemory>>),
   status: () =>
     safeStageAsync('memory.status', () => getMemoryStatus(),
-      { available: false, type: 'error', stats: {} as any, shard: undefined } as Awaited<ReturnType<typeof getMemoryStatus>>),
+      { available: false, type: 'fallback' as const, stats: { total: 0 } }),
   setShardingConfig,
   setQualityConfig,
   setMemoryFilterConfig,

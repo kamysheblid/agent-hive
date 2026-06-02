@@ -1202,6 +1202,7 @@ ${snapshot}
           console.warn('[auto-save-project] Failed to update project.md:', error instanceof Error ? error.message : error);
         }
       }
+    }
     ),
 
     // Hidden-session judge: evaluate task completion after agent turns

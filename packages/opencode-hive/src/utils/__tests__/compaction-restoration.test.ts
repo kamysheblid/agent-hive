@@ -49,7 +49,7 @@ describe('compaction-restoration', () => {
 
       await reInjectMemoriesAfterCompact('session-1', client, { enabled: true, maxMemories: 5 });
 
-      expect(searchMemories).toHaveBeenCalledWith({ limit: 5 });
+      expect(searchMemories).toHaveBeenCalledWith('', { limit: 5 });
       expect(client.session.prompt).toHaveBeenCalledTimes(1);
       
       const callArg = client.session.prompt.mock.calls[0][0];
@@ -109,7 +109,7 @@ describe('compaction-restoration', () => {
 
       await reInjectMemoriesAfterCompact('session-1', client, undefined);
 
-      expect(searchMemories).toHaveBeenCalledWith({ limit: 5 });
+      expect(searchMemories).toHaveBeenCalledWith('', { limit: 5 });
     });
   });
 });
