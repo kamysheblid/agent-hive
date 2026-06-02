@@ -7,7 +7,7 @@ import { loadFileSkill } from './skills/file-loader.js';
 import { BUILTIN_SKILLS } from './skills/registry.generated.js';
 import type { SkillDefinition } from './skills/types.js';
 // Tools
-import { gitingestTool } from './tools/gitingest.js';
+import { repomixTool } from './tools/repomix.js';
 import { lookAtTool } from './tools/look-at.js';
 import { artifactSearchTool } from './tools/artifact-search.js';
 import { btcaAskTool } from './tools/btca-ask.js';
@@ -1222,7 +1222,7 @@ ${snapshot}
     mcp: builtinMcps,
 
     tool: {
-      gitingest: gitingestTool,
+      repomix: repomixTool,
       look_at: lookAtTool,
       artifact_search: artifactSearchTool,
       btca_ask: btcaAskTool,
