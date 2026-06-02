@@ -10,7 +10,7 @@ import { tool, type ToolDefinition, type ToolContext } from "@opencode-ai/plugin
  * and control audio playback.
  * 
  * Before using, you need to:
- * 1. Install btca CLI: npm install -g btca-cli
+ * 1. Install btca CLI: npm install -g btca
  * 2. Pair your Bluetooth device
  * 3. Connect to the device: btca connect <device-name>
  * 
@@ -73,7 +73,7 @@ export async function btcaAsk(args: BtcaAskArgs): Promise<string> {
       return `btca_ask requires btca CLI to be installed:
       
 1. Install btca CLI:
-   npm install -g btca-cli
+   npm install -g btca
 
 2. Make sure Bluetooth is enabled on your system
 
@@ -88,7 +88,7 @@ export async function btcaAsk(args: BtcaAskArgs): Promise<string> {
 
 6. Then use this tool to control playback.
 
-Note: This tool requires the btca-cli npm package and Bluetooth hardware.`;
+Note: This tool requires the btca npm package and Bluetooth hardware.`;
     }
     throw error;
   }

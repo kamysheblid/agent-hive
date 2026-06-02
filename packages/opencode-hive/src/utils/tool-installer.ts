@@ -6,7 +6,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { execSync } from 'child_process';
+import { execSync, exec } from 'child_process';
+import { promisify } from 'util';
+
+const asyncExec = promisify(exec);
 
 const HIVE_DIR = path.join(os.homedir(), '.config', 'opencode', 'hive');
 const PACKAGES_DIR = path.join(HIVE_DIR, 'packages');
@@ -25,7 +28,7 @@ const TOOLS: ToolEntry[] = [
   { name: 'bun-pty', category: 'agent' },
   { name: '@butttons/dora', category: 'cli', binaries: ['dora'] },
   { name: 'auto-cr-cmd', category: 'cli', binaries: ['auto-cr-cmd'] },
-  { name: 'btca-cli', category: 'cli', binaries: ['btca'] },
+  { name: 'btca', category: 'cli', binaries: ['btca'] },
 ];
 
 export function getHiveNodeModulesPath(): string {
@@ -87,9 +90,9 @@ export async function ensureToolsInstalled(): Promise<{ installed: string[]; fai
 
   const packageNames = toInstall.map(t => t.name);
   try {
-    execSync(
-      `npm install --prefix "${PACKAGES_DIR}" --no-package-lock --no-save ${packageNames.join(' ')} 2>&1`,
-      { stdio: 'pipe', timeout: 120000 },
+    await asyncExec(
+      `npm install --prefix "${PACKAGES_DIR}" --no-package-lock --no-save ${packageNames.join(' ')}`,
+      { timeout: 120000 },
     );
 
     for (const tool of toInstall) {
