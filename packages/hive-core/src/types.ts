@@ -288,12 +288,6 @@ export interface HiveConfig {
     /** Custom snip path (default: 'snip') */
     command?: string;
   };
-  /** Smart session titles - auto-generate meaningful session titles */
-  smartTitle?: {
-    enabled?: boolean;
-    /** Update title every N idle events (default: 1) */
-    updateThreshold?: number;
-  };
   /** Agent Booster - Ultra-fast code editing (Rust+WASM, 52x faster than Morph, FREE) */
   agentBooster?: {
     enabled?: boolean;
@@ -446,11 +440,6 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
   snip: {
     enabled: false,  // Disabled by default, requires snip CLI
     command: 'snip',
-  },
-  // Smart session titles: auto-generate meaningful titles (disabled by default)
-  smartTitle: {
-    enabled: false,
-    updateThreshold: 1,
   },
   // Agent Booster: Ultra-fast code editing (52x faster, FREE)
   agentBooster: {

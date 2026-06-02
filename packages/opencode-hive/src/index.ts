@@ -2429,79 +2429,7 @@ Expand your Discovery section and try again.`;
       }
 
     },
-
-    // Smart session title - auto-generate titles when session is idle
-    // Uses heuristic-based extraction (AI generation can be added later)
-    event: async (input: { event: { type: string; properties?: Record<string, unknown> } }) => {
-      const smartTitleConfig = configService.get().smartTitle;
-      if (!smartTitleConfig?.enabled) return;
-
-      const { event } = input;
-      
-      // Track first user message for title generation
-      if (event.type === 'message.created' || event.type === 'message-part.created') {
-        const sessionID = event.properties?.sessionID as string | undefined;
-        const role = event.properties?.role as string | undefined;
-        const content = event.properties?.content as string | undefined;
-        
-        if (sessionID && role === 'user' && content && !sessionFirstMessage.has(sessionID)) {
-          sessionFirstMessage.set(sessionID, content);
-        }
-      }
-      
-      // Generate title on session idle
-      if (event.type === 'session.idle') {
-        const sessionID = event.properties?.sessionID as string | undefined;
-        if (!sessionID) return;
-        
-        // Skip subagent sessions
-        if (sessionID.includes('-worker-') || sessionID.includes('-sub-')) return;
-        
-        // Increment idle count
-        const currentCount = (sessionIdleCount.get(sessionID) || 0) + 1;
-        sessionIdleCount.set(sessionID, currentCount);
-        
-        // Only update if threshold reached
-        if (currentCount % (smartTitleConfig.updateThreshold ?? 1) !== 0) return;
-        
-        // Generate title from first message
-        const firstMessage = sessionFirstMessage.get(sessionID);
-        if (firstMessage) {
-          const title = generateSmartTitle(firstMessage);
-          console.log(`[hive:smart-title] Title for ${sessionID}: "${title}"`);
-          
-          // Update session title via client API
-          try {
-            await client.session.update({
-              path: { id: sessionID },
-              body: { title },
-            });
-            console.log(`[hive:smart-title] Successfully updated title for ${sessionID}`);
-          } catch (error) {
-            console.error(`[hive:smart-title] Failed to update title for ${sessionID}:`, error);
-          }
-        }
-      }
-    },
   };
 };
-
-// Smart title session tracking
-const sessionIdleCount = new Map<string, number>();
-const sessionFirstMessage = new Map<string, string>();
-
-function generateSmartTitle(message: string): string {
-  if (!message) return 'Untitled session';
-  
-  let cleaned = message.trim();
-  cleaned = cleaned.replace(/^(user[:\s]*|human[:\s]*|hi[,!\s]*|hello[,!\s]*|hey[,!\s]*)/i, '');
-  
-  if (cleaned.length > 50) {
-    cleaned = cleaned.slice(0, 47) + '...';
-  }
-  
-  cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-  return cleaned || 'Untitled session';
-}
 
 export default plugin;
