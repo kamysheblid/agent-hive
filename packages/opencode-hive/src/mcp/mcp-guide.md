@@ -11,6 +11,7 @@ MCP (Model Context Protocol) servers extend agent capabilities with specialized 
 | **websearch** | Current web info | Medium | Free tier |
 | **context7** | Library docs | Fast | Free tier |
 | **grep_app** | GitHub code patterns | Fast | Free tier |
+| **repomix** | Repo packing for AI analysis | Medium | Free (npx) |
 | **ast_grep** | AST code analysis | Very Fast | Free (Native) |
 
 ---
@@ -122,7 +123,39 @@ Library: react
 
 ---
 
-### 4. ast_grep (Native NAPI)
+### 5. repomix (Local — npx)
+
+**Purpose**: Pack local directories or remote GitHub repositories into LLM-optimized output
+
+**Tools Available**:
+- `pack_codebase` — Pack a local directory for AI analysis
+- `pack_remote_repository` — Clone and pack a remote GitHub repo
+- `grep_repomix_output` — Search for patterns in repomix output
+
+**Best Use Cases**:
+- Understanding external repository structure and code
+- Preparing code context for LLM analysis
+- Searching through packed repository content
+
+**Configuration**:
+```json
+{
+  "mcp": {
+    "repomix": {
+      "command": ["npx", "--yes", "repomix", "--mcp"]
+    }
+  }
+}
+```
+
+**Tips**:
+- Use `pack_remote_repository` with `remote` URL (e.g., `https://github.com/owner/repo`)
+- After packing, use `grep_repomix_output` to search within the packed content
+- Supports glob patterns for file filtering: `include`/`ignore` parameters
+
+---
+
+### 6. ast_grep (Native NAPI)
 
 **Purpose**: AST-based code analysis and transformation
 
@@ -162,6 +195,7 @@ logger.info($MSG)
 ### For Research/Discovery:
 1. **websearch** - Current web info (needs API key)
 2. **context7** - Library documentation
+3. **repomix** - External repo analysis
 
 ### For Implementation:
 1. **ast_grep** - Code analysis/refactoring
@@ -172,6 +206,10 @@ logger.info($MSG)
 2. **grep_app** - Find similar fixes
 3. **context7** - API docs
 
+### For External Code Analysis:
+1. **repomix** - Pack remote repos for AI understanding
+2. **grep_app** - Search code patterns in public repos
+
 ---
 
 ## MCP Selection Matrix
@@ -180,6 +218,7 @@ logger.info($MSG)
 |------|-------------|-------------|
 | Web search | `websearch` | — |
 | Library docs | `context7` | `websearch` |
+| External repos | `repomix` | `grep_app` |
 | Code patterns | `grep_app` | `ast_grep` |
 | Code analysis | `ast_grep` | `grep_app` |
 

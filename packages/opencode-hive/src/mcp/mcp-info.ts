@@ -123,6 +123,11 @@ export const MCP_TOOLS: McpTool[] = [
   // GitHub Code Search
   { name: 'grep_app_searchGitHub', mcp: 'grep_app', description: 'Search GitHub code patterns', category: 'search' },
   
+  // Repomix
+  { name: 'pack_codebase', mcp: 'repomix', description: 'Pack a local directory for AI analysis', category: 'discovery' },
+  { name: 'pack_remote_repository', mcp: 'repomix', description: 'Clone and pack a remote GitHub repo', category: 'discovery' },
+  { name: 'grep_repomix_output', mcp: 'repomix', description: 'Search patterns in repomix-packed output', category: 'search' },
+
   // ast_grep (Native)
   { name: 'ast_grep_find_code', mcp: 'ast_grep', description: 'Find code with AST patterns', category: 'analysis' },
   { name: 'ast_grep_rewrite_code', mcp: 'ast_grep', description: 'Transform code with AST', category: 'analysis' },

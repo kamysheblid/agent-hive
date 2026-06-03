@@ -166,7 +166,6 @@ export const TOOL_CATEGORIES: Record<string, 'free' | 'standard' | 'premium'> = 
   'ast_grep_rewrite_code': 'premium',
   'ast_grep_dump_syntax_tree': 'premium',
   'ast_grep_test_match_code_rule': 'premium',
-  'repomix': 'premium',
   'artifact_search': 'premium',
   'skill_mcp': 'premium',
 };
