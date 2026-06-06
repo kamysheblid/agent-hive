@@ -46,7 +46,6 @@ describe("ConfigService defaults", () => {
       'forager-example-template': {
         baseAgent: 'forager-worker',
         description: 'Example template only: rename or delete this entry before use. Do not expect planners/orchestrators to select this placeholder agent as configured.',
-        model: 'anthropic/claude-sonnet-4-20250514',
         temperature: 0.2,
         variant: 'high',
         autoLoadSkills: ['test-driven-development'],
@@ -123,7 +122,6 @@ describe("ConfigService defaults", () => {
       'forager-example-template': {
         baseAgent: 'forager-worker',
         description: 'Example template only: rename or delete this entry before use. Do not expect planners/orchestrators to select this placeholder agent as configured.',
-        model: 'anthropic/claude-sonnet-4-20250514',
         temperature: 0.2,
         variant: 'high',
         autoLoadSkills: ['test-driven-development'],

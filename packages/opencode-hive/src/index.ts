@@ -76,6 +76,9 @@ import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
 import { ensureSnipInstalled, isSnipOnPath } from './utils/snip-installer.js';
 import { ensureToolsInstalled, getHiveBinPath } from './utils/tool-installer.js';
+// $ns Mode & Session Continuation hooks
+import { createNsModeState, detectNsMode, getNsDirective } from './hooks/ns-mode.js';
+import { createContinuationState, getPendingTaskCount, buildContinuationContext } from './hooks/session-continuation.js';
 
 // ============================================================================
 // Skill Tool - Uses generated registry (no file-based discovery)
@@ -213,6 +216,13 @@ import { writeWorkerPromptFile } from "./utils/prompt-file";
 import { formatRelativeTime } from "./utils/format";
 import { createVariantHook } from "./hooks/variant-hook.js";
 import { HIVE_SYSTEM_PROMPT, shouldExecuteHook } from "./hooks/system-hook.js";
+import {
+  createLspDiagnosticsState,
+  trackFileModification,
+  runTypeScriptDiagnostics,
+  resetDiagnostics,
+  type LspDiagnosticsState,
+} from "./hooks/lsp-diagnostics.js";
 import { buildCompactionPrompt } from "./utils/compaction-prompt.js";
 import { createCompactionHook, needsCompression, compressContext, buildCompressionHint } from "./utils/context-compression.js";
 import { getDelegationHints } from "./utils/delegation-hints.js";
@@ -269,6 +279,11 @@ const plugin: Plugin = async (ctx) => {
   const contextService = new ContextService(directory);
   const agentsMdService = new AgentsMdService(directory, contextService);
   const configService = new ConfigService(); // User config at ~/.config/opencode/agent_hive.json
+  const lspState: LspDiagnosticsState = createLspDiagnosticsState();
+  // $ns mode state: activated on user "$ns" keyword, deactivated after injection
+  const nsModeState = createNsModeState();
+  // Session continuation state: prevents re-injection in the same compaction cycle
+  const continuationState = createContinuationState();
   const disabledMcps = configService.getDisabledMcps();
   const disabledSkills = configService.getDisabledSkills();
   // Initialize vector memory sharding + quality from user config
@@ -970,6 +985,49 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
         } catch {
           // 0-risk: best-effort injection
         }
+
+        // LSP Auto-Diagnostics: inject TypeScript diagnostics for recently
+        // edited files so the agent sees type errors without asking.
+        try {
+          const diagBlock = runTypeScriptDiagnostics(lspState, directory);
+          if (diagBlock) {
+            output.system.push(diagBlock);
+          }
+        } catch {
+          // 0-risk: diagnostics failure should not block the chat
+        }
+
+        // $ns mode: inject directive if active (one-shot per trigger)
+        try {
+          if (nsModeState.active) {
+            const directive = getNsDirective();
+            if (directive) {
+              output.system.push(directive);
+            }
+            nsModeState.deactivate();
+          }
+        } catch {
+          // 0-risk: directive injection failure
+        }
+
+        // Session continuation: inject continuation directive when tasks remain
+        try {
+          if (continuationState.injected) {
+            const { feature, pending, nextTask } = getPendingTaskCount(directory);
+            if (feature && pending.length > 0) {
+              output.system.push(`\n## Session Continuation\nContinue working on feature "${feature}". ${pending.length} task(s) remaining. Next: "${nextTask?.name ?? 'check hive_status'}"`);
+            }
+          }
+        } catch {
+          // 0-risk: continuation injection failure
+        }
+
+        // Reset continuation state on each system transform cycle
+        try {
+          continuationState.reset();
+        } catch {
+          // 0-risk
+        }
       },
     ),
 
@@ -1147,6 +1205,10 @@ ${snapshot}
 
       // Auto-save to project.md: append session context for cross-session persistence
       const autoSaveConfig = configService.get().vectorMemory?.autoSaveProject;
+      // Reset LSP diagnostics state on compaction so we don't re-check
+      // stale files after context is compressed.
+      resetDiagnostics(lspState);
+
       if (autoSaveConfig?.enabled !== false) {
         try {
           const active = featureService.getActive();
@@ -1199,6 +1261,23 @@ ${snapshot}
           }
         } catch (error) {
           console.warn('[auto-save-project] Failed to update project.md:', error instanceof Error ? error.message : error);
+        }
+
+        // Session continuation: check for remaining tasks on compaction
+        // Injects context so the agent auto-continues instead of stopping.
+        try {
+          if (!continuationState.injected) {
+            const { feature, pending, nextTask } = getPendingTaskCount(directory);
+            if (feature && pending.length > 0) {
+              const ctx = buildContinuationContext(feature, pending, nextTask);
+              if (ctx) {
+                output.context.push(ctx);
+                continuationState.markInjected();
+              }
+            }
+          }
+        } catch {
+          // 0-risk: continuation check failure
         }
       }
     }
@@ -1296,6 +1375,18 @@ ${snapshot}
         } catch {
           // 0-risk: never throw from hook
         }
+        // $ns mode: detect keyword in user messages
+        try {
+          const inputMsg = input?.message ?? input?.body ?? {};
+          if (inputMsg.role === 'user') {
+            const text = inputMsg.text ?? inputMsg.content ?? '';
+            if (text && typeof text === 'string' && detectNsMode(text)) {
+              nsModeState.activate();
+            }
+          }
+        } catch {
+          // 0-risk: $ns detection failure
+        }
       },
     ) as any,
 
@@ -1355,10 +1446,13 @@ ${snapshot}
       },
     ),
 
-    // Token truncation hook - compress large tool outputs to save context
+    // LSP file tracking + token truncation hook
     "tool.execute.after": safeHook(
       'tool.execute.after',
       async (input: { tool: string; sessionID: string; callID: string; args: any }, output: { title: string; output: string; metadata: any }) => {
+        // Track files modified by Write/Edit tools for LSP auto-diagnostics
+        trackFileModification(lspState, input.tool, input.args);
+
         const truncationConfig = configService.get().tokenTruncation;
         if (!truncationConfig?.enabled) return;
         
@@ -2221,10 +2315,18 @@ Expand your Discovery section and try again.`;
         description: 'Zetta (Hybrid) - Plans + orchestrates. Detects phase, loads skills on-demand.',
         prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + (agentMode === 'unified' ? customSubagentAppendix : ''),
         permission: {
+          read: "allow",
+          write: "allow",
+          edit: "allow",
+          task: "allow",
+          delegate: "allow",
           question: "allow",
           skill: "allow",
           todowrite: "allow",
           todoread: "allow",
+          webfetch: "allow",
+          ask: "allow",
+          bash: "allow",
         },
       };
 
@@ -2238,6 +2340,7 @@ Expand your Discovery section and try again.`;
         prompt: ARCHITECT_BEE_PROMPT + architectAutoLoadedSkills + (agentMode === 'dedicated' ? customSubagentAppendix : ''),
         tools: agentTools(['hive_feature_create', 'hive_plan_write', 'hive_plan_read', 'hive_context_write', 'hive_status', 'hive_skill']),
         permission: {
+          read: "allow",
           edit: "deny",  // Planners don't edit code
           task: "allow",
           question: "allow",
@@ -2263,6 +2366,8 @@ Expand your Discovery section and try again.`;
           'hive_context_write', 'hive_status', 'hive_skill', 'hive_agents_md',
         ]),
         permission: {
+          read: "allow",
+          write: "allow",
           question: "allow",
           skill: "allow",
           todowrite: "allow",
@@ -2278,9 +2383,11 @@ Expand your Discovery section and try again.`;
         temperature: scoutUserConfig.temperature ?? 0.5,
         mode: 'subagent' as const,
         description: 'Scout (Explorer/Researcher/Retrieval) - Researches codebase + external docs/data.',
-        prompt: SCOUT_BEE_PROMPT + scoutAutoLoadedSkills,
+        prompt: SCOUT_BEE_PROMPT + scoutAutoLoadedSkills + (scoutUserConfig.customPrompt ? '\n\n' + scoutUserConfig.customPrompt : ''),
         tools: agentTools(['hive_plan_read', 'hive_context_write', 'hive_status', 'hive_skill']),
         permission: {
+          read: "allow",
+          write: "allow",
           edit: "deny",  // Researchers don't edit code
           task: "deny",
           delegate: "deny",
@@ -2297,9 +2404,12 @@ Expand your Discovery section and try again.`;
         temperature: foragerUserConfig.temperature ?? 0.3,
         mode: 'subagent' as const,
         description: 'Forager (Worker/Coder) - Executes tasks directly in isolated worktrees. Never delegates.',
-        prompt: FORAGER_BEE_PROMPT + foragerAutoLoadedSkills,
+        prompt: FORAGER_BEE_PROMPT + foragerAutoLoadedSkills + (foragerUserConfig.customPrompt ? '\n\n' + foragerUserConfig.customPrompt : ''),
         tools: agentTools(['hive_plan_read', 'hive_worktree_commit', 'hive_context_write', 'hive_skill']),
         permission: {
+          read: "allow",
+          write: "allow",
+          edit: "allow",
           task: "deny",
           delegate: "deny",
           skill: "allow",
@@ -2314,9 +2424,10 @@ Expand your Discovery section and try again.`;
         temperature: hygienicUserConfig.temperature ?? 0.3,
         mode: 'subagent' as const,
         description: 'Hygienic (Consultant/Reviewer/Debugger) - Reviews plan documentation quality. OKAY/REJECT verdict.',
-        prompt: HYGIENIC_BEE_PROMPT + hygienicAutoLoadedSkills,
+        prompt: HYGIENIC_BEE_PROMPT + hygienicAutoLoadedSkills + (hygienicUserConfig.customPrompt ? '\n\n' + hygienicUserConfig.customPrompt : ''),
         tools: agentTools(['hive_plan_read', 'hive_context_write', 'hive_status', 'hive_skill']),
         permission: {
+          read: "allow",
           edit: "deny",  // Reviewers don't edit
           task: "deny",
           delegate: "deny",
@@ -2335,6 +2446,7 @@ Expand your Discovery section and try again.`;
         prompt: CODEBASE_LOCATOR_PROMPT,
         tools: agentTools(['hive_plan_read', 'hive_skill']),
         permission: {
+          read: "allow",
           edit: "deny",
           task: "deny",
           delegate: "deny",
@@ -2351,6 +2463,7 @@ Expand your Discovery section and try again.`;
         prompt: CODEBASE_ANALYZER_PROMPT,
         tools: agentTools(['hive_plan_read', 'hive_skill']),
         permission: {
+          read: "allow",
           edit: "deny",
           task: "deny",
           delegate: "deny",
@@ -2367,6 +2480,7 @@ Expand your Discovery section and try again.`;
         prompt: PATTERN_FINDER_PROMPT,
         tools: agentTools(['hive_plan_read', 'hive_skill']),
         permission: {
+          read: "allow",
           edit: "deny",
           task: "deny",
           delegate: "deny",
@@ -2383,6 +2497,7 @@ Expand your Discovery section and try again.`;
         prompt: PROJECT_INITIALIZER_PROMPT,
         tools: agentTools(['hive_plan_read', 'hive_context_write', 'hive_skill']),
         permission: {
+          read: "allow",
           edit: "deny",
           task: "deny",
           delegate: "deny",
@@ -2401,6 +2516,7 @@ Expand your Discovery section and try again.`;
         prompt: CODE_REVIEWER_PROMPT,
         tools: agentTools(['hive_plan_read', 'hive_skill']),
         permission: {
+          read: "allow",
           edit: "deny",
           task: "deny",
           delegate: "deny",
@@ -2417,7 +2533,9 @@ Expand your Discovery section and try again.`;
         prompt: CODE_SIMPLIFIER_PROMPT,
         tools: agentTools(['hive_plan_read', 'hive_skill']),
         permission: {
-          edit: "deny",
+          read: "allow",
+          write: "allow",
+          edit: "allow",
           task: "deny",
           delegate: "deny",
           skill: "allow",

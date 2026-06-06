@@ -240,6 +240,10 @@
         "variant": {
           "type": "string",
           "description": "Variant key for model reasoning/effort level (e.g., 'low', 'medium', 'high', 'max'). Must match a key in opencode.json provider.<provider>.models.<model>.variants"
+        },
+        "customPrompt": {
+          "type": "string",
+          "description": "Additional prompt content injected into the agent's system prompt. Useful for giving a subagent a specific role or instructions."
         }
       }
     },
@@ -284,6 +288,10 @@
             "type": "string"
           },
           "description": "Additional skills to auto-load for this custom agent (merged with inherited base autoLoadSkills and filtered by disableSkills)"
+        },
+        "customPrompt": {
+          "type": "string",
+          "description": "Additional prompt content injected into the agent's system prompt. Useful for giving a custom subagent a specific role or instructions."
         }
       }
     }

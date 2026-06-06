@@ -158,6 +158,8 @@ export interface AgentModelConfig {
   autoLoadSkills?: string[];
   /** Variant key for model reasoning/effort level (e.g., 'low', 'medium', 'high', 'max') */
   variant?: string;
+  /** Custom prompt content injected into the agent's system prompt (config-driven) */
+  customPrompt?: string;
 }
 
 export const BUILT_IN_AGENT_NAMES = [
@@ -410,7 +412,6 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
     'forager-example-template': {
       baseAgent: 'forager-worker',
       description: 'Example template only: rename or delete this entry before use. Do not expect planners/orchestrators to select this placeholder agent as configured.',
-      model: 'anthropic/claude-sonnet-4-20250514',
       temperature: 0.2,
       variant: 'high',
       autoLoadSkills: ['test-driven-development'],

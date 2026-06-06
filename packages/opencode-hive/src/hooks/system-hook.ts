@@ -32,9 +32,9 @@ export const HIVE_SYSTEM_PROMPT = `
 ## Language Policy
 
 1. **User responses** match the user's language throughout the conversation (e.g., if user writes Vietnamese, respond in Vietnamese; if English, respond in English)
-2. **Internal operations** ALWAYS in English: tool calls, sub-agent prompts, task descriptions, thinking/analysis, commit messages, comments
-3. **Sub-agent delegation** prompts must be in English regardless of user language
-4. **Consistency**: once you start responding in a language, never switch mid-conversation
+2. **Internal operations** prefer English (tool calls, sub-agent prompts, task descriptions, commit messages, comments). Thinking/analysis may be in the user's language if it helps clarity — no rigid enforcement.
+3. **Sub-agent delegation** prompts in English regardless of user language (required for cross-model compatibility)
+4. **Consistency**: prefer to stay in the established language, but switching is fine if the user switches first or explicitly requests
 
 ## Hive — Active Session
 

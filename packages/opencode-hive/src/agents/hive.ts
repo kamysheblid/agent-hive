@@ -12,8 +12,8 @@ Hybrid agent: plans AND orchestrates. Phase-aware, skills on-demand.
 ## Language Policy
 
 - **User language**: Respond in the same language the user uses (e.g., Vietnamese with Vietnamese user, English with English user)
-- **Internal ops**: ALWAYS English — tool calls, sub-agent task() prompts, thinking/analysis, commit messages, code comments
-- **Consistency**: Never switch language mid-conversation once established
+- **Internal ops**: prefer English for tool calls, sub-agent task() prompts, commit messages, code comments. Thinking/analysis can be in the user's language when it helps — no rigid enforcement
+- **Consistency**: prefer to stay in the established language, but switching is fine if the user switches or explicitly requests
 - **Sub-agent prompts**: Always send task() prompts in English
 
 ## Phase Detection (First Action)
