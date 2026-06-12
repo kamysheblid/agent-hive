@@ -333,4 +333,64 @@ describe('Per-agent tool filtering', () => {
     const zettaTools = agents['zetta']?.tools;
     expect(zettaTools).toBeUndefined();
   });
+
+  // --- Micode agent tool tests ---
+
+  it('codebase-locator has read-only hive tools (hive_plan_read, hive_skill)', async () => {
+    const agents = await buildConfig('unified');
+    const tools = agents['codebase-locator']?.tools;
+    expect(tools).toBeTruthy();
+    expect(tools!['hive_plan_read']).toBeUndefined();
+    expect(tools!['hive_skill']).toBeUndefined();
+    expect(tools!['hive_worktree_commit']).toBe(false);
+    expect(tools!['hive_merge']).toBe(false);
+    expect(tools!['hive_worktree_start']).toBe(false);
+  });
+
+  it('codebase-analyzer has read-only hive tools (hive_plan_read, hive_skill)', async () => {
+    const agents = await buildConfig('unified');
+    const tools = agents['codebase-analyzer']?.tools;
+    expect(tools).toBeTruthy();
+    expect(tools!['hive_plan_read']).toBeUndefined();
+    expect(tools!['hive_skill']).toBeUndefined();
+    expect(tools!['hive_worktree_commit']).toBe(false);
+    expect(tools!['hive_merge']).toBe(false);
+  });
+
+  it('pattern-finder has read-only hive tools (hive_plan_read, hive_skill)', async () => {
+    const agents = await buildConfig('unified');
+    const tools = agents['pattern-finder']?.tools;
+    expect(tools).toBeTruthy();
+    expect(tools!['hive_plan_read']).toBeUndefined();
+    expect(tools!['hive_skill']).toBeUndefined();
+    expect(tools!['hive_worktree_commit']).toBe(false);
+    expect(tools!['hive_merge']).toBe(false);
+  });
+
+  it('project-initializer has read + task hive tools (hive_task_create, hive_worktree_start)', async () => {
+    const agents = await buildConfig('unified');
+    const tools = agents['project-initializer']?.tools;
+    expect(tools).toBeTruthy();
+    expect(tools!['hive_plan_read']).toBeUndefined();
+    expect(tools!['hive_context_write']).toBeUndefined();
+    expect(tools!['hive_skill']).toBeUndefined();
+    expect(tools!['hive_task_create']).toBeUndefined();
+    expect(tools!['hive_worktree_start']).toBeUndefined();
+    expect(tools!['hive_merge']).toBe(false);
+    expect(tools!['hive_worktree_commit']).toBe(false);
+  });
+
+  it('micode agents are registered in both unified and dedicated modes', async () => {
+    const micodeAgentNames = ['codebase-locator', 'codebase-analyzer', 'pattern-finder', 'project-initializer'];
+    
+    const unifiedAgents = await buildConfig('unified');
+    for (const name of micodeAgentNames) {
+      expect(unifiedAgents[name]).toBeTruthy();
+    }
+
+    const dedicatedAgents = await buildConfig('dedicated');
+    for (const name of micodeAgentNames) {
+      expect(dedicatedAgents[name]).toBeTruthy();
+    }
+  });
 });

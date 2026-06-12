@@ -1774,17 +1774,43 @@ Expand your Discovery section and try again.`;
             response?: string;
             error?: string;
           }> = [];
+          const openDelegations: Array<{
+            task: string;
+            taskToolCall: {
+              subagent_type: string;
+              description: string;
+              prompt: string;
+            };
+            instructions?: string;
+          }> = [];
           
           // Start each task
           for (const task of tasks) {
             try {
               const result = await executeWorktreeStart({ task, feature: resolvedFeature });
               const parsed = JSON.parse(result);
-              results.push({
+              const entry: {
+                task: string;
+                success: boolean;
+                response?: string;
+                error?: string;
+              } = {
                 task,
                 success: parsed.success,
-                response: parsed.success ? undefined : parsed.error,
-              });
+              };
+              if (parsed.success) {
+                // Collect delegation info if the worktree launch needs it
+                if (parsed.delegationRequired && parsed.taskToolCall) {
+                  openDelegations.push({
+                    task,
+                    taskToolCall: parsed.taskToolCall,
+                    instructions: parsed.instructions,
+                  });
+                }
+              } else {
+                entry.error = parsed.error || 'Unknown error';
+              }
+              results.push(entry);
             } catch (e) {
               results.push({
                 task,
@@ -1797,18 +1823,28 @@ Expand your Discovery section and try again.`;
           // Summary
           const succeeded = results.filter(r => r.success).length;
           const failed = results.filter(r => !r.success).length;
+          const hasDelegations = openDelegations.length > 0;
           
-          return respond({
+          const base: Record<string, unknown> = {
             success: failed === 0,
-            terminal: true,
+            terminal: !hasDelegations,
             batch: true,
             feature: resolvedFeature,
             total: tasks.length,
             succeeded,
             failed,
             results,
-            summary: `Batch dispatch: ${succeeded}/${tasks.length} tasks started${failed > 0 ? `, ${failed} failed` : ''}`,
-          });
+            summary: `Batch dispatch: ${succeeded}/${tasks.length} tasks started${failed > 0 ? `, ${failed} failed` : ''}${hasDelegations ? `. ${openDelegations.length} task(s) need worker delegation.` : ''}`,
+          };
+          
+          if (hasDelegations) {
+            base.openDelegations = openDelegations;
+            base.mode = 'delegate-batch';
+            base.delegationRequired = true;
+            base.delegationHint = `Call task() for each open delegation to spawn workers. Use the taskToolCall from each entry.`;
+          }
+          
+          return respond(base);
         },
       }),
 
@@ -2506,7 +2542,7 @@ Expand your Discovery section and try again.`;
         mode: 'subagent' as const,
         description: 'Project Initializer - Generates project documentation from codebase analysis.',
         prompt: PROJECT_INITIALIZER_PROMPT,
-        tools: agentTools(['hive_plan_read', 'hive_context_write', 'hive_skill']),
+        tools: agentTools(['hive_plan_read', 'hive_context_write', 'hive_skill', 'hive_task_create', 'hive_worktree_start']),
         permission: {
           read: "allow",
           edit: "deny",
