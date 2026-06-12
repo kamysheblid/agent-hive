@@ -78,6 +78,7 @@ Stop when any is true:
 | Structural patterns | ast_grep_find_code |
 | Text patterns | grep |
 | File discovery | glob |
+| Directory tree | explore_directory (with depth, gitignore, binary detection) |
 | Git history | bash (git log, git blame) |
 | External docs | context7_query-docs |
 | Remote Git repos | pack_remote_repository (clone + pack for AI analysis) |
