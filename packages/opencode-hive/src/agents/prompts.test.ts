@@ -7,6 +7,7 @@ import { SWARM_BEE_PROMPT } from './swarm';
 import { FORAGER_BEE_PROMPT } from './forager';
 import { SCOUT_BEE_PROMPT } from './scout';
 import { HYGIENIC_BEE_PROMPT } from './hygienic';
+import { CODEBASE_LOCATOR_PROMPT } from './codebase-locator';
 
 describe('Hive (Hybrid) prompt', () => {
   describe('delegation planning alignment', () => {
@@ -257,6 +258,32 @@ describe('Scout (Explorer/Researcher) prompt', () => {
 
   it('mentions year awareness', () => {
     expect(SCOUT_BEE_PROMPT).toContain('current year');
+  });
+});
+
+describe('Codebase Locator prompt', () => {
+  describe('tool usage guidance', () => {
+    it('contains dora_symbol and dora_references for symbol search', () => {
+      expect(CODEBASE_LOCATOR_PROMPT).toContain('dora_symbol');
+      expect(CODEBASE_LOCATOR_PROMPT).toContain('dora_references');
+    });
+
+    it('contains look_at for structure preview of large files', () => {
+      expect(CODEBASE_LOCATOR_PROMPT).toContain('look_at');
+    });
+
+    it('contains dora_file for dependency analysis', () => {
+      expect(CODEBASE_LOCATOR_PROMPT).toContain('dora_file');
+    });
+
+    it('contains explore_directory for project overview', () => {
+      expect(CODEBASE_LOCATOR_PROMPT).toContain('explore_directory');
+    });
+
+    it('contains structured output format with file sizes and line counts', () => {
+      expect(CODEBASE_LOCATOR_PROMPT).toContain('sizes');
+      expect(CODEBASE_LOCATOR_PROMPT).toContain('line counts');
+    });
   });
 });
 
