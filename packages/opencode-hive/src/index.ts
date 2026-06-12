@@ -57,6 +57,9 @@ import {
   autoCrRulesTool,
 } from './tools/auto-cr.js';
 
+// Directory Explorer Tool
+import { exploreDirectoryTool } from './tools/explore-directory-tool.js';
+
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
@@ -1537,6 +1540,9 @@ ${snapshot}
       auto_cr_scan: autoCrScanTool,
       auto_cr_diff: autoCrDiffTool,
       auto_cr_rules: autoCrRulesTool,
+
+      // Directory Explorer Tool
+      explore_directory: exploreDirectoryTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 
