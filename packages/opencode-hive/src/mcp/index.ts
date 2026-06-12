@@ -3,6 +3,7 @@ import { websearchMcp } from './websearch';
 import { context7Mcp } from './context7';
 import { grepAppMcp } from './grep-app';
 import { repomixMcp } from './repomix';
+import { openserpMcp } from './openserp';
 
 /**
  * Built-in MCP configurations
@@ -12,6 +13,7 @@ import { repomixMcp } from './repomix';
  * - context7: Remote (Context7) - supports CONTEXT7_API_KEY env var
  * - grep_app: Remote (GitHub code search)
  * - repomix: Local (npx) - packs repos for AI analysis via repomix --mcp
+ * - openserp: Local (npx) - real search engine results via @openserp/mcp
  */
 
 const allBuiltinMcps: Record<string, McpConfig> = {
@@ -21,6 +23,7 @@ const allBuiltinMcps: Record<string, McpConfig> = {
   grep_app: grepAppMcp,
   // Local MCPs
   repomix: repomixMcp,
+  openserp: openserpMcp,
 };
 
 // Lazy initialization - MCPs are only resolved when first accessed

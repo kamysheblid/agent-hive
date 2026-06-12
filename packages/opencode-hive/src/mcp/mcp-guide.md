@@ -12,6 +12,7 @@ MCP (Model Context Protocol) servers extend agent capabilities with specialized 
 | **context7** | Library docs | Fast | Free tier |
 | **grep_app** | GitHub code patterns | Fast | Free tier |
 | **repomix** | Repo packing for AI analysis | Medium | Free (npx) |
+| **openserp** | Real search engine results | Medium | Free (OSS/docker) |
 | **ast_grep** | AST code analysis | Very Fast | Free (Native) |
 
 ---
@@ -155,7 +156,55 @@ Library: react
 
 ---
 
-### 6. ast_grep (Native NAPI)
+### 6. openserp (Local — npx, OSS mode)
+
+**Purpose**: Real-time search engine results via OpenSERP (Google, Bing, Yandex, DuckDuckGo, Baidu, Ecosia)
+
+**Tools Available**:
+- `openserp_search` — Real search engine results from 6 engines
+- `openserp_mega_search` — Cross-engine aggregated search
+- `openserp_image_search` — Image search across engines
+- `openserp_extract` — Extract URL content to clean Markdown
+
+**Best Use Cases**:
+- Getting real Google/Bing/etc. search results directly
+- Aggregated search across multiple engines
+- Image search and discovery
+- Converting web pages to clean Markdown
+
+**Configuration**:
+```json
+{
+  "mcp": {
+    "openserp": {
+      "command": ["npx", "-y", "@openserp/mcp"]
+    }
+  }
+}
+```
+
+**Setup (OSS mode)**:
+```bash
+# Start the OpenSERP backend (required for OSS mode)
+docker run -d -p 7000:7000 karust/openserp
+```
+
+**Tips**:
+- Requires OpenSERP backend running at localhost:7000 for OSS mode
+- No API key needed in OSS mode
+- Gracefully handles backend unavailability — returns descriptive errors
+- Complements websearch (Exa) for parallel search from different providers
+
+**Example Queries**:
+```
+"latest AI research papers 2026"
+"openserp_search" for specific engine results
+"openserp_mega_search" for broad coverage
+```
+
+---
+
+### 7. ast_grep (Native NAPI)
 
 **Purpose**: AST-based code analysis and transformation
 
@@ -216,7 +265,10 @@ logger.info($MSG)
 
 | Task | Primary MCP | Alternative |
 |------|-------------|-------------|
-| Web search | `websearch` | — |
+| Web search | `websearch` | `openserp_search` |
+| Cross-engine search | `openserp_mega_search` | `websearch` |
+| Image search | `openserp_image_search` | `websearch` |
+| URL → Markdown | `openserp_extract` | — |
 | Library docs | `context7` | `websearch` |
 | External repos | `repomix` | `grep_app` |
 | Code patterns | `grep_app` | `ast_grep` |
