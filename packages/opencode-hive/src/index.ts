@@ -2327,6 +2327,7 @@ Expand your Discovery section and try again.`;
           webfetch: "allow",
           ask: "allow",
           bash: "allow",
+          external_directory: "allow",
         },
       };
 
@@ -2348,6 +2349,7 @@ Expand your Discovery section and try again.`;
           todowrite: "allow",
           todoread: "allow",
           webfetch: "allow",
+          external_directory: "allow",
         },
       };
 
@@ -2372,6 +2374,7 @@ Expand your Discovery section and try again.`;
           skill: "allow",
           todowrite: "allow",
           todoread: "allow",
+          external_directory: "allow",
         },
       };
 
@@ -2393,6 +2396,7 @@ Expand your Discovery section and try again.`;
           delegate: "deny",
           skill: "allow",
           webfetch: "allow",
+          external_directory: "allow",
         },
       };
 
@@ -2413,6 +2417,7 @@ Expand your Discovery section and try again.`;
           task: "deny",
           delegate: "deny",
           skill: "allow",
+          external_directory: "allow",
         },
       };
 

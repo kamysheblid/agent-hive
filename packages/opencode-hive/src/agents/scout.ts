@@ -80,8 +80,19 @@ Stop when any is true:
 | File discovery | glob |
 | Git history | bash (git log, git blame) |
 | External docs | context7_query-docs |
+| Remote Git repos | pack_remote_repository (clone + pack for AI analysis) |
+| Local directory analysis | pack_codebase (pack for full context) |
 | OSS examples | grep_app_searchGitHub |
 | Current web info | websearch_web_search_exa |
+
+## Remote Repo Strategy
+
+When asked to analyze an external Git repository (GitHub, GitLab, etc.):
+- **Full repo analysis** -> pack_remote_repository - clones and packs the entire repo for deep understanding
+- **Quick code pattern search** -> grep_app_searchGitHub - for finding specific code patterns across public repos
+- **Repo metadata/Docs** -> webfetch - for README, docs, or API reference from the repo's web interface
+
+Prefer pack_remote_repository over webfetch when you need to understand the full structure and implementation of an external codebase.
 
 ## External System Data (DB/API/3rd-party)
 
