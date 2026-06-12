@@ -54,7 +54,9 @@ Use MCPs strategically based on task:
 | Code patterns | \`grep_app\` |
 | Refactoring | \`ast_grep_rewrite_code\` |
 | Library docs | \`context7\` |
-| Web info | \`websearch\` |
+| Web info | \`websearch\` / \`openserp_search\` |
+| Image search | \`openserp_image_search\` |
+| URL to Markdown | \`openserp_extract\` |
 
 **Tips:**
 - ast_grep is fastest (local, 52x faster than regex)
@@ -71,6 +73,7 @@ function getBriefMcpGuide(): string {
 
 Tools enhanced by MCP servers:
 - **websearch**: Web search (Exa AI)
+- **openserp**: Real search engine results (Google/Bing/etc.)
 - **context7**: Library documentation
 - **grep_app**: GitHub code search
 - **ast_grep**: Fast code analysis (native)
@@ -87,9 +90,10 @@ function getDefaultMcpGuide(): string {
 Available MCP servers for enhanced capabilities:
 
 1. **websearch** - Web search and current information
-2. **context7** - Official library documentation
-3. **grep_app** - GitHub code search
-4. **ast_grep** - AST-based code analysis (fastest)
+2. **openserp** - Real search engine results (Google/Bing/etc.)
+3. **context7** - Official library documentation
+4. **grep_app** - GitHub code search
+5. **ast_grep** - AST-based code analysis (fastest)
 
 Use the appropriate MCP for your task:
 - Research → websearch, context7
@@ -127,6 +131,12 @@ export const MCP_TOOLS: McpTool[] = [
   { name: 'pack_codebase', mcp: 'repomix', description: 'Pack a local directory for AI analysis', category: 'discovery' },
   { name: 'pack_remote_repository', mcp: 'repomix', description: 'Clone and pack a remote GitHub repo', category: 'discovery' },
   { name: 'grep_repomix_output', mcp: 'repomix', description: 'Search patterns in repomix-packed output', category: 'search' },
+
+  // OpenSERP
+  { name: 'openserp_search', mcp: 'openserp', description: 'Real search engine results (Google/Bing/Yandex/DuckDuckGo/Baidu/Ecosia)', category: 'search' },
+  { name: 'openserp_mega_search', mcp: 'openserp', description: 'Cross-engine aggregated search', category: 'search' },
+  { name: 'openserp_image_search', mcp: 'openserp', description: 'Image search across engines', category: 'search' },
+  { name: 'openserp_extract', mcp: 'openserp', description: 'Extract URL content to clean Markdown', category: 'search' },
 
   // ast_grep (Native)
   { name: 'ast_grep_find_code', mcp: 'ast_grep', description: 'Find code with AST patterns', category: 'analysis' },

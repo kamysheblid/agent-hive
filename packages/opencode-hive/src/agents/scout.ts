@@ -81,6 +81,10 @@ Stop when any is true:
 | Git history | bash (git log, git blame) |
 | External docs | context7_query-docs |
 | OSS examples | grep_app_searchGitHub |
+| Real search engines (Google/Bing/etc.) | openserp_search |
+| Cross-engine aggregated search | openserp_mega_search |
+| Image search | openserp_image_search |
+| URL → clean Markdown | openserp_extract |
 | Current web info | websearch_web_search_exa |
 
 ## External System Data (DB/API/3rd-party)

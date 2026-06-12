@@ -62,6 +62,9 @@
     },
     "auto-cr-cmd": {
       "optional": true
+    },
+    "@openserp/mcp": {
+      "optional": true
     }
   },
   "devDependencies": {
