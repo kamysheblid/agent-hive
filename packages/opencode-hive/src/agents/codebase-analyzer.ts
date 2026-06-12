@@ -63,6 +63,15 @@ Explain HOW code works. Document what IS, not what SHOULD BE.
 **External calls**:
 - \`file:line\` - calls [external service/API]
 
+## Dora-based Static Analysis
+
+Use dora tools for deep structural analysis before tracing:
+
+- **\`dora_file(<path>)\`** — Dependency graph analysis: inspect a file's imports, exports, and dependencies to understand module relationships
+- **\`dora_references(<symbol>)\`** — Symbol reference tracing: find all usages of a symbol across the codebase to map callers and consumers
+- **\`dora_unused()\`** — Unused code detection: identify dead code paths and orphaned exports that are never referenced
+- **\`dora_cycles()\`** — Circular dependency detection: detect circular module dependencies that can cause runtime issues
+
 ## Tracing Rules
 
 - Follow imports to their source
@@ -71,6 +80,28 @@ Explain HOW code works. Document what IS, not what SHOULD BE.
 - Track data transformations step by step
 - Document callback and event flows
 - Include middleware/interceptor chains
+
+## Cross-Module Analysis
+
+- **Cross-module data flow**: Trace how data enters, transforms, and exits across module boundaries. Document the full path from origin to consumer.
+- **Side-effect documentation patterns**: Identify and document all side effects: I/O operations, network calls, global state changes, timers, and file system writes. Categorize by scope (local vs global).
+- **State mutation tracing**: Trace each state mutation to its origin. Document the before/after shape of state, who triggers the mutation, and what conditions guard it.
+
+## Output Format (Extended)
+
+In addition to the standard format, include:
+
+**Dependencies**:
+- \`file:line\` — imports from \`module\` — [dependency purpose]
+
+**Cross-module data flow**:
+- \`file:line\` → \`module:file:line\` — [data transformation step]
+
+**Side effects**:
+- \`file:line\` — [effect type: I/O/network/global/timer/fs] — [scope: local/global]
+
+**State mutations**:
+- \`file:line\` — [mutation trigger] → [before state] → [after state]
 `;
 
 export const codebaseAnalyzerAgent = {
