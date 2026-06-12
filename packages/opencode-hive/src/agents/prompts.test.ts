@@ -7,6 +7,7 @@ import { SWARM_BEE_PROMPT } from './swarm';
 import { FORAGER_BEE_PROMPT } from './forager';
 import { SCOUT_BEE_PROMPT } from './scout';
 import { HYGIENIC_BEE_PROMPT } from './hygienic';
+import { PATTERN_FINDER_PROMPT } from './pattern-finder';
 
 describe('Hive (Hybrid) prompt', () => {
   describe('delegation planning alignment', () => {
@@ -267,6 +268,40 @@ describe('Hygienic (Consultant/Reviewer) prompt', () => {
 
   it('contains verification examples', () => {
     expect(HYGIENIC_BEE_PROMPT).toContain('without human judgment');
+  });
+});
+
+describe('Pattern Finder prompt', () => {
+  it('contains dora_references tool guidance for symbol reference frequency analysis', () => {
+    expect(PATTERN_FINDER_PROMPT).toContain('dora_references');
+  });
+
+  it('contains dora_file tool guidance for import pattern analysis', () => {
+    expect(PATTERN_FINDER_PROMPT).toContain('dora_file');
+  });
+
+  it('contains dora_cycles tool guidance for code cycle patterns', () => {
+    expect(PATTERN_FINDER_PROMPT).toContain('dora_cycles');
+  });
+
+  it('contains dora_unused tool guidance for unused code patterns', () => {
+    expect(PATTERN_FINDER_PROMPT).toContain('dora_unused');
+  });
+
+  it('contains usage frequency metrics guidance', () => {
+    expect(PATTERN_FINDER_PROMPT).toContain('usage frequency');
+  });
+
+  it('contains dedicated Variation Detection section for cross-file pattern comparison', () => {
+    expect(PATTERN_FINDER_PROMPT).toContain('## Variation Detection');
+  });
+
+  it('contains Dora-Powered Analysis section header', () => {
+    expect(PATTERN_FINDER_PROMPT).toContain('## Dora-Powered Analysis');
+  });
+
+  it('contains Quality Metrics section header', () => {
+    expect(PATTERN_FINDER_PROMPT).toContain('## Quality Metrics');
   });
 });
 
