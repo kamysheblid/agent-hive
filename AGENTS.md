@@ -88,7 +88,7 @@ packages/
 ├── opencode-hive/       # OpenCode plugin
 │   └── src/
 │       ├── agents/      # scout, swarm, hive, architect, forager, hygienic
-│       ├── mcp/         # websearch, grep-app, context7, ast-grep
+│   ├── mcp/         # websearch, openserp, grep-app, context7, repomix, ast-grep
 │       ├── tools/       # Hive tool implementations
 │       ├── hooks/       # Event hooks
 │       └── skills/      # Skill definitions
@@ -136,12 +136,16 @@ feat!: change plan format to support subtasks
 
 | Agent | Role |
 |-------|------|
-| Hive (Hybrid) | Plans AND orchestrates; phase-aware |
+| Hive (Zetta) | Plans AND orchestrates; phase-aware |
 | Architect | Plans features, interviews, writes plans. NEVER executes |
 | Swarm | Orchestrates execution. Delegates, spawns workers, verifies |
 | Scout | Researches codebase + external docs/data |
 | Forager | Executes tasks directly in isolated worktrees |
 | Hygienic | Reviews plan/code quality. OKAY/REJECT verdict |
+| **Codebase Locator** | Finds WHERE files live — no analysis, just locations |
+| **Codebase Analyzer** | Explains HOW code works — deep module analysis |
+| **Pattern Finder** | Extracts conventions and recurring patterns |
+| **Project Initializer** | Generates ARCHITECTURE.md + CODE_STYLE.md from analysis |
 
 ### Data Model
 
@@ -237,7 +241,7 @@ This is a **bun workspaces** monorepo:
 
 Plan-first development: Write plan → User reviews → Approve → Execute tasks
 
-### Tools (17 total)
+### Tools (18 total)
 
 | Domain | Tools |
 |--------|-------|
@@ -245,19 +249,28 @@ Plan-first development: Write plan → User reviews → Approve → Execute task
 | Plan | hive_plan_write, hive_plan_read, hive_plan_approve |
 | Task | hive_tasks_sync, hive_task_create, hive_task_update |
 | Worktree | hive_worktree_start, hive_worktree_create, hive_worktree_commit, hive_worktree_discard |
+| Batch | hive_worktree_batch |
 | Merge | hive_merge |
 | Context | hive_context_write |
 | AGENTS.md | hive_agents_md |
 | Status | hive_status |
 | Skill | hive_skill |
 
-**Tool access is filtered per agent role:**
-- **Hive** — all 17 tools (hybrid agent)
-- **Swarm** — hive_feature_create, hive_feature_complete, hive_plan_read, hive_plan_approve, hive_tasks_sync, hive_task_create, hive_task_update, hive_worktree_start, hive_worktree_create, hive_worktree_discard, hive_merge, hive_context_write, hive_status, hive_skill, hive_agents_md (15 tools — excludes hive_worktree_commit, hive_plan_write)
+**Regular tools** (available to ALL agents, no filter):
+- `explore_directory` — Structured directory tree overview with .gitignore filtering, binary detection, content preview
+- `dora_*` — SCIP-based code analysis (symbol, references, file, cycles, unused)
+- `look_at` — Smart file structure extractor for large files
+- LSP tools — goto_definition, find_references, hover, rename, diagnostics
+
+**Tool access is filtered per agent role (only `hive_*` tools are restricted):**
+- **Hive** — all 18 tools (hybrid agent)
+- **Swarm** — hive_feature_create, hive_feature_complete, hive_plan_read, hive_plan_approve, hive_tasks_sync, hive_task_create, hive_task_update, hive_worktree_start, hive_worktree_create, hive_worktree_discard, hive_worktree_batch, hive_merge, hive_context_write, hive_status, hive_skill, hive_agents_md (16 tools — excludes hive_worktree_commit, hive_plan_write)
 - **Architect** — hive_feature_create, hive_plan_write, hive_plan_read, hive_context_write, hive_status, hive_skill (6 tools)
 - **Forager** — hive_plan_read, hive_worktree_commit, hive_context_write, hive_skill (4 tools)
 - **Scout** — hive_plan_read, hive_context_write, hive_status, hive_skill (4 tools)
 - **Hygienic** — hive_plan_read, hive_context_write, hive_status, hive_skill (4 tools)
+- **Project Initializer** — hive_plan_read, hive_context_write, hive_skill, hive_task_create, hive_worktree_start (5 tools)
+- **Codebase Locator/Codebase Analyzer/Pattern Finder** — hive_plan_read, hive_skill (2 tools)
 
 ### Workflow
 
@@ -272,13 +285,30 @@ Plan-first development: Write plan → User reviews → Approve → Execute task
 **Important:** `hive_worktree_commit` commits changes to task branch but does NOT merge.
 Use `hive_merge` to explicitly integrate changes. Worktrees persist until manually removed.
 
+### Batch Parallelism
+
+Use `hive_worktree_batch` to start multiple independent tasks in parallel:
+
+```
+hive_worktree_batch({ tasks: ["01-task-a", "02-task-b"] })
+```
+
+After batch returns, check `openDelegations` in the response — each entry needs a `task()` call to spawn the forager worker:
+
+```
+task({ subagent_type: "forager-worker", ... })
+```
+
+When all workers complete, merge each task branch, then run full verification.
+
 ### Delegated Execution
 
-`hive_worktree_start` creates worktree and spawns worker automatically:
+`hive_worktree_start` creates worktree and spawns worker automatically (orchestrator must call `task()` after):
 
-1. `hive_worktree_start(task)` → Creates worktree + spawns Forager (Worker/Coder) worker
-2. Worker executes → calls `hive_worktree_commit(status: "completed")`
-3. Worker blocked → calls `hive_worktree_commit(status: "blocked", blocker: {...})`
+1. `hive_worktree_start(task)` → Creates worktree, returns `delegationRequired: true` with `taskToolCall`
+2. Orchestrator calls `task({ subagent_type: "forager-worker", prompt: "@worker-prompt.md" })`
+3. Worker executes → calls `hive_worktree_commit(status: "completed")`
+4. Worker blocked → calls `hive_worktree_commit(status: "blocked", blocker: {...})`
 
 **Handling blocked workers:**
 1. Check blockers with `hive_status()`
