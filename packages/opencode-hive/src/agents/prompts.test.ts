@@ -8,6 +8,7 @@ import { FORAGER_BEE_PROMPT } from './forager';
 import { SCOUT_BEE_PROMPT } from './scout';
 import { HYGIENIC_BEE_PROMPT } from './hygienic';
 import { CODEBASE_LOCATOR_PROMPT } from './codebase-locator';
+import { CODEBASE_ANALYZER_PROMPT } from './codebase-analyzer';
 
 describe('Hive (Hybrid) prompt', () => {
   describe('delegation planning alignment', () => {
@@ -294,6 +295,44 @@ describe('Hygienic (Consultant/Reviewer) prompt', () => {
 
   it('contains verification examples', () => {
     expect(HYGIENIC_BEE_PROMPT).toContain('without human judgment');
+  });
+});
+
+describe('Codebase Analyzer (Micode) prompt', () => {
+  describe('dora-based static analysis', () => {
+    it('contains dependency graph analysis via dora_file', () => {
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('dora_file');
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('dependency');
+    });
+
+    it('contains symbol reference tracing via dora_references', () => {
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('dora_references');
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('reference');
+    });
+
+    it('contains unused code detection via dora_unused', () => {
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('dora_unused');
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('unused');
+    });
+
+    it('contains circular dependency detection via dora_cycles', () => {
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('dora_cycles');
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('circular');
+    });
+  });
+
+  describe('cross-module and data flow analysis', () => {
+    it('contains cross-module data flow patterns', () => {
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('Cross-module data flow');
+    });
+
+    it('contains side-effect documentation patterns', () => {
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('Side-effect documentation patterns');
+    });
+
+    it('contains state mutation tracing patterns', () => {
+      expect(CODEBASE_ANALYZER_PROMPT).toContain('State mutation tracing');
+    });
   });
 });
 
