@@ -10,6 +10,7 @@ import { HYGIENIC_BEE_PROMPT } from './hygienic';
 import { CODEBASE_LOCATOR_PROMPT } from './codebase-locator';
 import { CODEBASE_ANALYZER_PROMPT } from './codebase-analyzer';
 import { PATTERN_FINDER_PROMPT } from './pattern-finder';
+import { PROJECT_INITIALIZER_PROMPT } from './project-initializer';
 
 describe('Hive (Hybrid) prompt', () => {
   describe('delegation planning alignment', () => {
@@ -392,6 +393,89 @@ describe('README.md documentation', () => {
     it('contains the Canonical Delegation Threshold content', () => {
       expect(readmeContent).toContain('cannot name the file path upfront');
       expect(readmeContent).toContain('2+ files');
+    });
+  });
+});
+
+describe('Project Initializer prompt', () => {
+  describe('explore_directory tool usage', () => {
+    it('contains explore_directory guidance for initial structure overview', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('explore_directory');
+    });
+  });
+
+  describe('tech stack detection', () => {
+    it('contains package.json detection', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('package.json');
+    });
+
+    it('contains go.mod detection', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('go.mod');
+    });
+
+    it('contains Cargo.toml detection', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('Cargo.toml');
+    });
+
+    it('contains Dockerfile detection', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('Dockerfile');
+    });
+
+    it('contains requirements.txt detection', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('requirements.txt');
+    });
+  });
+
+  describe('parallel subagent spawning strategy', () => {
+    it('contains codebase-locator subagent reference', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('codebase-locator');
+    });
+
+    it('contains codebase-analyzer subagent reference', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('codebase-analyzer');
+    });
+
+    it('contains pattern-finder subagent reference', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('pattern-finder');
+    });
+
+    it('contains parallel dispatch strategy for subagents', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('parallel');
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('task');
+    });
+  });
+
+  describe('mermaid architecture diagrams', () => {
+    it('contains mermaid diagram guidance', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('mermaid');
+    });
+  });
+
+  describe('API surface analysis', () => {
+    it('contains routes analysis guidance', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('routes');
+    });
+
+    it('contains handlers analysis guidance', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('handlers');
+    });
+
+    it('contains endpoints analysis guidance', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('endpoints');
+    });
+  });
+
+  describe('data model documentation', () => {
+    it('contains entities documentation guidance', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('entities');
+    });
+
+    it('contains relationships documentation guidance', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('relationships');
+    });
+
+    it('contains schemas documentation guidance', () => {
+      expect(PROJECT_INITIALIZER_PROMPT).toContain('schemas');
     });
   });
 });
