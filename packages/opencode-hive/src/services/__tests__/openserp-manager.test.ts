@@ -12,6 +12,7 @@ vi.mock('child_process', () => ({
 const mockExistsSync = vi.fn();
 const mockMkdirSync = vi.fn();
 const mockChmodSync = vi.fn();
+const mockUnlinkSync = vi.fn();
 const mockCreateWriteStream = vi.fn();
 const mockWriteStreamOn = vi.fn();
 const mockWriteStreamEnd = vi.fn();
@@ -19,13 +20,24 @@ vi.mock('fs', () => ({
   existsSync: mockExistsSync,
   mkdirSync: mockMkdirSync,
   chmodSync: mockChmodSync,
+  unlinkSync: mockUnlinkSync,
   createWriteStream: mockCreateWriteStream,
 }));
 
-// Mock net
-const mockCreateConnection = vi.fn();
+// Mock net — source uses new net.Socket()
+const mockSocketOn = vi.fn();
+const mockSocketOnce = vi.fn();
+const mockSocketDestroy = vi.fn();
+const mockSocketConnect = vi.fn();
+const mockSocketInstance = {
+  on: mockSocketOn,
+  once: mockSocketOnce,
+  destroy: mockSocketDestroy,
+  connect: mockSocketConnect,
+};
+const MockSocket = vi.fn(() => mockSocketInstance);
 vi.mock('net', () => ({
-  createConnection: mockCreateConnection,
+  Socket: MockSocket,
 }));
 
 // Mock https for download
@@ -34,14 +46,17 @@ vi.mock('https', () => ({
   get: mockHttpsGet,
 }));
 
-// Mock http for health checks (fail silently — no real server)
+// Mock http for health checks — simulate successful response (200 OK)
 const reqMock = { on: vi.fn(), setTimeout: vi.fn(), destroy: vi.fn() };
 reqMock.on.mockImplementation((_event: string, cb: () => void) => {
-  // Simulate error immediately so health check resolves false quickly
   setImmediate(cb);
   return reqMock;
 });
-const mockHttpGet = vi.fn(() => reqMock);
+const mockHttpGet = vi.fn((_url: string, cb?: (res: any) => void) => {
+  // Call response callback immediately so the health check promise settles
+  if (cb) cb({ statusCode: 200, on: vi.fn() });
+  return reqMock;
+});
 vi.mock('http', () => ({
   get: mockHttpGet,
 }));
@@ -69,7 +84,7 @@ describe('OpenSERPService', () => {
       expect(binaryPath).toContain(TEST_CACHE_DIR);
       expect(binaryPath).toContain('openserp');
       expect(binaryPath).toContain('0.8.3');
-      expect(binaryPath).endsWith('/openserp');
+      expect(binaryPath.endsWith('/openserp')).toBe(true);
     });
   });
 
@@ -87,33 +102,22 @@ describe('OpenSERPService', () => {
 
   describe('isPortOccupied', () => {
     it('should return true when port is in use', async () => {
-      const mockSocket = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValue(mockSocket);
-
-      // Simulate 'connect' event immediately
-      mockSocket.on.mockImplementation((event: string, cb: () => void) => {
+      // Simulate 'connect' event — source uses socket.on('connect', cb)
+      mockSocketOn.mockImplementation((event: string, cb: () => void) => {
         if (event === 'connect') cb();
-        return mockSocket;
-      });
-      mockSocket.once.mockImplementation((event: string, cb: () => void) => {
-        if (event === 'error') cb();
-        return mockSocket;
+        return mockSocketInstance;
       });
 
       const result = await service.isPortOccupied(7000);
       expect(result).toBe(true);
-      expect(mockCreateConnection).toHaveBeenCalledWith({ port: 7000 });
+      expect(mockSocketConnect).toHaveBeenCalledWith(7000);
     });
 
     it('should return false when port is free', async () => {
-      const mockSocket = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValue(mockSocket);
-
-      // Simulate 'error' event immediately (port not listening)
-      mockSocket.on.mockReturnValue(mockSocket);
-      mockSocket.once.mockImplementation((event: string, cb: () => void) => {
+      // Simulate 'error' event (port not listening)
+      mockSocketOn.mockImplementation((event: string, cb: () => void) => {
         if (event === 'error') cb();
-        return mockSocket;
+        return mockSocketInstance;
       });
 
       const result = await service.isPortOccupied(7000);
@@ -121,12 +125,8 @@ describe('OpenSERPService', () => {
     });
 
     it('should timeout and return false after 2 seconds', async () => {
-      const mockSocket = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValue(mockSocket);
-
       // Never emit any event (simulate timeout)
-      mockSocket.on.mockReturnValue(mockSocket);
-      mockSocket.once.mockReturnValue(mockSocket);
+      mockSocketOn.mockReturnValue(mockSocketInstance);
 
       const result = await service.isPortOccupied(7000);
       expect(result).toBe(false);
@@ -135,49 +135,42 @@ describe('OpenSERPService', () => {
 
   describe('start', () => {
     it('should skip start when port is already occupied', async () => {
-      const mockSocket = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValue(mockSocket);
-      mockSocket.on.mockImplementation((event: string, cb: () => void) => {
+      // Simulate 'connect' → port occupied
+      mockSocketOn.mockImplementation((event: string, cb: () => void) => {
         if (event === 'connect') cb();
-        return mockSocket;
+        return mockSocketInstance;
       });
-      mockSocket.once.mockReturnValue(mockSocket);
 
       await service.start();
       expect(mockSpawn).not.toHaveBeenCalled();
     });
 
     it('should download binary when not cached and port free', async () => {
-      // Port free
-      const mockSocket = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValue(mockSocket);
-      mockSocket.on.mockReturnValue(mockSocket);
-      mockSocket.once.mockImplementation((event: string, cb: () => void) => {
+      // Port free — simulate error on both 'connect' and 'error'
+      mockSocketOn.mockImplementation((event: string, cb: () => void) => {
         if (event === 'error') cb();
-        return mockSocket;
+        return mockSocketInstance;
       });
 
-      // Binary not cached
-      mockExistsSync.mockReturnValue(false);
+      // Binary not cached (first call), then verify passes (subsequent calls)
+      mockExistsSync.mockReturnValueOnce(false).mockReturnValue(true);
 
-      // Mock HTTPS download
-      const mockResponse = { pipe: vi.fn(), on: vi.fn() };
+      // Mock HTTPS download — response with 200 OK
+      const mockResponse = { pipe: vi.fn(), on: vi.fn(), statusCode: 200 };
       mockHttpsGet.mockImplementation((_url: string, cb: (res: any) => void) => {
         cb(mockResponse);
-        return { on: vi.fn() };
+        return { on: vi.fn(), setTimeout: vi.fn(), destroy: vi.fn() };
       });
 
-      // Mock write stream
-      const mockWriteStream = { on: vi.fn() };
+      // Mock write stream with close() and finish event
+      const mockWriteStream = { on: vi.fn(), close: vi.fn() };
       mockCreateWriteStream.mockReturnValue(mockWriteStream);
-
-      // Simulate download completion
-      mockResponse.on.mockImplementation((event: string, cb: () => void) => {
+      mockWriteStream.on.mockImplementation((event: string, cb: () => void) => {
         if (event === 'finish') setTimeout(cb, 10);
-        return mockResponse;
+        return mockWriteStream;
       });
 
-      // Make execSync succeed for tar extraction and chmod
+      // Make execSync succeed for tar extraction
       mockExecSync.mockReturnValue('');
 
       // Spawn mock for the actual process
@@ -190,9 +183,6 @@ describe('OpenSERPService', () => {
       };
       mockSpawn.mockReturnValue(mockProcess);
 
-      // Make chmodSync and existsSync work for verify
-      mockExistsSync.mockReturnValueOnce(true);
-
       await service.start();
 
       // Should have downloaded and spawned
@@ -202,12 +192,9 @@ describe('OpenSERPService', () => {
 
     it('should use cached binary when available and port free', async () => {
       // Port free
-      const mockSocket = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValue(mockSocket);
-      mockSocket.on.mockReturnValue(mockSocket);
-      mockSocket.once.mockImplementation((event: string, cb: () => void) => {
+      mockSocketOn.mockImplementation((event: string, cb: () => void) => {
         if (event === 'error') cb();
-        return mockSocket;
+        return mockSocketInstance;
       });
 
       // Binary already cached
@@ -232,12 +219,9 @@ describe('OpenSERPService', () => {
 
     it('should not start a second process if already running', async () => {
       // Port free
-      const mockSocket1 = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValueOnce(mockSocket1);
-      mockSocket1.on.mockReturnValue(mockSocket1);
-      mockSocket1.once.mockImplementation((event: string, cb: () => void) => {
+      mockSocketOn.mockImplementation((event: string, cb: () => void) => {
         if (event === 'error') cb();
-        return mockSocket1;
+        return mockSocketInstance;
       });
 
       mockExistsSync.mockReturnValue(true);
@@ -256,7 +240,6 @@ describe('OpenSERPService', () => {
 
       // Second call should not spawn
       vi.clearAllMocks();
-      mockCreateConnection.mockReset();
       mockSpawn.mockReset();
 
       await service.start();
@@ -266,13 +249,10 @@ describe('OpenSERPService', () => {
 
   describe('stop', () => {
     it('should kill the running process', async () => {
-      // Start the service first
-      const mockSocket = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValue(mockSocket);
-      mockSocket.on.mockReturnValue(mockSocket);
-      mockSocket.once.mockImplementation((event: string, cb: () => void) => {
+      // Port free
+      mockSocketOn.mockImplementation((event: string, cb: () => void) => {
         if (event === 'error') cb();
-        return mockSocket;
+        return mockSocketInstance;
       });
       mockExistsSync.mockReturnValue(true);
 
@@ -284,6 +264,9 @@ describe('OpenSERPService', () => {
         kill: vi.fn(),
       };
       mockSpawn.mockReturnValue(mockProcess);
+
+      // Make execSync throw so stop() falls through to process.kill
+      mockExecSync.mockImplementation(() => { throw new Error('mock'); });
 
       await service.start();
       service.stop();
@@ -299,13 +282,10 @@ describe('OpenSERPService', () => {
 
   describe('health check', () => {
     it('should eventually return true when server responds', async () => {
-      // Start service
-      const mockSocket = { on: vi.fn(), once: vi.fn(), destroy: vi.fn() };
-      mockCreateConnection.mockReturnValue(mockSocket);
-      mockSocket.on.mockReturnValue(mockSocket);
-      mockSocket.once.mockImplementation((event: string, cb: () => void) => {
+      // Port free
+      mockSocketOn.mockImplementation((event: string, cb: () => void) => {
         if (event === 'error') cb();
-        return mockSocket;
+        return mockSocketInstance;
       });
       mockExistsSync.mockReturnValue(true);
 
