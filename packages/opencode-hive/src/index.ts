@@ -1479,8 +1479,6 @@ ${snapshot}
       },
     ),
 
-    mcp: builtinMcps,
-
     tool: {
       look_at: lookAtTool,
       artifact_search: artifactSearchTool,
