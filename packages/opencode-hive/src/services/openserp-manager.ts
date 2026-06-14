@@ -222,6 +222,78 @@ export class OpenSERPService {
   }
 
   /**
+   * Ensure Chromium is installed for browser-based search scraping.
+   * OpenSERP uses go-rod which requires a Chromium binary.
+   * Linux: apt install chromium
+   * macOS: brew install --cask chromium
+   * Windows: not supported (no-op)
+   */
+  private async ensureChromium(): Promise<void> {
+    // Check if already installed
+    const chromiumPaths = ['chromium', 'chromium-browser', 'google-chrome', 'google-chrome-stable'];
+    for (const name of chromiumPaths) {
+      try {
+        execSync(`which "${name}"`, { stdio: 'ignore', timeout: 5000 });
+        return; // Found one
+      } catch {
+        continue;
+      }
+    }
+
+    // Check if we already attempted installation (avoid loop)
+    const markerPath = path.join(this.cacheDir, '.chromium-installed');
+    if (fs.existsSync(markerPath)) {
+      console.log('[openserp] Chromium not found and install already attempted, skipping');
+      return;
+    }
+
+    console.log('[openserp] Chromium not found, attempting to install...');
+    fs.mkdirSync(this.cacheDir, { recursive: true });
+
+    try {
+      if (process.platform === 'linux') {
+        // Check if apt-get is available
+        execSync('which apt-get', { stdio: 'ignore', timeout: 5000 });
+        console.log('[openserp] Installing chromium via apt-get...');
+        execSync('apt-get update -qq && apt-get install -y -qq chromium chromium-driver chromium-sandbox', {
+          stdio: 'pipe',
+          timeout: 120000,
+        });
+      } else if (process.platform === 'darwin') {
+        // Check if brew is available
+        execSync('which brew', { stdio: 'ignore', timeout: 5000 });
+        console.log('[openserp] Installing chromium via brew...');
+        execSync('brew install --cask chromium', {
+          stdio: 'pipe',
+          timeout: 300000,
+        });
+      } else {
+        console.log(`[openserp] Unsupported platform for auto-install: ${process.platform}`);
+        return;
+      }
+
+      // Verify installation
+      for (const name of chromiumPaths) {
+        try {
+          execSync(`which "${name}"`, { stdio: 'ignore', timeout: 5000 });
+          console.log(`[openserp] Chromium installed: ${name}`);
+          fs.writeFileSync(markerPath, 'ok');
+          return;
+        } catch {
+          continue;
+        }
+      }
+      console.warn('[openserp] Chromium install completed but binary not found in PATH');
+    } catch (err) {
+      console.warn('[openserp] Chromium install failed:', err instanceof Error ? err.message : String(err));
+      console.warn('[openserp] Search may be degraded without Chromium');
+    } finally {
+      // Write marker even if failed, to avoid retrying every startup
+      try { fs.writeFileSync(markerPath, 'attempted'); } catch {}
+    }
+  }
+
+  /**
    * Check if the service is currently running.
    */
   isRunning(): boolean {
@@ -249,6 +321,9 @@ export class OpenSERPService {
       console.log(`[openserp] Port ${OPENSERP_PORT} already in use, skipping start`);
       return;
     }
+
+    // Ensure Chromium is installed (required by OpenSERP for browser-based scraping)
+    await this.ensureChromium();
 
     // Ensure binary is cached
     if (!this.isBinaryCached()) {
