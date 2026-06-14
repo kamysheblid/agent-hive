@@ -7,7 +7,7 @@
     },
     "packages/hive-core": {
       "name": "hive-core",
-      "version": "1.4.1",
+      "version": "1.5.0",
       "dependencies": {
         "simple-git": "^3.27.0",
       },
@@ -19,7 +19,7 @@
     },
     "packages/opencode-hive": {
       "name": "@hung319/opencode-hive",
-      "version": "1.10.13",
+      "version": "1.14.0",
       "dependencies": {
         "simple-git": "^3.36.0",
       },
@@ -37,6 +37,7 @@
         "@ast-grep/napi": "*",
         "@butttons/dora": "*",
         "@opencode-ai/plugin": ">=0.13.7",
+        "@openserp/mcp": "*",
         "@sparkleideas/agent-booster": "*",
         "@sparkleideas/memory": "*",
         "@upstash/context7-mcp": "*",
@@ -47,6 +48,7 @@
       "optionalPeers": [
         "@ast-grep/napi",
         "@butttons/dora",
+        "@openserp/mcp",
         "@sparkleideas/agent-booster",
         "@sparkleideas/memory",
         "@upstash/context7-mcp",
