@@ -39,6 +39,7 @@ import { HiddenJudgeService } from './services/hidden-judge.js';
 import { OpenCodeProviderService } from './services/opencode-provider.js';
 import { UserProfileService } from './services/user-profile.js';
 import { ensureLspServers } from './services/lsp-autoinstall.js';
+import { OpenSERPService } from './services/openserp-manager.js';
 
 // Dora CLI Tools (SCIP-based code navigation)
 import {
@@ -277,6 +278,9 @@ const toolsBootPromise = ensureToolsInstalled();
 // Proactively install LSP servers for common languages (fire-and-forget, non-blocking)
 const lspBootPromise = ensureLspServers();
 
+// Cache directory for OpenSERP binary (XDG-compatible path)
+const OPENSERP_CACHE_DIR = path.join(os.homedir(), '.local', 'share', 'opencode', 'bin');
+
 const plugin: Plugin = async (ctx) => {
   const { directory, client } = ctx;
 
@@ -308,6 +312,13 @@ const plugin: Plugin = async (ctx) => {
     setBlockMemoryFilterConfig(memoryFilterConfig);
   }
   const builtinMcps = createBuiltinMcps(disabledMcps);
+
+  // OpenSERP backend service: manages download + lifecycle of the scraper binary
+  // Fire-and-forget start — never blocks init, never crashes
+  const openserpService = new OpenSERPService(OPENSERP_CACHE_DIR);
+  openserpService.start().catch((err: unknown) => {
+    console.warn('[openserp] Failed to start service:', err instanceof Error ? err.message : err);
+  });
 
   // User profile service: lazily initialized when enabled
   let userProfileService: UserProfileService | null = null;
@@ -2316,6 +2327,11 @@ Expand your Discovery section and try again.`;
           return `Create feature "${name}" using hive_feature_create tool.`;
         },
       },
+    },
+
+    // Dispose hook: cleanup background processes when plugin is unloaded
+    dispose: () => {
+      openserpService.dispose();
     },
 
     // Config hook - merge agents into opencodeConfig.agent
