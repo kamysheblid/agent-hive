@@ -84,10 +84,6 @@ Stop when any is true:
 | Remote Git repos | pack_remote_repository (clone + pack for AI analysis) |
 | Local directory analysis | pack_codebase (pack for full context) |
 | OSS examples | grep_app_searchGitHub |
-| Real search engines (Google/Bing/etc.) | openserp_search |
-| Cross-engine aggregated search | openserp_mega_search |
-| Image search | openserp_image_search |
-| URL → clean Markdown | openserp_extract |
 | Current web info | websearch_web_search_exa |
 
 ## Remote Repo Strategy
