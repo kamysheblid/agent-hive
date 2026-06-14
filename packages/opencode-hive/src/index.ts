@@ -38,6 +38,7 @@ import { safeHook } from './utils/safe-stage.js';
 import { HiddenJudgeService } from './services/hidden-judge.js';
 import { OpenCodeProviderService } from './services/opencode-provider.js';
 import { UserProfileService } from './services/user-profile.js';
+import { ensureLspServers } from './services/lsp-autoinstall.js';
 
 // Dora CLI Tools (SCIP-based code navigation)
 import {
@@ -272,6 +273,9 @@ function prefixWithSnip(command: string, snipCommand = 'snip'): string {
 // Auto-install snip + tools on plugin load (fire-and-forget, completes before first hook fires)
 const snipBootPromise = ensureSnipInstalled();
 const toolsBootPromise = ensureToolsInstalled();
+
+// Proactively install LSP servers for common languages (fire-and-forget, non-blocking)
+const lspBootPromise = ensureLspServers();
 
 const plugin: Plugin = async (ctx) => {
   const { directory, client } = ctx;
