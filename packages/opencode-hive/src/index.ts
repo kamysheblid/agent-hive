@@ -79,6 +79,7 @@ import { PATTERN_FINDER_PROMPT } from './agents/pattern-finder.js';
 import { PROJECT_INITIALIZER_PROMPT } from './agents/project-initializer.js';
 import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
+import { crwMcp } from './mcp/crw.js';
 import { ensureSnipInstalled, isSnipOnPath } from './utils/snip-installer.js';
 import { ensureToolsInstalled, getHiveBinPath } from './utils/tool-installer.js';
 // $ns Mode & Session Continuation hooks
@@ -309,6 +310,11 @@ const plugin: Plugin = async (ctx) => {
     setBlockMemoryFilterConfig(memoryFilterConfig);
   }
   const builtinMcps = createBuiltinMcps(disabledMcps);
+
+  // CRW MCP: conditional — only activate when CRW backend is configured
+  if (process.env.CRW_API_URL && process.env.CRW_API_KEY) {
+    builtinMcps['crw'] = crwMcp;
+  }
 
   // User profile service: lazily initialized when enabled
   let userProfileService: UserProfileService | null = null;
