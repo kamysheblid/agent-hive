@@ -12,6 +12,7 @@ MCP (Model Context Protocol) servers extend agent capabilities with specialized 
 | **context7** | Library docs | Fast | Free tier |
 | **grep_app** | GitHub code patterns | Fast | Free tier |
 | **repomix** | Repo packing for AI analysis | Medium | Free (npx) |
+| **crw** | Web scraping & crawling (Firecrawl alternative) | Medium | Free (npx) |
 | **ast_grep** | AST code analysis | Very Fast | Free (Native) |
 
 ---
@@ -119,6 +120,56 @@ Library: react
 'useState('
 'async function'
 'try {.*await' (with regex)
+```
+
+---
+
+### 4. crw (Local — npx, Embedded/Proxy)
+
+**Purpose**: Web scraping & crawling. Firecrawl alternative — no backend needed.
+
+**Tools Available**:
+- `crw_scrape` — Scrape single URL → markdown, HTML, links
+- `crw_crawl` — Start async BFS crawl (returns job ID)
+- `crw_check_crawl_status` — Poll crawl job status & retrieve results
+- `crw_map` — Discover all URLs on a website
+- `crw_search` — Web search (needs configured SearXNG or proxy mode)
+- `crw_parse_file` — Parse local PDF (base64) to markdown
+
+**Best Use Cases**:
+- Scraping any web page to clean markdown
+- Crawling entire documentation sites
+- Discovering all URLs on a domain
+- Search + scrape hybrid workflows
+
+**Configuration**:
+```json
+{
+  "mcp": {
+    "crw": {
+      "type": "local",
+      "command": ["npx", "-y", "crw-mcp"]
+    }
+  }
+}
+```
+
+**Setup**:
+- Embedded mode (default): zero setup, no env vars
+- Proxy mode: set `CRW_API_URL` + `CRW_API_KEY` for remote server
+
+**Tips**:
+- Fires up instantly, no Docker needed
+- Content truncated to ~15K chars by default (pass `maxLength: 0` for full)
+- Use `crw_crawl` + `crw_check_crawl_status` for large site crawling
+- Complements websearch (Exa) for semantic + crawl workflows
+
+**Example Queries**:
+```
+"scrape https://example.com/docs to markdown"
+"crawl https://docs.example.com and find all API endpoints"
+"map all URLs on opencode.ai"
+"search for 'MCP servers' with crw"
 ```
 
 ---

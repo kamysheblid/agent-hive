@@ -55,6 +55,7 @@ Use MCPs strategically based on task:
 | Refactoring | \`ast_grep_rewrite_code\` |
 | Library docs | \`context7\` |
 | Web info | \`websearch\` |
+| Web scraping | \`crw_scrape\` / \`crw_crawl\` |
 
 **Tips:**
 - ast_grep is fastest (local, 52x faster than regex)
@@ -71,6 +72,7 @@ function getBriefMcpGuide(): string {
 
 Tools enhanced by MCP servers:
 - **websearch**: Web search (Exa AI)
+- **crw**: Web scraping & crawling (Firecrawl alternative)
 - **context7**: Library documentation
 - **grep_app**: GitHub code search
 - **ast_grep**: Fast code analysis (native)
@@ -87,12 +89,14 @@ function getDefaultMcpGuide(): string {
 Available MCP servers for enhanced capabilities:
 
 1. **websearch** - Web search and current information
-2. **context7** - Official library documentation
-3. **grep_app** - GitHub code search
-4. **ast_grep** - AST-based code analysis (fastest)
+2. **crw** - Web scraping & crawling (Firecrawl alternative)
+3. **context7** - Official library documentation
+4. **grep_app** - GitHub code search
+5. **ast_grep** - AST-based code analysis (fastest)
 
 Use the appropriate MCP for your task:
 - Research → websearch, context7
+- Scraping/Crawling → crw
 - Implementation → ast_grep, grep_app
 - Debugging → ast_grep, context7
 `;
@@ -128,6 +132,14 @@ export const MCP_TOOLS: McpTool[] = [
   { name: 'pack_remote_repository', mcp: 'repomix', description: 'Clone and pack a remote GitHub repo', category: 'discovery' },
   { name: 'grep_repomix_output', mcp: 'repomix', description: 'Search patterns in repomix-packed output', category: 'search' },
 
+
+  // CRW (web scraping & crawling)
+  { name: 'crw_scrape', mcp: 'crw', description: 'Scrape single URL to markdown/HTML/links', category: 'search' },
+  { name: 'crw_crawl', mcp: 'crw', description: 'Start async BFS crawl of a website', category: 'discovery' },
+  { name: 'crw_check_crawl_status', mcp: 'crw', description: 'Poll crawl job status and get results', category: 'discovery' },
+  { name: 'crw_map', mcp: 'crw', description: 'Discover all URLs on a website', category: 'discovery' },
+  { name: 'crw_search', mcp: 'crw', description: 'Web search via CRW', category: 'search' },
+  { name: 'crw_parse_file', mcp: 'crw', description: 'Parse local PDF (base64) to markdown', category: 'analysis' },
 
   // ast_grep (Native)
   { name: 'ast_grep_find_code', mcp: 'ast_grep', description: 'Find code with AST patterns', category: 'analysis' },

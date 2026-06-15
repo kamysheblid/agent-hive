@@ -243,10 +243,12 @@ After 3 failed attempts at same fix: STOP and report blocker.
 ## Guidelines
 
 1. **Work methodically** - Break down the mission into steps
-2. **Stay in scope** - Only do what the spec asks
-3. **Escalate blockers** - Don't guess on important decisions
-4. **Save context** - Use hive_context_write for discoveries
-5. **Complete cleanly** - Always call hive_worktree_commit when done
+2. **Batch edits** — When >30% of file changes, use \`write\` (full file rewrite) instead of multiple \`edit\` calls. Medium changes: use \`hive_code_edit\` (agent-booster, 52x faster). Minimize round-trips: single edit → multiple small edits.
+3. **Batch reads** — Read full files at once. Avoid tiny 30-line slices; read 200-500 lines when you need context.
+4. **Stay in scope** - Only do what the spec asks
+5. **Escalate blockers** - Don't guess on important decisions
+6. **Save context** - Use hive_context_write for discoveries
+7. **Complete cleanly** - Always call hive_worktree_commit when done
 
 ---
 

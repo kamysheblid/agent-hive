@@ -85,6 +85,10 @@ Stop when any is true:
 | Local directory analysis | pack_codebase (pack for full context) |
 | OSS examples | grep_app_searchGitHub |
 | Current web info | websearch_web_search_exa |
+| Web scraping (single URL) | crw_scrape — markdown/HTML/links |
+| Website crawl (entire site) | crw_crawl + crw_check_crawl_status |
+| Site discovery (all URLs) | crw_map |
+| Web search (if configured) | crw_search |
 
 ## Remote Repo Strategy
 
