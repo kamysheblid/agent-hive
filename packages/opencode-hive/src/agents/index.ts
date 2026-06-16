@@ -3,40 +3,24 @@
  * 
  * The Hive Colony Model:
  * - Hive (Hybrid): Plans AND orchestrates based on phase
- * - Architect (Planner): Plans features, interviews, writes plans
- * - Swarm (Orchestrator): Delegates, spawns workers, verifies, merges
  * - Scout (Research/Collector): Explores codebase and external docs
  * - Forager (Worker/Coder): Executes tasks in isolation
  * - Hygienic (Consultant/Reviewer): Reviews plan quality
  * 
- * Additional Agents (from opencode-froggy):
- * - Code Reviewer: Reviews code for quality, correctness, security
- * - Code Simplifier: Simplifies code for clarity while preserving behavior
- * 
- * Additional Agents (from micode):
+ * Micode Agents:
  * - Codebase Locator: Finds WHERE files live in codebase
  * - Codebase Analyzer: Explains HOW code works with file:line refs
- * - Pattern Finder: Finds existing patterns to model after
- * - Project Initializer: Generates ARCHITECTURE.md and CODE_STYLE.md
  */
 
 // Bee agents (lean, focused)
 export { zettaBeeAgent, QUEEN_BEE_PROMPT } from './hive';
-export { architectBeeAgent, ARCHITECT_BEE_PROMPT } from './architect';
-export { swarmBeeAgent, SWARM_BEE_PROMPT } from './swarm';
 export { scoutBeeAgent, SCOUT_BEE_PROMPT } from './scout';
 export { foragerBeeAgent, FORAGER_BEE_PROMPT } from './forager';
 export { hygienicBeeAgent, HYGIENIC_BEE_PROMPT } from './hygienic';
 
-// Froggy agents
-export { codeReviewerAgent, CODE_REVIEWER_PROMPT } from './code-reviewer';
-export { codeSimplifierAgent, CODE_SIMPLIFIER_PROMPT } from './code-simplifier';
-
 // Micode agents
 export { codebaseLocatorAgent, CODEBASE_LOCATOR_PROMPT } from './codebase-locator';
 export { codebaseAnalyzerAgent, CODEBASE_ANALYZER_PROMPT } from './codebase-analyzer';
-export { patternFinderAgent, PATTERN_FINDER_PROMPT } from './pattern-finder';
-export { projectInitializerAgent, PROJECT_INITIALIZER_PROMPT } from './project-initializer';
 
 
 /**

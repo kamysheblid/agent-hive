@@ -90,13 +90,13 @@ describe("agentMode gating", () => {
     const opencodeConfig: any = { agent: {} };
     await hooks.config!(opencodeConfig);
 
-    expect(opencodeConfig.agent["zetta"]).toBeUndefined();
-    expect(opencodeConfig.agent["architect-planner"]).toBeDefined();
-    expect(opencodeConfig.agent["swarm-orchestrator"]).toBeDefined();
+    expect(opencodeConfig.agent["zetta"]).toBeDefined();
     expect(opencodeConfig.agent["scout-researcher"]).toBeDefined();
     expect(opencodeConfig.agent["forager-worker"]).toBeDefined();
     expect(opencodeConfig.agent["hygienic-reviewer"]).toBeDefined();
-    expect(opencodeConfig.default_agent).toBe("architect-planner");
+    expect(opencodeConfig.agent["codebase-locator"]).toBeDefined();
+    expect(opencodeConfig.agent["codebase-analyzer"]).toBeDefined();
+    expect(opencodeConfig.default_agent).toBe("zetta");
   });
 
   it("injects custom-subagent appendix into dedicated-mode primary prompts and registers custom agents", async () => {
@@ -136,15 +136,10 @@ describe("agentMode gating", () => {
     expect(opencodeConfig.agent["forager-ui"]).toBeDefined();
     expect(opencodeConfig.agent["reviewer-security"]).toBeDefined();
 
-    const architectPrompt = opencodeConfig.agent["architect-planner"]?.prompt as string;
-    expect(architectPrompt).toContain("## Configured Custom Subagents");
-    expect(architectPrompt).toContain("forager-ui");
-
-    const swarmPrompt = opencodeConfig.agent["swarm-orchestrator"]?.prompt as string;
-    expect(swarmPrompt).toContain("## Configured Custom Subagents");
-    expect(swarmPrompt).toContain("reviewer-security");
-
-    expect(opencodeConfig.agent["zetta"]).toBeUndefined();
+    const zettaPrompt = opencodeConfig.agent["zetta"]?.prompt as string;
+    expect(zettaPrompt).toContain("## Configured Custom Subagents");
+    expect(zettaPrompt).toContain("forager-ui");
+    expect(zettaPrompt).toContain("reviewer-security");
   });
 
   it("demotes built-in agents (build, plan) to subagent mode even when no agent config exists", async () => {

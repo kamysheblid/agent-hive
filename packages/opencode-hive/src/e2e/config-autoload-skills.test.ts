@@ -314,18 +314,18 @@ describe("config hook autoLoadSkills injection", () => {
     const opencodeConfig: any = { agent: {} };
     await hooks.config!(opencodeConfig);
 
-    // architect-planner should have parallel-exploration embedded (full template)
-    const architectPrompt = opencodeConfig.agent["architect-planner"]?.prompt as string;
-    expect(architectPrompt).toBeDefined();
+    // zetta should have parallel-exploration embedded (full template) in dedicated mode
+    const zettaPrompt = opencodeConfig.agent["zetta"]?.prompt as string;
+    expect(zettaPrompt).toBeDefined();
     
     const parallelExplorationSkill = BUILTIN_SKILLS.find(s => s.name === "parallel-exploration");
     expect(parallelExplorationSkill).toBeDefined();
-    expect(architectPrompt).toContain(parallelExplorationSkill!.template);
+    expect(zettaPrompt).toContain(parallelExplorationSkill!.template);
 
-    // swarm-orchestrator should NOT have parallel-exploration (default is empty autoLoadSkills)
-    const swarmPrompt = opencodeConfig.agent["swarm-orchestrator"]?.prompt as string;
-    expect(swarmPrompt).toBeDefined();
-    expect(swarmPrompt).not.toContain(parallelExplorationSkill!.template);
+    // forager-worker should NOT have parallel-exploration (default is empty autoLoadSkills)
+    const foragerPrompt = opencodeConfig.agent["forager-worker"]?.prompt as string;
+    expect(foragerPrompt).toBeDefined();
+    expect(foragerPrompt).not.toContain(parallelExplorationSkill!.template);
   });
 
   it("ensures skills are in prompt, not requiring system.transform input", async () => {

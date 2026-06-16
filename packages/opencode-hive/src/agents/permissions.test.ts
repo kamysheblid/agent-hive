@@ -114,8 +114,7 @@ describe('Agent permissions', () => {
     spyOn(ConfigService.prototype, 'get').mockReturnValue({
       agentMode: 'dedicated',
       agents: {
-        'architect-planner': {},
-        'swarm-orchestrator': {},
+        'zetta': {},
       }
     } as any);
 
@@ -138,22 +137,16 @@ describe('Agent permissions', () => {
     } = {};
     await hooks.config?.(opencodeConfig);
 
-    expect(opencodeConfig.agent?.['zetta']).toBeUndefined();
-    expect(opencodeConfig.agent?.['swarm-orchestrator']).toBeTruthy();
-    expect(opencodeConfig.agent?.['architect-planner']).toBeTruthy();
+    expect(opencodeConfig.agent?.['zetta']).toBeTruthy();
     expect(opencodeConfig.agent?.['scout-researcher']).toBeTruthy();
     expect(opencodeConfig.agent?.['forager-worker']).toBeTruthy();
     expect(opencodeConfig.agent?.['hygienic-reviewer']).toBeTruthy();
-    expect(opencodeConfig.default_agent).toBe('architect-planner');
+    expect(opencodeConfig.agent?.['codebase-locator']).toBeTruthy();
+    expect(opencodeConfig.agent?.['codebase-analyzer']).toBeTruthy();
+    expect(opencodeConfig.default_agent).toBe('zetta');
 
-    const swarmPerm = opencodeConfig.agent?.['swarm-orchestrator']?.permission;
-    const architectPerm = opencodeConfig.agent?.['architect-planner']?.permission;
-
-    expect(swarmPerm).toBeTruthy();
-    expect(architectPerm).toBeTruthy();
-
-    expect(architectPerm!.edit).toBe('deny');
-    expect(architectPerm!.task).toBe('allow');
+    const zettaPerm = opencodeConfig.agent?.['zetta']?.permission;
+    expect(zettaPerm).toBeTruthy();
   });
 
   it('explicitly denies delegation tools for subagents', async () => {
@@ -306,28 +299,6 @@ describe('Per-agent tool filtering', () => {
     expect(hygienicTools).toEqual(scoutTools);
   });
 
-  it('architect has planning tools but no worktree tools', async () => {
-    const agents = await buildConfig('dedicated');
-    const architectTools = agents['architect-planner']?.tools;
-    expect(architectTools).toBeTruthy();
-    expect(architectTools!['hive_plan_write']).toBeUndefined();
-    expect(architectTools!['hive_worktree_create']).toBe(false);
-    expect(architectTools!['hive_worktree_start']).toBe(false);
-    expect(architectTools!['hive_worktree_commit']).toBe(false);
-    expect(architectTools!['hive_merge']).toBe(false);
-  });
-
-  it('swarm has orchestration tools but no plan_write or worktree_commit', async () => {
-    const agents = await buildConfig('dedicated');
-    const swarmTools = agents['swarm-orchestrator']?.tools;
-    expect(swarmTools).toBeTruthy();
-    expect(swarmTools!['hive_worktree_create']).toBeUndefined();
-    expect(swarmTools!['hive_worktree_start']).toBeUndefined();
-    expect(swarmTools!['hive_plan_write']).toBe(false);
-    expect(swarmTools!['hive_worktree_commit']).toBe(false);
-    expect(swarmTools!['hive_plan_approve']).toBeUndefined();
-  });
-
   it('zetta has no tools filter (all tools allowed)', async () => {
     const agents = await buildConfig('unified');
     const zettaTools = agents['zetta']?.tools;
@@ -357,39 +328,16 @@ describe('Per-agent tool filtering', () => {
     expect(tools!['hive_merge']).toBe(false);
   });
 
-  it('pattern-finder has read-only hive tools (hive_plan_read, hive_skill)', async () => {
-    const agents = await buildConfig('unified');
-    const tools = agents['pattern-finder']?.tools;
-    expect(tools).toBeTruthy();
-    expect(tools!['hive_plan_read']).toBeUndefined();
-    expect(tools!['hive_skill']).toBeUndefined();
-    expect(tools!['hive_worktree_commit']).toBe(false);
-    expect(tools!['hive_merge']).toBe(false);
-  });
-
-  it('project-initializer has read + task hive tools (hive_task_create, hive_worktree_start)', async () => {
-    const agents = await buildConfig('unified');
-    const tools = agents['project-initializer']?.tools;
-    expect(tools).toBeTruthy();
-    expect(tools!['hive_plan_read']).toBeUndefined();
-    expect(tools!['hive_context_write']).toBeUndefined();
-    expect(tools!['hive_skill']).toBeUndefined();
-    expect(tools!['hive_task_create']).toBeUndefined();
-    expect(tools!['hive_worktree_start']).toBeUndefined();
-    expect(tools!['hive_merge']).toBe(false);
-    expect(tools!['hive_worktree_commit']).toBe(false);
-  });
-
-  it('micode agents are registered in both unified and dedicated modes', async () => {
-    const micodeAgentNames = ['codebase-locator', 'codebase-analyzer', 'pattern-finder', 'project-initializer'];
+  it('6 core agents are registered in both unified and dedicated modes', async () => {
+    const coreAgents = ['zetta', 'codebase-locator', 'codebase-analyzer', 'scout-researcher', 'forager-worker', 'hygienic-reviewer'];
     
     const unifiedAgents = await buildConfig('unified');
-    for (const name of micodeAgentNames) {
+    for (const name of coreAgents) {
       expect(unifiedAgents[name]).toBeTruthy();
     }
 
     const dedicatedAgents = await buildConfig('dedicated');
-    for (const name of micodeAgentNames) {
+    for (const name of coreAgents) {
       expect(dedicatedAgents[name]).toBeTruthy();
     }
   });

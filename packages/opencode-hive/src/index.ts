@@ -64,19 +64,12 @@ import { exploreDirectoryTool } from './tools/explore-directory-tool.js';
 
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
-import { ARCHITECT_BEE_PROMPT } from './agents/architect.js';
-import { SWARM_BEE_PROMPT } from './agents/swarm.js';
 import { SCOUT_BEE_PROMPT } from './agents/scout.js';
 import { FORAGER_BEE_PROMPT } from './agents/forager.js';
 import { HYGIENIC_BEE_PROMPT } from './agents/hygienic.js';
-// Froggy agents
-import { CODE_REVIEWER_PROMPT } from './agents/code-reviewer.js';
-import { CODE_SIMPLIFIER_PROMPT } from './agents/code-simplifier.js';
 // Micode agents
 import { CODEBASE_LOCATOR_PROMPT } from './agents/codebase-locator.js';
 import { CODEBASE_ANALYZER_PROMPT } from './agents/codebase-analyzer.js';
-import { PATTERN_FINDER_PROMPT } from './agents/pattern-finder.js';
-import { PROJECT_INITIALIZER_PROMPT } from './agents/project-initializer.js';
 import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
 import { crwMcp } from './mcp/crw.js';
@@ -2364,7 +2357,7 @@ Expand your Discovery section and try again.`;
         variant: zettaUserConfig.variant,
         temperature: zettaUserConfig.temperature ?? 0.5,
         description: 'Zetta (Hybrid) - Plans + orchestrates. Detects phase, loads skills on-demand.',
-        prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + (agentMode === 'unified' ? customSubagentAppendix : ''),
+        prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + (agentMode !== 'separate' ? customSubagentAppendix : ''),
         permission: {
           read: "allow",
           write: "allow",
@@ -2380,54 +2373,7 @@ Expand your Discovery section and try again.`;
           bash: "allow",
           external_directory: "allow",
         },
-      };
-
-      const architectUserConfig = configService.getAgentConfig('architect-planner');
-      const architectAutoLoadedSkills = await buildAutoLoadedSkillsContent('architect-planner', configService, directory);
-      const architectConfig = {
-        model: architectUserConfig.model,
-        variant: architectUserConfig.variant,
-        temperature: architectUserConfig.temperature ?? 0.7,
-        description: 'Architect (Planner) - Plans features, interviews, writes plans. NEVER executes.',
-        prompt: ARCHITECT_BEE_PROMPT + architectAutoLoadedSkills + (agentMode === 'dedicated' ? customSubagentAppendix : ''),
-        tools: agentTools(['hive_feature_create', 'hive_plan_write', 'hive_plan_read', 'hive_context_write', 'hive_status', 'hive_skill']),
-        permission: {
-          read: "allow",
-          edit: "deny",  // Planners don't edit code
-          task: "allow",
-          question: "allow",
-          skill: "allow",
-          todowrite: "allow",
-          todoread: "allow",
-          webfetch: "allow",
-          external_directory: "allow",
-        },
-      };
-
-      const swarmUserConfig = configService.getAgentConfig('swarm-orchestrator');
-      const swarmAutoLoadedSkills = await buildAutoLoadedSkillsContent('swarm-orchestrator', configService, directory);
-      const swarmConfig = {
-        model: swarmUserConfig.model,
-        variant: swarmUserConfig.variant,
-        temperature: swarmUserConfig.temperature ?? 0.5,
-        description: 'Swarm (Orchestrator) - Orchestrates execution. Delegates, spawns workers, verifies, merges.',
-        prompt: SWARM_BEE_PROMPT + swarmAutoLoadedSkills + (agentMode === 'dedicated' ? customSubagentAppendix : ''),
-        tools: agentTools([
-          'hive_feature_create', 'hive_feature_complete', 'hive_plan_read', 'hive_plan_approve',
-          'hive_tasks_sync', 'hive_task_create', 'hive_task_update',
-          'hive_worktree_start', 'hive_worktree_create', 'hive_worktree_discard', 'hive_merge',
-          'hive_context_write', 'hive_status', 'hive_skill', 'hive_agents_md',
-        ]),
-        permission: {
-          read: "allow",
-          write: "allow",
-          question: "allow",
-          skill: "allow",
-          todowrite: "allow",
-          todoread: "allow",
-          external_directory: "allow",
-        },
-      };
+            };
 
       const scoutUserConfig = configService.getAgentConfig('scout-researcher');
       const scoutAutoLoadedSkills = await buildAutoLoadedSkillsContent('scout-researcher', configService, directory);
@@ -2527,90 +2473,14 @@ Expand your Discovery section and try again.`;
         },
       };
 
-      const patternFinderConfig = {
-        model: micodeUserConfig.model,
-        variant: micodeUserConfig.variant,
-        temperature: micodeUserConfig.temperature ?? 0.3,
-        mode: 'subagent' as const,
-        description: 'Pattern Finder - Finds patterns to model after. Extracts conventions.',
-        prompt: PATTERN_FINDER_PROMPT,
-        tools: agentTools(['hive_plan_read', 'hive_skill']),
-        permission: {
-          read: "allow",
-          edit: "deny",
-          task: "deny",
-          delegate: "deny",
-          skill: "allow",
-        },
-      };
-
-      const projectInitializerConfig = {
-        model: micodeUserConfig.model,
-        variant: micodeUserConfig.variant,
-        temperature: micodeUserConfig.temperature ?? 0.5,
-        mode: 'subagent' as const,
-        description: 'Project Initializer - Generates project documentation from codebase analysis.',
-        prompt: PROJECT_INITIALIZER_PROMPT,
-        tools: agentTools(['hive_plan_read', 'hive_context_write', 'hive_skill', 'hive_task_create', 'hive_worktree_start']),
-        permission: {
-          read: "allow",
-          edit: "deny",
-          task: "deny",
-          delegate: "deny",
-          skill: "allow",
-        },
-      };
-
-      // Code Reviewer and Code Simplifier (from froggy agents)
-      const froggyUserConfig = configService.getAgentConfig('code-reviewer');
-      const codeReviewerConfig = {
-        model: froggyUserConfig.model,
-        variant: froggyUserConfig.variant,
-        temperature: froggyUserConfig.temperature ?? 0.3,
-        mode: 'subagent' as const,
-        description: 'Code Reviewer - Reviews code for quality, correctness, security, and maintainability.',
-        prompt: CODE_REVIEWER_PROMPT,
-        tools: agentTools(['hive_plan_read', 'hive_skill']),
-        permission: {
-          read: "allow",
-          edit: "deny",
-          task: "deny",
-          delegate: "deny",
-          skill: "allow",
-        },
-      };
-
-      const codeSimplifierConfig = {
-        model: froggyUserConfig.model,
-        variant: froggyUserConfig.variant,
-        temperature: froggyUserConfig.temperature ?? 0.3,
-        mode: 'subagent' as const,
-        description: 'Code Simplifier - Simplifies recently modified code for clarity while preserving behavior.',
-        prompt: CODE_SIMPLIFIER_PROMPT,
-        tools: agentTools(['hive_plan_read', 'hive_skill']),
-        permission: {
-          read: "allow",
-          write: "allow",
-          edit: "allow",
-          task: "deny",
-          delegate: "deny",
-          skill: "allow",
-        },
-      };
-
+      // Built-in agent configs
       const builtInAgentConfigs = {
         'zetta': zettaConfig,
-        'architect-planner': architectConfig,
-        'swarm-orchestrator': swarmConfig,
         'scout-researcher': scoutConfig,
         'forager-worker': foragerConfig,
         'hygienic-reviewer': hygienicConfig,
-        'code-reviewer': codeReviewerConfig,
-        'code-simplifier': codeSimplifierConfig,
         'codebase-locator': codebaseLocatorConfig,
         'codebase-analyzer': codebaseAnalyzerConfig,
-        'pattern-finder': patternFinderConfig,
-        'project-initializer': projectInitializerConfig,
       };
 
       // Remove undefined/empty model fields from all agent configs
@@ -2657,28 +2527,15 @@ Expand your Discovery section and try again.`;
         allAgents['scout-researcher'] = builtInAgentConfigs['scout-researcher'];
         allAgents['forager-worker'] = builtInAgentConfigs['forager-worker'];
         allAgents['hygienic-reviewer'] = builtInAgentConfigs['hygienic-reviewer'];
-        // Micode agents (available in both modes)
         allAgents['codebase-locator'] = builtInAgentConfigs['codebase-locator'];
         allAgents['codebase-analyzer'] = builtInAgentConfigs['codebase-analyzer'];
-        allAgents['pattern-finder'] = builtInAgentConfigs['pattern-finder'];
-        allAgents['project-initializer'] = builtInAgentConfigs['project-initializer'];
-        // Froggy agents
-        allAgents['code-reviewer'] = builtInAgentConfigs['code-reviewer'];
-        allAgents['code-simplifier'] = builtInAgentConfigs['code-simplifier'];
       } else {
-        allAgents['architect-planner'] = builtInAgentConfigs['architect-planner'];
-        allAgents['swarm-orchestrator'] = builtInAgentConfigs['swarm-orchestrator'];
+        allAgents['zetta'] = builtInAgentConfigs['zetta'];
         allAgents['scout-researcher'] = builtInAgentConfigs['scout-researcher'];
         allAgents['forager-worker'] = builtInAgentConfigs['forager-worker'];
         allAgents['hygienic-reviewer'] = builtInAgentConfigs['hygienic-reviewer'];
-        // Micode agents
         allAgents['codebase-locator'] = builtInAgentConfigs['codebase-locator'];
         allAgents['codebase-analyzer'] = builtInAgentConfigs['codebase-analyzer'];
-        allAgents['pattern-finder'] = builtInAgentConfigs['pattern-finder'];
-        allAgents['project-initializer'] = builtInAgentConfigs['project-initializer'];
-        // Froggy agents
-        allAgents['code-reviewer'] = builtInAgentConfigs['code-reviewer'];
-        allAgents['code-simplifier'] = builtInAgentConfigs['code-simplifier'];
       }
 
       Object.assign(allAgents, customSubagents);
@@ -2692,7 +2549,7 @@ Expand your Discovery section and try again.`;
       }
 
       // Determine the primary agent
-      const primaryAgent = agentMode === 'unified' ? 'zetta' : 'architect-planner';
+      const primaryAgent = 'zetta';
 
       // Ensure all our agents are properly configured with mode
       // Primary agent gets no mode (default), subagents get mode: 'subagent'
