@@ -2357,7 +2357,7 @@ Expand your Discovery section and try again.`;
         variant: zettaUserConfig.variant,
         temperature: zettaUserConfig.temperature ?? 0.5,
         description: 'Zetta (Hybrid) - Plans + orchestrates. Detects phase, loads skills on-demand.',
-        prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + (agentMode !== 'separate' ? customSubagentAppendix : ''),
+        prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + customSubagentAppendix,
         permission: {
           read: "allow",
           write: "allow",
