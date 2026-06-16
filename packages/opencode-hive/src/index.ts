@@ -311,8 +311,8 @@ const plugin: Plugin = async (ctx) => {
   }
   const builtinMcps = createBuiltinMcps(disabledMcps);
 
-  // CRW MCP: conditional — only activate when CRW backend is configured
-  if (process.env.CRW_API_URL && process.env.CRW_API_KEY) {
+  // CRW MCP: conditional — only activate when CRW backend URL is configured
+  if (process.env.CRW_API_URL) {
     builtinMcps['crw'] = crwMcp;
   }
 
@@ -2699,6 +2699,28 @@ Expand your Discovery section and try again.`;
       for (const [agentName, agentConfig] of Object.entries(allAgents)) {
         if (agentName !== primaryAgent && agentConfig && typeof agentConfig === 'object') {
           (agentConfig as Record<string, unknown>).mode = 'subagent';
+        }
+      }
+
+      // Inject MCP strategy into every agent prompt
+      const mcpStrategy = `
+
+## Available MCPs
+| MCP | Tools | Use for |
+|-----|-------|---------|
+| websearch | websearch_web_search_exa | Current web info |
+| context7 | context7_query-docs, context7_resolve-library-id | Library docs |
+| grep_app | grep_app_searchGitHub | GitHub code patterns |
+| repomix | pack_codebase, pack_remote_repository | Repo packing |
+| crw (if CRW_API_URL set) | crw_scrape, crw_crawl, crw_map, crw_search | Web scraping & crawling |
+| ast_grep | ast_grep_find_code, ast_grep_rewrite_code | AST code analysis |
+Use these tools when the task matches their purpose. They are available as regular tools.`;
+      for (const agentConfig of Object.values(allAgents)) {
+        if (agentConfig && typeof agentConfig === 'object') {
+          const prompt = (agentConfig as Record<string, unknown>).prompt;
+          if (typeof prompt === 'string' && !prompt.includes('## Available MCPs')) {
+            (agentConfig as Record<string, unknown>).prompt = prompt + mcpStrategy;
+          }
         }
       }
 

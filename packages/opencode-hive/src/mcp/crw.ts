@@ -1,11 +1,9 @@
 import type { LocalMcpConfig } from './types';
 
 /**
- * CRW MCP — web scraping & crawling, no backend needed (embedded mode)
+ * CRW MCP — web scraping & crawling via CRW backend
  *
- * Modes:
- * - Embedded (default): self-contained, zero setup, no env vars needed
- * - Proxy: forward to remote CRW server via CRW_API_URL + CRW_API_KEY
+ * Requires CRW_API_URL env var. CRW_API_KEY is optional.
  *
  * Tools:
  * - crw_scrape: Scrape URL → markdown/HTML/links
