@@ -89,6 +89,9 @@ Stop when any is true:
 | Website crawl (entire site) | crw_crawl + crw_check_crawl_status |
 | Site discovery (all URLs) | crw_map |
 | Web search (if configured) | crw_search |
+| DuckDuckGo search | ddg_search — web, news, images, videos |
+| AI answer (free) | ddg_get_answer — with sources |
+| URL content fetch | ddg_fetch_content — markdown |
 
 ## Remote Repo Strategy
 

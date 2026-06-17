@@ -56,6 +56,7 @@ Use MCPs strategically based on task:
 | Library docs | \`context7\` |
 | Web info | \`websearch\` |
 | Web scraping | \`crw_scrape\` / \`crw_crawl\` |
+| DuckDuckGo search | \`ddg_search\` / \`ddg_get_answer\` |
 
 **Tips:**
 - ast_grep is fastest (local, 52x faster than regex)
@@ -73,6 +74,7 @@ function getBriefMcpGuide(): string {
 Tools enhanced by MCP servers:
 - **websearch**: Web search (Exa AI)
 - **crw**: Web scraping & crawling (Firecrawl alternative)
+- **ddg**: DuckDuckGo search (free, no API key)
 - **context7**: Library documentation
 - **grep_app**: GitHub code search
 - **ast_grep**: Fast code analysis (native)
@@ -96,7 +98,7 @@ Available MCP servers for enhanced capabilities:
 
 Use the appropriate MCP for your task:
 - Research → websearch, context7
-- Scraping/Crawling → crw
+- Scraping/Crawling → crw, ddg (fetch)
 - Implementation → ast_grep, grep_app
 - Debugging → ast_grep, context7
 `;
@@ -140,6 +142,17 @@ export const MCP_TOOLS: McpTool[] = [
   { name: 'crw_map', mcp: 'crw', description: 'Discover all URLs on a website', category: 'discovery' },
   { name: 'crw_search', mcp: 'crw', description: 'Web search via CRW', category: 'search' },
   { name: 'crw_parse_file', mcp: 'crw', description: 'Parse local PDF (base64) to markdown', category: 'analysis' },
+
+  // DDG (DuckDuckGo search)
+  { name: 'ddg_get_answer', mcp: 'ddg', description: 'AI-powered answer with sources', category: 'search' },
+  { name: 'ddg_search', mcp: 'ddg', description: 'Web search', category: 'search' },
+  { name: 'ddg_search_news', mcp: 'ddg', description: 'News search', category: 'search' },
+  { name: 'ddg_search_images', mcp: 'ddg', description: 'Image search', category: 'search' },
+  { name: 'ddg_search_videos', mcp: 'ddg', description: 'Video search', category: 'search' },
+  { name: 'ddg_fetch_content', mcp: 'ddg', description: 'Fetch URL to markdown', category: 'search' },
+  { name: 'ddg_get_suggestions', mcp: 'ddg', description: 'Search suggestions', category: 'search' },
+  { name: 'ddg_get_definition', mcp: 'ddg', description: 'Dictionary definition', category: 'docs' },
+  { name: 'ddg_convert_currency', mcp: 'ddg', description: 'Currency conversion', category: 'analysis' },
 
   // ast_grep (Native)
   { name: 'ast_grep_find_code', mcp: 'ast_grep', description: 'Find code with AST patterns', category: 'analysis' },

@@ -2570,6 +2570,7 @@ Expand your Discovery section and try again.`;
 | grep_app | grep_app_searchGitHub | GitHub code patterns |
 | repomix | pack_codebase, pack_remote_repository | Repo packing |
 | crw (if CRW_API_URL set) | crw_scrape, crw_crawl, crw_map, crw_search | Web scraping & crawling |
+| ddg | ddg_search, ddg_get_answer, ddg_fetch_content | DuckDuckGo search (free) |
 | ast_grep | ast_grep_find_code, ast_grep_rewrite_code | AST code analysis |
 Use these tools when the task matches their purpose. They are available as regular tools.`;
       for (const agentConfig of Object.values(allAgents)) {

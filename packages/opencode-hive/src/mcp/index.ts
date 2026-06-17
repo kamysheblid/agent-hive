@@ -3,6 +3,7 @@ import { websearchMcp } from './websearch';
 import { context7Mcp } from './context7';
 import { grepAppMcp } from './grep-app';
 import { repomixMcp } from './repomix';
+import { ddgMcp } from './ddg';
 
 /**
  * Built-in MCP configurations
@@ -22,6 +23,7 @@ const allBuiltinMcps: Record<string, McpConfig> = {
   grep_app: grepAppMcp,
   // Local MCPs
   repomix: repomixMcp,
+  ddg: ddgMcp,
 };
 
 // Lazy initialization - MCPs are only resolved when first accessed

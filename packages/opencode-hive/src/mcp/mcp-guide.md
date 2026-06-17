@@ -14,6 +14,7 @@ MCP (Model Context Protocol) servers extend agent capabilities with specialized 
 | **repomix** | Repo packing for AI analysis | Medium | Free (npx) |
 | **crw** | Web scraping & crawling (Firecrawl alternative) | Medium | Free (npx) |
 | **ast_grep** | AST code analysis | Very Fast | Free (Native) |
+| **ddg** | DuckDuckGo search (free, no API key) | Medium | Free (npx) |
 
 ---
 
@@ -170,6 +171,56 @@ Library: react
 "crawl https://docs.example.com and find all API endpoints"
 "map all URLs on opencode.ai"
 "search for 'MCP servers' with crw"
+```
+
+---
+
+### 4.5. ddg (Local — npx, Free)
+
+**Purpose**: DuckDuckGo search — AI answers, web search, news, images, videos, content fetch.  
+**No API key needed.** Free alternative to Exa AI.
+
+**Tools Available**:
+- `ddg_get_answer` — AI answer with sources (like Exa Answer API)
+- `ddg_search` — Web search (organic results)
+- `ddg_search_news` — News search
+- `ddg_search_images` — Image search
+- `ddg_search_videos` — Video search
+- `ddg_fetch_content` — URL content extraction (markdown)
+- `ddg_get_suggestions` — Search suggestions
+- `ddg_get_definition` — Dictionary definition
+- `ddg_convert_currency` — Currency conversion
+
+**Best Use Cases**:
+- Quick AI answers without API key
+- News/image/video search (not available in Exa)
+- Content fetching (complement to CRW)
+- Free fallback when Exa is rate-limited
+
+**Configuration**:
+```json
+{
+  "mcp": {
+    "ddg": {
+      "command": ["npx", "-y", "ddg-search-mcp"]
+    }
+  }
+}
+```
+
+**Setup**: Zero setup. Just run.
+
+**Tips**:
+- Complements websearch (Exa) — use ddg for news/images/videos, Exa for semantic search
+- Use `ddg_get_answer` for factual Q&A with sources
+- `ddg_fetch_content` + `crw_scrape` = dual fetch strategy
+
+**Example Queries**:
+```
+"search for MCP protocol news"
+"get AI answer: what is the Model Context Protocol"
+"fetch https://example.com/docs to markdown"
+"search images of space"
 ```
 
 ---
