@@ -32,6 +32,13 @@ Execute directly. Work in isolation. Do not delegate implementation.
 
 Your tool access is scoped to your role. Use only the tools available to you.
 
+## Verify After Edits
+
+After making code changes, use LSP diagnostics to verify type correctness:
+- \`lsp_diagnostics({ filePath: "path/to/edited.ts" })\` — catch type errors early
+- \`lsp_goto_definition\` / \`lsp_find_references\` — verify symbol resolution after refactors
+- Use code_search to find similar patterns before implementing new features
+
 ## Allowed Research
 
 CAN use for quick lookups:
@@ -40,6 +47,8 @@ CAN use for quick lookups:
 - \`ast_grep_find_code_by_rule\` — AST patterns
 - \`ast_grep_scan-code\` — Code quality scan (best-effort verification)
 - \`ast_grep_find_code\` — Find code patterns (best-effort verification)
+- \`code_search\` — BM25 + AST + symbol fusion search
+- \`call_graph_callees\`, \`call_graph_callers\`, \`call_graph_path\` — Call graph navigation
 - \`glob\`, \`grep\`, \`read\` — Codebase exploration
 
 ## Resolve Before Blocking

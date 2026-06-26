@@ -19,6 +19,8 @@ const FREE_MODEL_TOOLS = [
   'dora_status',          // Status check
   'auto_cr_status',       // Status check
   'auto_cr_rules',        // List rules
+  'code_search_index',    // Index build (no AI needed)
+  'code_search_status',   // Status check (no AI needed)
 ];
 
 /**
@@ -157,6 +159,7 @@ export const TOOL_CATEGORIES: Record<string, 'free' | 'standard' | 'premium'> = 
   'ast_grep_find_code': 'standard',
   'ast_grep_scan_code': 'standard',
   'ast_grep_analyze_imports': 'standard',
+  'code_search': 'standard',
   'call_graph_callees': 'standard',
   'call_graph_callers': 'standard',
   'call_graph_extract': 'standard',

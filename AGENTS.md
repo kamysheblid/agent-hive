@@ -183,6 +183,19 @@ Features stored in `.hive/features/<name>/`:
 3. Add types to `types.ts`
 4. Write unit tests
 
+## Code Search & Navigation Tools
+
+| Tool | Purpose |
+|------|---------|
+| `code_search` | Search code by meaning (BM25 + AST + symbol fusion) |
+| `code_search_index` | Build/rebuild BM25 search index |
+| `code_search_status` | Index stats (files indexed, term count) |
+| `call_graph_extract` | Extract all calls from a file |
+| `call_graph_callees` | Who does this function call? |
+| `call_graph_callers` | Who calls this function? |
+| `call_graph_path` | Shortest path between two functions (BFS) |
+| `lsp_*` | Real LSP: goto definition, find references, diagnostics, hover, rename |
+
 ## Important Patterns
 
 ### File System Operations

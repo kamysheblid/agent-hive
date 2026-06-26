@@ -74,6 +74,8 @@ Stop when any is true:
 
 | Need | Tool |
 |------|------|
+| Code meaning (BM25 + AST + symbol) | code_search |
+| Call graph (who calls/callees) | call_graph_callees, call_graph_callers, call_graph_path |
 | Type/Symbol info | LSP (goto_definition, find_references) |
 | Structural patterns | ast_grep_find_code |
 | Text patterns | grep |
