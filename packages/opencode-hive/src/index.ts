@@ -62,6 +62,9 @@ import {
 // Directory Explorer Tool
 import { exploreDirectoryTool } from './tools/explore-directory-tool.js';
 
+// Code Search Tools (BM25 + AST + Symbol fusion)
+import { codeSearchTool, codeSearchIndexTool, codeSearchStatusTool } from './tools/code-search.js';
+
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { SCOUT_BEE_PROMPT } from './agents/scout.js';
@@ -1545,6 +1548,11 @@ ${snapshot}
 
       // Directory Explorer Tool
       explore_directory: exploreDirectoryTool,
+
+      // Code Search Tools (BM25 + AST + Symbol fusion)
+      code_search: codeSearchTool,
+      code_search_index: codeSearchIndexTool,
+      code_search_status: codeSearchStatusTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 
