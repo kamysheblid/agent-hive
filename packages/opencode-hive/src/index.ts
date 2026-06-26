@@ -74,6 +74,14 @@ import {
 // Code Search Tools (BM25 + AST + Symbol fusion)
 import { codeSearchTool, codeSearchIndexTool, codeSearchStatusTool } from './tools/code-search.js';
 
+// Call Graph Tools (tree-sitter based call extraction)
+import {
+  callGraphCalleesTool,
+  callGraphCallersTool,
+  callGraphPathTool,
+  callGraphExtractTool,
+} from './tools/call-graph.js';
+
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { SCOUT_BEE_PROMPT } from './agents/scout.js';
@@ -1563,6 +1571,12 @@ ${snapshot}
       code_search: codeSearchTool,
       code_search_index: codeSearchIndexTool,
       code_search_status: codeSearchStatusTool,
+
+      // Call Graph Tools (tree-sitter based call extraction)
+      call_graph_callees: callGraphCalleesTool,
+      call_graph_callers: callGraphCallersTool,
+      call_graph_path: callGraphPathTool,
+      call_graph_extract: callGraphExtractTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 
