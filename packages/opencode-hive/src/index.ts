@@ -71,6 +71,9 @@ import {
   astGrepAnalyzeImportsTool,
 } from './tools/ast-grep.js';
 
+// Code Search Tools (BM25 + AST + Symbol fusion)
+import { codeSearchTool, codeSearchIndexTool, codeSearchStatusTool } from './tools/code-search.js';
+
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { SCOUT_BEE_PROMPT } from './agents/scout.js';
@@ -1555,6 +1558,11 @@ ${snapshot}
       ast_grep_dump_syntax_tree: astGrepDumpSyntaxTreeTool,
       ast_grep_scan_code: astGrepScanCodeTool,
       ast_grep_analyze_imports: astGrepAnalyzeImportsTool,
+
+      // Code Search Tools (BM25 + AST + Symbol fusion)
+      code_search: codeSearchTool,
+      code_search_index: codeSearchIndexTool,
+      code_search_status: codeSearchStatusTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 
