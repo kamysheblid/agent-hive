@@ -2,7 +2,7 @@
  * LSP Auto-Diagnostics Hook
  *
  * Tracks files modified by Write/Edit tools and automatically runs
- * TypeScript diagnostics on them, injecting results into the system prompt.
+ * TypeScript/Python diagnostics on them, injecting results into the system prompt.
  *
  * Pattern inspired by oh-my-openagent's omo-lsp PostToolUse hook,
  * adapted for agent-hive's plugin architecture.
@@ -175,6 +175,95 @@ function formatDiagnosticsBlock(lines: string[]): string {
     '',
     '───────────────────────────────────────────────────',
     '  🛠  TypeScript LSP Diagnostics (recently edited)',
+    '───────────────────────────────────────────────────',
+    ...shown.map((l) => `  ${l}`),
+    tail,
+    '───────────────────────────────────────────────────',
+    '',
+  ].join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// Python diagnostics runner
+// ---------------------------------------------------------------------------
+
+/** File extensions we can run Python diagnostics on. */
+const PY_EXTENSIONS = new Set(['.py', '.pyw', '.pyi']);
+
+interface PyrightDiagnostic {
+  file: string;
+  range: { start: { line: number } };
+  message: string;
+  severity: string;
+}
+
+interface PyrightOutput {
+  diagnostics: PyrightDiagnostic[];
+}
+
+/**
+ * Run pyright diagnostics on tracked Python files.
+ *
+ * Returns a formatted diagnostics block, or `null` if everything is clean
+ * or pyright is not available.
+ */
+export function runPythonDiagnostics(
+  state: LspDiagnosticsState,
+  projectDir: string,
+): string | null {
+  if (state.modifiedFiles.size === 0) return null;
+
+  // Filter to Python files
+  const pyFiles = [...state.modifiedFiles].filter((f) =>
+    PY_EXTENSIONS.has(path.extname(f)),
+  );
+  if (pyFiles.length === 0) return null;
+
+  try {
+    const pyrightOutput = execSync(
+      `pyright --outputjson ${pyFiles.join(' ')}`,
+      {
+        cwd: projectDir,
+        timeout: 30_000,
+        encoding: 'utf-8',
+        maxBuffer: 10 * 1024 * 1024,
+      },
+    ).toString();
+
+    const output: PyrightOutput = JSON.parse(pyrightOutput);
+
+    // Filter to errors only (more actionable for system prompt)
+    const errors = output.diagnostics.filter(d => d.severity === 'error');
+
+    if (errors.length === 0) return null;
+
+    const lines = errors.map(d =>
+      `${d.file}:${d.range.start.line + 1}: error: ${d.message}`
+    );
+
+    return formatPythonDiagnosticsBlock(lines);
+  } catch {
+    // pyright not installed or crashed — skip silently
+    return null;
+  } finally {
+    // Clear tracked files after checking
+    state.modifiedFiles.clear();
+  }
+}
+
+/**
+ * Format Python diagnostics lines into a compact block for system-prompt injection.
+ */
+function formatPythonDiagnosticsBlock(lines: string[]): string {
+  const shown = lines.slice(0, 50);
+  const tail = lines.length > 50
+    ? `\n  ... and ${lines.length - 50} more diagnostics`
+    : '';
+
+  return [
+    '',
+    '───────────────────────────────────────────────────',
+    '  🐍 Python LSP Diagnostics (recently edited)',
     '───────────────────────────────────────────────────',
     ...shown.map((l) => `  ${l}`),
     tail,

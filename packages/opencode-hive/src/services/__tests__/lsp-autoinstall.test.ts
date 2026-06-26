@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'bun:test';
+import * as os from 'os';
+import * as path from 'path';
 
 // Mock child_process before importing the module under test
 const mockExecSync = vi.fn();
@@ -6,7 +8,7 @@ vi.mock('child_process', () => ({
   execSync: mockExecSync,
 }));
 
-import { ensureLspServers } from '../lsp-autoinstall.js';
+import { ensureLspServers, getLspInstallDir, prependLspToPath } from '../lsp-autoinstall.js';
 
 describe('ensureLspServers', () => {
   beforeEach(() => {
@@ -85,5 +87,41 @@ describe('ensureLspServers', () => {
 
     expect(results).toHaveLength(4);
     expect(results.every(r => r.installed === false)).toBe(true);
+  });
+});
+
+describe('LSP local install path', () => {
+  it('getLspInstallDir returns ~/.config/opencode/hive/lsp', () => {
+    const installDir = getLspInstallDir();
+    const expected = path.join(os.homedir(), '.config', 'opencode', 'hive', 'lsp');
+    expect(installDir).toBe(expected);
+  });
+
+  it('TypeScript uses local prefix install (not global -g)', async () => {
+    mockExecSync.mockImplementation(() => { throw new Error('not found'); });
+
+    await ensureLspServers();
+
+    // Find the TypeScript install command (contains 'npm install')
+    const installCalls = mockExecSync.mock.calls
+      .filter((call: any[]) => typeof call[0] === 'string' && call[0].includes('npm install'));
+    
+    expect(installCalls.length).toBeGreaterThan(0);
+    
+    // Should use --prefix (local install) instead of -g (global)
+    const installCmd = installCalls[0][0] as string;
+    expect(installCmd).toContain('--prefix');
+    expect(installCmd).not.toContain('-g');
+  });
+
+  it('prependLspToPath adds local bin to PATH', () => {
+    const originalPath = process.env.PATH;
+    try {
+      prependLspToPath();
+      const installDir = getLspInstallDir();
+      expect(process.env.PATH).toContain(path.join(installDir, 'bin'));
+    } finally {
+      process.env.PATH = originalPath;
+    }
   });
 });
