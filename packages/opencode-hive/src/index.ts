@@ -62,6 +62,15 @@ import {
 // Directory Explorer Tool
 import { exploreDirectoryTool } from './tools/explore-directory-tool.js';
 
+// ast-grep Native Tools (AST-based code analysis)
+import {
+  astGrepFindCodeTool,
+  astGrepRewriteCodeTool,
+  astGrepDumpSyntaxTreeTool,
+  astGrepScanCodeTool,
+  astGrepAnalyzeImportsTool,
+} from './tools/ast-grep.js';
+
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { SCOUT_BEE_PROMPT } from './agents/scout.js';
@@ -72,7 +81,6 @@ import { CODEBASE_LOCATOR_PROMPT } from './agents/codebase-locator.js';
 import { CODEBASE_ANALYZER_PROMPT } from './agents/codebase-analyzer.js';
 import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
-import { crwMcp } from './mcp/crw.js';
 import { ensureSnipInstalled, isSnipOnPath } from './utils/snip-installer.js';
 import { ensureToolsInstalled, getHiveBinPath } from './utils/tool-installer.js';
 // $ns Mode & Session Continuation hooks
@@ -303,11 +311,6 @@ const plugin: Plugin = async (ctx) => {
     setBlockMemoryFilterConfig(memoryFilterConfig);
   }
   const builtinMcps = createBuiltinMcps(disabledMcps);
-
-  // CRW MCP: conditional — only activate when CRW backend URL is configured
-  if (process.env.CRW_API_URL) {
-    builtinMcps['crw'] = crwMcp;
-  }
 
   // User profile service: lazily initialized when enabled
   let userProfileService: UserProfileService | null = null;
@@ -1546,6 +1549,13 @@ ${snapshot}
       // Directory Explorer Tool
       explore_directory: exploreDirectoryTool,
 
+      // ast-grep Native Tools (AST-based code analysis & refactoring)
+      ast_grep_find_code: astGrepFindCodeTool,
+      ast_grep_rewrite_code: astGrepRewriteCodeTool,
+      ast_grep_dump_syntax_tree: astGrepDumpSyntaxTreeTool,
+      ast_grep_scan_code: astGrepScanCodeTool,
+      ast_grep_analyze_imports: astGrepAnalyzeImportsTool,
+
       hive_skill: createHiveSkillTool(filteredSkills),
 
       hive_feature_create: tool({
@@ -2569,8 +2579,6 @@ Expand your Discovery section and try again.`;
 | context7 | context7_query-docs, context7_resolve-library-id | Library docs |
 | grep_app | grep_app_searchGitHub | GitHub code patterns |
 | repomix | pack_codebase, pack_remote_repository | Repo packing |
-| crw (if CRW_API_URL set) | crw_scrape, crw_crawl, crw_map, crw_search | Web scraping & crawling |
-| ddg | ddg_search, ddg_get_answer, ddg_fetch_content | DuckDuckGo search (free) |
 | ast_grep | ast_grep_find_code, ast_grep_rewrite_code | AST code analysis |
 Use these tools when the task matches their purpose. They are available as regular tools.`;
       for (const agentConfig of Object.values(allAgents)) {

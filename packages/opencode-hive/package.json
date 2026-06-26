@@ -1,6 +1,6 @@
 {
   "name": "@hung319/opencode-hive",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "type": "module",
   "description": "OpenCode plugin for Agent Hive - from vibe coding to hive coding",
   "license": "MIT WITH Commons-Clause",
@@ -36,13 +36,11 @@
     "@opencode-ai/plugin": ">=0.13.7"
   },
   "dependencies": {
+    "@ast-grep/napi": "^0.44.0",
     "simple-git": "^3.36.0"
   },
   "peerDependenciesMeta": {
     "@sparkleideas/agent-booster": {
-      "optional": true
-    },
-    "@ast-grep/napi": {
       "optional": true
     },
     "@sparkleideas/memory": {
@@ -74,8 +72,7 @@
     "@types/bun": "^1.3.13",
     "@types/node": "^20.19.41",
     "typescript": "^5.9.3",
-    "@sparkleideas/agent-booster": "^0.2.34",
-    "@ast-grep/napi": "^0.41.1"
+    "@sparkleideas/agent-booster": "^0.2.34"
   },
   "files": [
     "dist/",

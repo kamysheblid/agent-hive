@@ -3,7 +3,6 @@ import { websearchMcp } from './websearch';
 import { context7Mcp } from './context7';
 import { grepAppMcp } from './grep-app';
 import { repomixMcp } from './repomix';
-import { ddgMcp } from './ddg';
 
 /**
  * Built-in MCP configurations
@@ -13,7 +12,8 @@ import { ddgMcp } from './ddg';
  * - context7: Remote (Context7) - supports CONTEXT7_API_KEY env var
  * - grep_app: Remote (GitHub code search)
  * - repomix: Local (npx) - packs repos for AI analysis via repomix --mcp
- * - crw (conditional): Local (npx) - web scraping & crawling, activated when CRW_API_URL + CRW_API_KEY set
+ * 
+ * Note: ast_grep is registered as native tools (not MCP) — see src/tools/ast-grep.ts
  */
 
 const allBuiltinMcps: Record<string, McpConfig> = {
@@ -23,7 +23,6 @@ const allBuiltinMcps: Record<string, McpConfig> = {
   grep_app: grepAppMcp,
   // Local MCPs
   repomix: repomixMcp,
-  ddg: ddgMcp,
 };
 
 // Lazy initialization - MCPs are only resolved when first accessed

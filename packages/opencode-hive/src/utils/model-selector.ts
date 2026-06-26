@@ -156,6 +156,7 @@ export const TOOL_CATEGORIES: Record<string, 'free' | 'standard' | 'premium'> = 
   'auto_cr_diff': 'standard',
   'ast_grep_find_code': 'standard',
   'ast_grep_scan_code': 'standard',
+  'ast_grep_analyze_imports': 'standard',
   'hive_memory_set': 'standard',
   'hive_memory_recall': 'standard',
   'hive_vector_search': 'standard',
