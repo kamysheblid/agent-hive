@@ -20,38 +20,45 @@ interface LspServerConfig {
   }>;
 }
 
+/**
+ * Get the local LSP install directory (~/.config/opencode/hive/lsp)
+ */
+export function getLspInstallDir(): string {
+  return path.join(os.homedir(), '.config', 'opencode', 'hive', 'lsp');
+}
+
 const LSP_DATABASE: Record<string, LspServerConfig> = {
   typescript: {
     extensions: ['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs'],
     primary: {
       command: 'npm',
-      args: ['install', '-g', 'typescript-language-server', 'typescript'],
-      verifyCommand: 'typescript-language-server --version',
+      args: ['install', '--prefix', getLspInstallDir(), 'typescript-language-server', 'typescript'],
+      verifyCommand: `${path.join(getLspInstallDir(), 'bin')}/typescript-language-server --version`,
     },
     alternatives: [
       {
         command: 'npm',
-        args: ['install', '-g', '@volarjs/typescript-language-server'],
-        verifyCommand: 'volar-server --version',
+        args: ['install', '--prefix', getLspInstallDir(), '@volarjs/typescript-language-server'],
+        verifyCommand: `${path.join(getLspInstallDir(), 'bin')}/volar-server --version`,
       },
     ],
   },
   python: {
     extensions: ['py', 'pyw', 'pyi'],
     primary: {
-      command: 'pip',
-      args: ['install', 'pyright'],
+      command: 'uv',
+      args: ['pip', 'install', '--user', 'pyright'],
       verifyCommand: 'pyright --version',
     },
     alternatives: [
       {
         command: 'pip',
-        args: ['install', 'ruff-lsp'],
+        args: ['install', '--user', 'ruff-lsp'],
         verifyCommand: 'ruff-lsp --version',
       },
       {
         command: 'pip',
-        args: ['install', 'jedi-language-server'],
+        args: ['install', '--user', 'jedi-language-server'],
         verifyCommand: 'jedi-language-server --version',
       },
     ],
@@ -129,8 +136,8 @@ const LSP_DATABASE: Record<string, LspServerConfig> = {
     extensions: ['vue'],
     primary: {
       command: 'npm',
-      args: ['install', '-g', 'volar'],
-      verifyCommand: 'volar-server --version',
+      args: ['install', '--prefix', getLspInstallDir(), 'volar'],
+      verifyCommand: `${path.join(getLspInstallDir(), 'bin')}/volar-server --version`,
     },
     alternatives: [],
   },
@@ -138,8 +145,8 @@ const LSP_DATABASE: Record<string, LspServerConfig> = {
     extensions: ['svelte'],
     primary: {
       command: 'npm',
-      args: ['install', '-g', 'svelte-language-server'],
-      verifyCommand: 'svelte-language-server --version',
+      args: ['install', '--prefix', getLspInstallDir(), 'svelte-language-server'],
+      verifyCommand: `${path.join(getLspInstallDir(), 'bin')}/svelte-language-server --version`,
     },
     alternatives: [],
   },
@@ -179,6 +186,25 @@ async function checkLspServer(config: LspServerConfig['primary']): Promise<boole
   const cmd = config.verifyCommand || `${config.command} --version`;
   try {
     execSync(cmd, { stdio: 'ignore', timeout: 5000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a local install exists for the given language
+ */
+export function checkLocalInstall(language: string): boolean {
+  const config = LSP_DATABASE[language];
+  if (!config) return false;
+  
+  const verifyCmd = config.primary.verifyCommand;
+  if (!verifyCmd) return false;
+  
+  // Check if the local binary exists
+  try {
+    execSync(verifyCmd, { stdio: 'ignore', timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -256,6 +282,7 @@ export interface LspStatus {
   primary: string | null;
   alternatives: string[];
   canInstall: boolean;
+  localInstall?: boolean;
 }
 
 export async function getLspStatus(filePath?: string): Promise<LspStatus | LspStatus[]> {
@@ -278,6 +305,7 @@ export async function getLspStatus(filePath?: string): Promise<LspStatus | LspSt
       primary: config.primary.command,
       alternatives: config.alternatives.map(a => a.command),
       canInstall: config.alternatives.length > 0 || true,
+      localInstall: checkLocalInstall(lang),
     };
   }
 
@@ -291,6 +319,7 @@ export async function getLspStatus(filePath?: string): Promise<LspStatus | LspSt
       primary: config.primary.command,
       alternatives: config.alternatives.map(a => a.command),
       canInstall: config.alternatives.length > 0 || true,
+      localInstall: checkLocalInstall(lang),
     });
   }
   return statuses;

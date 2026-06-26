@@ -1,4 +1,6 @@
 import { execSync } from 'child_process';
+import * as path from 'path';
+import * as os from 'os';
 
 /**
  * LSP server definition for proactive installation.
@@ -10,17 +12,33 @@ interface LspServerDef {
   fallbackCommand?: string;
 }
 
+/**
+ * Get the local LSP install directory (~/.config/opencode/hive/lsp)
+ */
+export function getLspInstallDir(): string {
+  return path.join(os.homedir(), '.config', 'opencode', 'hive', 'lsp');
+}
+
+/**
+ * Prepend the local LSP bin directory to PATH
+ */
+export function prependLspToPath(): void {
+  const installDir = getLspInstallDir();
+  const binDir = path.join(installDir, 'bin');
+  process.env.PATH = `${binDir}:${process.env.PATH}`;
+}
+
 const LSP_SERVERS: LspServerDef[] = [
   {
     name: 'TypeScript',
-    checkCommand: 'typescript-language-server --version',
-    installCommand: 'npm install -g typescript-language-server',
+    checkCommand: `${path.join(getLspInstallDir(), 'bin')}/typescript-language-server --version`,
+    installCommand: `npm install --prefix ${getLspInstallDir()} typescript-language-server typescript`,
   },
   {
     name: 'Python',
     checkCommand: 'pyright --version',
-    installCommand: 'uv pip install pyright',
-    fallbackCommand: 'pip install pyright',
+    installCommand: 'uv pip install --user pyright',
+    fallbackCommand: 'pip install --user pyright',
   },
   {
     name: 'Go',
