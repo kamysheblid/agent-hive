@@ -156,6 +156,9 @@ export const TOOL_CATEGORIES: Record<string, 'free' | 'standard' | 'premium'> = 
   'auto_cr_diff': 'standard',
   'ast_grep_find_code': 'standard',
   'ast_grep_scan_code': 'standard',
+  'call_graph_callees': 'standard',
+  'call_graph_callers': 'standard',
+  'call_graph_extract': 'standard',
   'hive_memory_set': 'standard',
   'hive_memory_recall': 'standard',
   'hive_vector_search': 'standard',
@@ -166,6 +169,7 @@ export const TOOL_CATEGORIES: Record<string, 'free' | 'standard' | 'premium'> = 
   'ast_grep_rewrite_code': 'premium',
   'ast_grep_dump_syntax_tree': 'premium',
   'ast_grep_test_match_code_rule': 'premium',
+  'call_graph_path': 'premium',
   'artifact_search': 'premium',
   'skill_mcp': 'premium',
 };

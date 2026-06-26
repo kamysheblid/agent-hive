@@ -62,6 +62,14 @@ import {
 // Directory Explorer Tool
 import { exploreDirectoryTool } from './tools/explore-directory-tool.js';
 
+// Call Graph Tools (tree-sitter based call extraction)
+import {
+  callGraphCalleesTool,
+  callGraphCallersTool,
+  callGraphPathTool,
+  callGraphExtractTool,
+} from './tools/call-graph.js';
+
 // Bee agents (lean, focused)
 import { QUEEN_BEE_PROMPT } from './agents/hive.js';
 import { SCOUT_BEE_PROMPT } from './agents/scout.js';
@@ -1545,6 +1553,12 @@ ${snapshot}
 
       // Directory Explorer Tool
       explore_directory: exploreDirectoryTool,
+
+      // Call Graph Tools (tree-sitter based call extraction)
+      call_graph_callees: callGraphCalleesTool,
+      call_graph_callers: callGraphCallersTool,
+      call_graph_path: callGraphPathTool,
+      call_graph_extract: callGraphExtractTool,
 
       hive_skill: createHiveSkillTool(filteredSkills),
 
