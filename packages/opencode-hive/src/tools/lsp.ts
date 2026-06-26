@@ -1,14 +1,40 @@
 import { tool, type ToolDefinition } from "@opencode-ai/plugin";
 import { lspManager, getLanguageFromPath, getLspStatus, ensureLspInstalled, type LspStatus } from './lsp-manager.js';
+import { LspManager, getLspClientForFile } from '../lsp/manager.js';
 
 /**
  * LSP Tools for IDE-like functionality
- * 
+ *
  * Features:
+ * - Real LSP client using JSON-RPC 2.0 over stdio
  * - Auto-detect language and install LSP if needed
  * - Fallback to alternative LSPs when primary fails
  * - Full LSP protocol support (rename, goto, references, etc.)
  */
+
+// Shared LSP client manager instance
+const lspClientManager = new LspManager();
+
+/**
+ * Helper to get an initialized LSP client for a file.
+ * Returns null if the language is unsupported or server unavailable.
+ */
+async function getLspClient(filePath: string) {
+  return getLspClientForFile(filePath, process.cwd(), lspClientManager);
+}
+
+/**
+ * Helper to format file content for sending to LSP.
+ * Reads the file from disk if needed.
+ */
+async function readFileContent(filePath: string): Promise<string> {
+  try {
+    const fs = await import('fs');
+    return fs.readFileSync(filePath, 'utf-8');
+  } catch {
+    return '';
+  }
+}
 
 export const lspRenameTool: ToolDefinition = tool({
   description: `Rename a symbol across all files using LSP. Provides IDE-like rename refactoring.
@@ -35,7 +61,7 @@ lsp_rename({ filePath: "src/utils.ts", oldName: "getUser", newName: "fetchUser" 
   },
   async execute({ filePath, oldName, newName }) {
     const lang = getLanguageFromPath(filePath);
-    
+
     if (!lang) {
       return JSON.stringify({
         success: false,
@@ -44,28 +70,80 @@ lsp_rename({ filePath: "src/utils.ts", oldName: "getUser", newName: "fetchUser" 
       }, null, 2);
     }
 
-    const status = await lspManager.checkAndInstall(filePath);
-    
-    if (!status.ready) {
+    const result = await getLspClient(filePath);
+
+    if (!result) {
+      const status = await lspManager.checkAndInstall(filePath);
       return JSON.stringify({
         success: false,
         language: status.language,
-        error: status.message,
+        error: status.message || 'LSP server not available',
         autoInstallFailed: true,
         alternatives: await getLspStatus(filePath),
         hint: 'LSP server not available. Consider using ast_grep_rewrite_code for pattern-based renaming.',
       }, null, 2);
     }
-    
-    return JSON.stringify({
-      success: true,
-      message: `Rename "${oldName}" to "${newName}" in ${filePath}`,
-      language: status.language,
-      operation: 'textDocument/rename',
-      oldName,
-      newName,
-      filePath,
-    }, null, 2);
+
+    const { client } = result;
+
+    try {
+      // Open the file so the LSP server has its content
+      const content = await readFileContent(filePath);
+      if (content) {
+        client.openFile(filePath, content);
+      }
+
+      // Try to find the position of the oldName symbol by searching the file content
+      const lines = content.split('\n');
+      let foundLine = 0;
+      let foundChar = 0;
+      let found = false;
+
+      for (let i = 0; i < lines.length; i++) {
+        const idx = lines[i].indexOf(oldName);
+        if (idx !== -1) {
+          foundLine = i + 1; // 1-based
+          foundChar = idx;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        return JSON.stringify({
+          success: false,
+          error: `Symbol "${oldName}" not found in ${filePath}`,
+          hint: 'Check that the symbol name is correct and present in the file.',
+        }, null, 2);
+      }
+
+      const edit = await client.rename(filePath, foundLine, foundChar, newName);
+
+      if (!edit) {
+        return JSON.stringify({
+          success: false,
+          error: `Rename failed — server returned no edit`,
+          hint: 'The symbol may not be renameable (e.g., it is a built-in or external reference).',
+        }, null, 2);
+      }
+
+      return JSON.stringify({
+        success: true,
+        language: result.language,
+        oldName,
+        newName,
+        changes: edit.changes || {},
+        documentChanges: edit.documentChanges || [],
+      }, null, 2);
+    } catch (err: any) {
+      return JSON.stringify({
+        success: false,
+        error: `Rename failed: ${err.message}`,
+        hint: 'LSP rename may not be available for this symbol.',
+      }, null, 2);
+    } finally {
+      client.closeFile(filePath);
+    }
   },
 });
 
@@ -89,7 +167,7 @@ export const lspGotoDefinitionTool: ToolDefinition = tool({
   },
   async execute({ filePath, line, character }) {
     const lang = getLanguageFromPath(filePath);
-    
+
     if (!lang) {
       return JSON.stringify({
         success: false,
@@ -97,24 +175,45 @@ export const lspGotoDefinitionTool: ToolDefinition = tool({
       }, null, 2);
     }
 
-    const status = await lspManager.checkAndInstall(filePath);
-    
-    if (!status.ready) {
+    const result = await getLspClient(filePath);
+
+    if (!result) {
+      const status = await lspManager.checkAndInstall(filePath);
       return JSON.stringify({
         success: false,
         language: status.language,
-        error: status.message,
+        error: status.message || 'LSP server not available',
         alternatives: await getLspStatus(filePath),
       }, null, 2);
     }
-    
-    return JSON.stringify({
-      success: true,
-      message: `Go to definition at ${filePath}:${line}:${character}`,
-      language: status.language,
-      operation: 'textDocument/definition',
-      location: { filePath, line, character },
-    }, null, 2);
+
+    const { client } = result;
+
+    try {
+      const content = await readFileContent(filePath);
+      if (content) {
+        client.openFile(filePath, content);
+      }
+
+      const locations = await client.gotoDefinition(filePath, line, character);
+
+      return JSON.stringify({
+        success: true,
+        language: result.language,
+        locations: locations.map((loc) => ({
+          uri: loc.uri,
+          filePath: loc.uri.replace('file://', ''),
+          range: loc.range,
+        })),
+      }, null, 2);
+    } catch (err: any) {
+      return JSON.stringify({
+        success: false,
+        error: `gotoDefinition failed: ${err.message}`,
+      }, null, 2);
+    } finally {
+      client.closeFile(filePath);
+    }
   },
 });
 
@@ -133,7 +232,7 @@ export const lspFindReferencesTool: ToolDefinition = tool({
   },
   async execute({ filePath, line, character }) {
     const lang = getLanguageFromPath(filePath);
-    
+
     if (!lang) {
       return JSON.stringify({
         success: false,
@@ -141,25 +240,46 @@ export const lspFindReferencesTool: ToolDefinition = tool({
       }, null, 2);
     }
 
-    const status = await lspManager.checkAndInstall(filePath);
-    
-    if (!status.ready) {
+    const result = await getLspClient(filePath);
+
+    if (!result) {
+      const status = await lspManager.checkAndInstall(filePath);
       return JSON.stringify({
         success: false,
         language: status.language,
-        error: status.message,
+        error: status.message || 'LSP server not available',
         alternatives: await getLspStatus(filePath),
       }, null, 2);
     }
-    
-    return JSON.stringify({
-      success: true,
-      message: `Find references at ${filePath}:${line}:${character}`,
-      language: status.language,
-      operation: 'textDocument/references',
-      location: { filePath, line, character },
-      references: [],
-    }, null, 2);
+
+    const { client } = result;
+
+    try {
+      const content = await readFileContent(filePath);
+      if (content) {
+        client.openFile(filePath, content);
+      }
+
+      const refs = await client.findReferences(filePath, line, character);
+
+      return JSON.stringify({
+        success: true,
+        language: result.language,
+        count: refs.length,
+        references: refs.map((ref) => ({
+          uri: ref.uri,
+          filePath: ref.uri.replace('file://', ''),
+          range: ref.range,
+        })),
+      }, null, 2);
+    } catch (err: any) {
+      return JSON.stringify({
+        success: false,
+        error: `findReferences failed: ${err.message}`,
+      }, null, 2);
+    } finally {
+      client.closeFile(filePath);
+    }
   },
 });
 
@@ -184,7 +304,7 @@ export const lspDiagnosticsTool: ToolDefinition = tool({
   },
   async execute({ filePath, severity }) {
     const lang = getLanguageFromPath(filePath);
-    
+
     if (!lang) {
       return JSON.stringify({
         success: false,
@@ -192,25 +312,65 @@ export const lspDiagnosticsTool: ToolDefinition = tool({
       }, null, 2);
     }
 
-    const status = await lspManager.checkAndInstall(filePath);
-    
-    if (!status.ready) {
+    const result = await getLspClient(filePath);
+
+    if (!result) {
+      const status = await lspManager.checkAndInstall(filePath);
       return JSON.stringify({
         success: false,
         language: status.language,
-        error: status.message,
+        error: status.message || 'LSP server not available',
         alternatives: await getLspStatus(filePath),
       }, null, 2);
     }
-    
-    return JSON.stringify({
-      success: true,
-      message: `Get diagnostics for ${filePath}`,
-      language: status.language,
-      operation: 'textDocument/diagnostic',
-      severity,
-      diagnostics: [],
-    }, null, 2);
+
+    const { client } = result;
+
+    try {
+      const content = await readFileContent(filePath);
+      if (content) {
+        client.openFile(filePath, content);
+      }
+
+      // Give the server a moment to process diagnostics
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      let diagnostics = client.getDiagnostics(filePath);
+
+      // Filter by severity
+      if (severity !== 'all') {
+        const severityMap: Record<string, number> = {
+          error: 1,
+          warning: 2,
+          information: 3,
+          hint: 4,
+        };
+        const minSeverity = severityMap[severity] ?? 1;
+        diagnostics = diagnostics.filter((d) => (d.severity ?? 1) <= minSeverity);
+      }
+
+      return JSON.stringify({
+        success: true,
+        language: result.language,
+        filePath,
+        severity,
+        count: diagnostics.length,
+        diagnostics: diagnostics.map((d) => ({
+          range: d.range,
+          severity: d.severity,
+          code: d.code,
+          source: d.source,
+          message: d.message,
+        })),
+      }, null, 2);
+    } catch (err: any) {
+      return JSON.stringify({
+        success: false,
+        error: `Diagnostics failed: ${err.message}`,
+      }, null, 2);
+    } finally {
+      client.closeFile(filePath);
+    }
   },
 });
 
@@ -229,7 +389,7 @@ export const lspHoverTool: ToolDefinition = tool({
   },
   async execute({ filePath, line, character }) {
     const lang = getLanguageFromPath(filePath);
-    
+
     if (!lang) {
       return JSON.stringify({
         success: false,
@@ -237,24 +397,46 @@ export const lspHoverTool: ToolDefinition = tool({
       }, null, 2);
     }
 
-    const status = await lspManager.checkAndInstall(filePath);
-    
-    if (!status.ready) {
+    const result = await getLspClient(filePath);
+
+    if (!result) {
+      const status = await lspManager.checkAndInstall(filePath);
       return JSON.stringify({
         success: false,
         language: status.language,
-        error: status.message,
+        error: status.message || 'LSP server not available',
         alternatives: await getLspStatus(filePath),
       }, null, 2);
     }
-    
-    return JSON.stringify({
-      success: true,
-      message: `Get hover info at ${filePath}:${line}:${character}`,
-      language: status.language,
-      operation: 'textDocument/hover',
-      location: { filePath, line, character },
-    }, null, 2);
+
+    const { client } = result;
+
+    try {
+      const content = await readFileContent(filePath);
+      if (content) {
+        client.openFile(filePath, content);
+      }
+
+      const hoverInfo = await client.hover(filePath, line, character);
+
+      return JSON.stringify({
+        success: true,
+        language: result.language,
+        hover: hoverInfo
+          ? {
+              contents: typeof hoverInfo.contents === 'string' ? hoverInfo.contents : hoverInfo.contents,
+              range: hoverInfo.range,
+            }
+          : null,
+      }, null, 2);
+    } catch (err: any) {
+      return JSON.stringify({
+        success: false,
+        error: `hover failed: ${err.message}`,
+      }, null, 2);
+    } finally {
+      client.closeFile(filePath);
+    }
   },
 });
 
@@ -273,7 +455,7 @@ export const lspCodeActionsTool: ToolDefinition = tool({
   },
   async execute({ filePath, line, character }) {
     const lang = getLanguageFromPath(filePath);
-    
+
     if (!lang) {
       return JSON.stringify({
         success: false,
@@ -282,7 +464,7 @@ export const lspCodeActionsTool: ToolDefinition = tool({
     }
 
     const status = await lspManager.checkAndInstall(filePath);
-    
+
     if (!status.ready) {
       return JSON.stringify({
         success: false,
@@ -291,7 +473,7 @@ export const lspCodeActionsTool: ToolDefinition = tool({
         alternatives: await getLspStatus(filePath),
       }, null, 2);
     }
-    
+
     return JSON.stringify({
       success: true,
       message: `Get code actions at ${filePath}:${line}:${character}`,
@@ -304,7 +486,7 @@ export const lspCodeActionsTool: ToolDefinition = tool({
 });
 
 // ============================================================================
-// New: LSP Status Tool
+// LSP Status Tool
 // ============================================================================
 
 export const lspStatusTool: ToolDefinition = tool({
@@ -332,7 +514,7 @@ lsp_status({ install: true })
   async execute({ filePath, install }) {
     if (filePath) {
       const lang = getLanguageFromPath(filePath);
-      
+
       if (!lang) {
         return JSON.stringify({
           success: false,
@@ -342,7 +524,7 @@ lsp_status({ install: true })
       }
 
       const status = await lspManager.checkAndInstall(filePath);
-      
+
       if (install && !status.ready) {
         const result = await ensureLspInstalled(lang);
         return JSON.stringify({
@@ -359,23 +541,25 @@ lsp_status({ install: true })
         ready: status.ready,
         message: status.message,
         info: lspManager.getLspInfo(filePath),
+        activeClients: lspClientManager.getActiveClients(),
       }, null, 2);
     }
 
     // Return all languages status
     const allStatuses = await getLspStatus() as LspStatus[];
-    
+
     return JSON.stringify({
       success: true,
       languages: allStatuses,
       totalLanguages: allStatuses.length,
       installedCount: allStatuses.filter((s: LspStatus) => s.installed).length,
+      activeClients: lspClientManager.getActiveClients(),
     }, null, 2);
   },
 });
 
 // ============================================================================
-// New: LSP Install Tool
+// LSP Install Tool
 // ============================================================================
 
 export const lspInstallTool: ToolDefinition = tool({
@@ -400,7 +584,7 @@ lsp_install({ language: "python" })
   },
   async execute({ language }) {
     const result = await ensureLspInstalled(language.toLowerCase());
-    
+
     return JSON.stringify({
       ...result,
       language,
