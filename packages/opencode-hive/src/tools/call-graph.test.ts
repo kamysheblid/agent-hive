@@ -105,7 +105,8 @@ describe('call-graph', () => {
       const calls = extractCalls(path.join(testDir, 'app.js'));
 
       const callees = calls.map(c => c.callee);
-      expect(callees).toContain('require');
+      expect(callees).toContain("require('fs')");
+      expect(callees).toContain("require('path')");
     });
 
     test('returns empty array for file with no calls', async () => {

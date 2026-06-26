@@ -97,13 +97,13 @@ function findFiles(dir: string, maxFiles: number = 2000): string[] {
 }
 
 /**
- * Determine the enclosing function/method name for a given line offset in source text.
+ * Determine the enclosing function/method name for a given line number (0-indexed).
  * Falls back to '<module>' for top-level code.
  */
-function findEnclosingFunction(source: string, offset: number): string {
-  const lines = source.slice(0, offset).split('\n');
-  // Walk backwards to find the most recent function/method declaration
-  for (let i = lines.length - 1; i >= 0; i--) {
+function findEnclosingFunction(source: string, lineIndex: number): string {
+  const lines = source.split('\n');
+  // Walk backwards from lineIndex to find the most recent function/method declaration
+  for (let i = lineIndex; i >= 0; i--) {
     const line = lines[i].trim();
     // Match: function name, const name = () =>, name(args) {, class name
     const fnMatch = line.match(/(?:export\s+)?(?:async\s+)?function\s+(\w+)/);
@@ -168,7 +168,7 @@ function extractCallsRegex(filePath: string, content: string): CallSite[] {
     for (const m of ctorMatches) {
       calls.push({
         callee: `new ${m[1]}`,
-        caller: findEnclosingFunction(content, content.indexOf(line)),
+        caller: findEnclosingFunction(content, i),
         line: lineNum,
         col: m.index!,
         type: 'constructor',
@@ -181,7 +181,7 @@ function extractCallsRegex(filePath: string, content: string): CallSite[] {
     for (const m of requireMatches) {
       calls.push({
         callee: `require('${m[1]}')`,
-        caller: findEnclosingFunction(content, content.indexOf(line)),
+        caller: findEnclosingFunction(content, i),
         line: lineNum,
         col: m.index!,
         type: 'require',
@@ -194,7 +194,7 @@ function extractCallsRegex(filePath: string, content: string): CallSite[] {
     for (const m of importMatches) {
       calls.push({
         callee: `from '${m[1]}'`,
-        caller: findEnclosingFunction(content, content.indexOf(line)),
+        caller: findEnclosingFunction(content, i),
         line: lineNum,
         col: m.index!,
         type: 'import',
@@ -214,7 +214,7 @@ function extractCallsRegex(filePath: string, content: string): CallSite[] {
       }
       calls.push({
         callee: name,
-        caller: findEnclosingFunction(content, content.indexOf(line)),
+        caller: findEnclosingFunction(content, i),
         line: lineNum,
         col: m.index!,
         type: 'method',
@@ -234,12 +234,15 @@ function extractCallsRegex(filePath: string, content: string): CallSite[] {
     for (const m of fnMatches) {
       const name = m[2];
       if (SKIP_KEYWORDS.has(name)) continue;
+      // Skip function declarations: function name(...)
+      const beforeMatch = trimmed.slice(0, m.index!);
+      if (/\bfunction\s+$/.test(beforeMatch)) continue;
       // Avoid duplicates with method calls
       const prevChar = trimmed[m.index! - 1];
       if (prevChar === '.') continue;
       calls.push({
         callee: name,
-        caller: findEnclosingFunction(content, content.indexOf(line)),
+        caller: findEnclosingFunction(content, i),
         line: lineNum,
         col: m.index!,
         type: 'call',
@@ -451,20 +454,7 @@ call_graph_extract({ filePath: "src/tools/ast-grep.ts" })
 // ============================================================================
 
 export const callGraphCalleesTool: ToolDefinition = tool({
-  description: `Find all functions called by a given function (callees).
-
-Builds a call graph from the project and returns all direct callees.
-Analyzes .ts, .tsx, .js, .jsx files. Skips node_modules, dist, .git.
-
-**Parameters:**
-- functionName: Name of the function to find callees for
-- filePath: Optional root path to search (defaults to current directory)
-
-**Example:**
-\`\`\`
-call_graph_callees({ functionName: "main" })
-call_graph_callees({ functionName: "helper", filePath: "./src" })
-\`\`\`,
+  description: 'Find all functions called by a given function (callees). Builds a call graph from the project and returns all direct callees. Analyzes .ts, .tsx, .js, .jsx files.',
 
   args: {
     functionName: tool.schema.string().describe('Function name to find callees for'),
@@ -496,20 +486,7 @@ call_graph_callees({ functionName: "helper", filePath: "./src" })
 // ============================================================================
 
 export const callGraphCallersTool: ToolDefinition = tool({
-  description: `Find all functions that call a given function (callers).
-
-Builds a call graph from the project and returns all direct callers.
-Analyzes .ts, .tsx, .js, .jsx files. Skips node_modules, dist, .git.
-
-**Parameters:**
-- functionName: Name of the function to find callers for
-- filePath: Optional root path to search (defaults to current directory)
-
-**Example:**
-\`\`\`
-call_graph_callers({ functionName: "helper" })
-call_graph_callers({ functionName: "init", filePath: "./src" })
-\`\`\`,
+  description: 'Find all functions that call a given function (callers). Builds a call graph from the project and returns all direct callers. Analyzes .ts, .tsx, .js, .jsx files.',
 
   args: {
     functionName: tool.schema.string().describe('Function name to find callers for'),
