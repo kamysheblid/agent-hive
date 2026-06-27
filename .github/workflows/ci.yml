@@ -28,10 +28,6 @@ jobs:
       - name: Reinstall to link workspace packages
         run: bun install
 
-      - name: Build opencode-hive
-        working-directory: packages/opencode-hive
-        run: bun run build
-
       - name: Test hive-core
         working-directory: packages/hive-core
         run: bun test
@@ -39,5 +35,9 @@ jobs:
       - name: Test opencode-hive
         working-directory: packages/opencode-hive
         run: bun test
+
+      - name: Build opencode-hive
+        working-directory: packages/opencode-hive
+        run: bun run build
 
 
