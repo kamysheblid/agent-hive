@@ -22,7 +22,7 @@ jobs:
       - name: Cài đặt Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Cài đặt dependencies
         run: bun install
