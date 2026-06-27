@@ -2,6 +2,14 @@ import { describe, test, expect, beforeEach, vi } from 'bun:test';
 import { LspClient } from '../client.js';
 import type { LspTransport } from '../transport.js';
 
+// Diagnostic: verify LspClient has expected methods before any test runs
+const _proto = Object.getOwnPropertyNames(LspClient.prototype);
+if (!_proto.includes('openFile')) {
+  console.error('[DIAG] LspClient.prototype methods:', _proto);
+  console.error('[DIAG] LspClient constructor source:', LspClient.toString().slice(0, 200));
+  throw new Error(`[DIAG] LspClient missing methods. Found: ${_proto.join(', ')}`);
+}
+
 /**
  * Parse a Content-Length framed LSP message from raw stdin.write data.
  * Returns the JSON-RPC message body.
