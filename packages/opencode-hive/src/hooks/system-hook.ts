@@ -40,4 +40,18 @@ export const HIVE_SYSTEM_PROMPT = `
 
 **Important:** hive_worktree_commit commits to the task branch but does NOT merge.
 Use hive_merge to integrate changes into the current branch.
+
+## Project Memory
+
+After completing significant work (feature, task, or bugfix), update the project memory:
+
+\`\`\`
+hive_memory_set({
+  scope: "project",
+  label: "project",
+  value: "[date] Feature: name (status)\\n  Tasks: N/M completed\\n  Last: summary of what was done"
+})
+\`\`\`
+
+This ensures the next session knows what was accomplished and what remains.
 `;

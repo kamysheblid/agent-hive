@@ -321,6 +321,78 @@ function ensureHiveGitignore(projectDir: string): void {
   }
 }
 
+/**
+ * Auto-save project memory: update project.md with current feature status.
+ * Called on task completion and compaction.
+ */
+function autoSaveProjectMemory(
+  projectDir: string,
+  featureService: FeatureService,
+  taskSummary?: string,
+): void {
+  try {
+    const active = featureService.getActive();
+    if (!active) return;
+    const info = featureService.getInfo(active.name);
+    if (!info) return;
+
+    const projectMdPath = path.join(projectDir, '.hive', 'memory', 'project', 'project.md');
+
+    // Read current content
+    let currentBody = '';
+    if (fs.existsSync(projectMdPath)) {
+      const raw = fs.readFileSync(projectMdPath, 'utf-8');
+      const bodyMatch = raw.match(/^---[\s\S]*?---\n([\s\S]*)$/);
+      currentBody = bodyMatch ? bodyMatch[1].trim() : raw.trim();
+    }
+
+    // Build new entry
+    const doneCount = info.tasks.filter(t => t.status === 'done').length;
+    const pendingNames = info.tasks
+      .filter(t => t.status === 'pending' || t.status === 'in_progress')
+      .map(t => t.name);
+    const entryLines = [
+      `[${new Date().toISOString().slice(0, 10)}] Feature: ${info.name} (${info.status})`,
+      `  Tasks: ${doneCount}/${info.tasks.length} completed`,
+    ];
+    if (pendingNames.length > 0) {
+      entryLines.push(`  Pending: ${pendingNames.join(', ')}`);
+    }
+    if (taskSummary) {
+      entryLines.push(`  Last: ${taskSummary}`);
+    }
+
+    const entry = entryLines.join('\n');
+
+    // Prepend new entry, deduplicate by date+feature, keep under 20 entries
+    const existingEntries = currentBody ? currentBody.split('\n\n').filter(Boolean) : [];
+    // Remove old entry for same feature on same day
+    const today = new Date().toISOString().slice(0, 10);
+    const filtered = existingEntries.filter(e => {
+      const isDuplicate = e.includes(info.name) && e.startsWith(`[${today}]`);
+      return !isDuplicate;
+    });
+    const allEntries = [entry, ...filtered].slice(0, 20);
+    const newBody = allEntries.join('\n\n') + '\n';
+
+    // Write with frontmatter
+    const frontmatter = [
+      '---',
+      'label: project',
+      'description: Project-specific knowledge: commands, architecture, conventions, gotchas.',
+      'limit: 5000',
+      'read_only: false',
+      '---',
+      '',
+    ].join('\n');
+
+    fs.mkdirSync(path.dirname(projectMdPath), { recursive: true });
+    fs.writeFileSync(projectMdPath, frontmatter + newBody, 'utf-8');
+  } catch (error) {
+    console.warn('[auto-save-project] Failed:', error instanceof Error ? error.message : error);
+  }
+}
+
 const plugin: Plugin = async (ctx) => {
   const { directory, client } = ctx;
 
@@ -1264,75 +1336,24 @@ ${snapshot}
       resetDiagnostics(lspState);
 
       if (autoSaveConfig?.enabled !== false) {
-        try {
-          const active = featureService.getActive();
-          if (active) {
-            const info = featureService.getInfo(active.name);
-            if (info) {
-              const maxEntries = autoSaveConfig?.maxEntries ?? 20;
-              const projectMdPath = path.join(directory, '.hive', 'memory', 'project', 'project.md');
+        autoSaveProjectMemory(directory, featureService);
+      }
 
-              // Read current content (if exists)
-              let currentBody = '';
-              if (fs.existsSync(projectMdPath)) {
-                const raw = fs.readFileSync(projectMdPath, 'utf-8');
-                // Strip YAML frontmatter
-                const bodyMatch = raw.match(/^---[\s\S]*?---\n([\s\S]*)$/);
-                currentBody = bodyMatch ? bodyMatch[1].trim() : raw.trim();
-              }
-
-              // Build new entry
-              const doneCount = info.tasks.filter(t => t.status === 'done').length;
-              const pendingNames = info.tasks
-                .filter(t => t.status === 'pending' || t.status === 'in_progress')
-                .map(t => t.name);
-              const entry = [
-                `[${new Date().toISOString().slice(0, 10)}] Feature: ${info.name} (${info.status})`,
-                `  Tasks: ${doneCount}/${info.tasks.length} completed`,
-                pendingNames.length > 0 ? `  Pending: ${pendingNames.join(', ')}` : '',
-                '',
-              ].filter(Boolean).join('\n');
-
-              // Prepend new entry, keep under maxEntries
-              const existingEntries = currentBody ? currentBody.split('\n\n') : [];
-              const allEntries = [entry.trim(), ...existingEntries].slice(0, maxEntries);
-              const newBody = allEntries.join('\n\n') + '\n';
-
-              // Write with frontmatter
-              const frontmatter = [
-                '---',
-                'label: project',
-                `description: Project-specific knowledge: commands, architecture, conventions, gotchas.`,
-                'limit: 5000',
-                'read_only: false',
-                '---',
-                '',
-              ].join('\n');
-
-              fs.mkdirSync(path.dirname(projectMdPath), { recursive: true });
-              fs.writeFileSync(projectMdPath, frontmatter + newBody, 'utf-8');
+      // Session continuation: check for remaining tasks on compaction
+      // Injects context so the agent auto-continues instead of stopping.
+      try {
+        if (!continuationState.injected) {
+          const { feature, pending, nextTask } = getPendingTaskCount(directory);
+          if (feature && pending.length > 0) {
+            const ctx = buildContinuationContext(feature, pending, nextTask);
+            if (ctx) {
+              output.context.push(ctx);
+              continuationState.markInjected();
             }
           }
-        } catch (error) {
-          console.warn('[auto-save-project] Failed to update project.md:', error instanceof Error ? error.message : error);
         }
-
-        // Session continuation: check for remaining tasks on compaction
-        // Injects context so the agent auto-continues instead of stopping.
-        try {
-          if (!continuationState.injected) {
-            const { feature, pending, nextTask } = getPendingTaskCount(directory);
-            if (feature && pending.length > 0) {
-              const ctx = buildContinuationContext(feature, pending, nextTask);
-              if (ctx) {
-                output.context.push(ctx);
-                continuationState.markInjected();
-              }
-            }
-          }
-        } catch {
-          // 0-risk: continuation check failure
-        }
+      } catch {
+        // 0-risk: continuation check failure
       }
     }
     ),
@@ -2093,6 +2114,11 @@ Expand your Discovery section and try again.`;
 
           const finalStatus = status === 'completed' ? 'done' : status;
           taskService.update(feature, task, { status: finalStatus as any, summary });
+
+          // Auto-save project memory on task completion
+          if (finalStatus === 'done') {
+            autoSaveProjectMemory(directory, featureService, summary);
+          }
 
           const worktree = await worktreeService.get(feature, task);
           return respond({
