@@ -1,18 +1,6 @@
 import { describe, test, expect, beforeEach, vi } from 'bun:test';
-import * as clientModule from '../client.js';
+import { LspClient } from '../client.js';
 import type { LspTransport } from '../transport.js';
-
-const LspClient = (clientModule as any).LspClient;
-// Diagnostic: verify LspClient has expected methods before any test runs
-console.error('[DIAG] clientModule keys:', Object.keys(clientModule));
-console.error('[DIAG] typeof LspClient:', typeof LspClient);
-if (typeof LspClient === 'function') {
-  const proto = Object.getOwnPropertyNames(LspClient.prototype);
-  console.error('[DIAG] LspClient.prototype methods:', proto);
-} else {
-  console.error('[DIAG] LspClient is NOT a function. Value:', LspClient);
-  console.error('[DIAG] clientModule source:', JSON.stringify(clientModule).slice(0, 500));
-}
 
 /**
  * Parse a Content-Length framed LSP message from raw stdin.write data.
