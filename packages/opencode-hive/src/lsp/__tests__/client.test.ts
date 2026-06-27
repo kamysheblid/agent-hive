@@ -1,13 +1,17 @@
 import { describe, test, expect, beforeEach, vi } from 'bun:test';
-import { LspClient } from '../client.js';
+import * as clientModule from '../client.js';
 import type { LspTransport } from '../transport.js';
 
+const LspClient = (clientModule as any).LspClient;
 // Diagnostic: verify LspClient has expected methods before any test runs
-const _proto = Object.getOwnPropertyNames(LspClient.prototype);
-if (!_proto.includes('openFile')) {
-  console.error('[DIAG] LspClient.prototype methods:', _proto);
-  console.error('[DIAG] LspClient constructor source:', LspClient.toString().slice(0, 200));
-  throw new Error(`[DIAG] LspClient missing methods. Found: ${_proto.join(', ')}`);
+console.error('[DIAG] clientModule keys:', Object.keys(clientModule));
+console.error('[DIAG] typeof LspClient:', typeof LspClient);
+if (typeof LspClient === 'function') {
+  const proto = Object.getOwnPropertyNames(LspClient.prototype);
+  console.error('[DIAG] LspClient.prototype methods:', proto);
+} else {
+  console.error('[DIAG] LspClient is NOT a function. Value:', LspClient);
+  console.error('[DIAG] clientModule source:', JSON.stringify(clientModule).slice(0, 500));
 }
 
 /**
