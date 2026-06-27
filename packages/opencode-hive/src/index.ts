@@ -291,8 +291,41 @@ const toolsBootPromise = ensureToolsInstalled();
 // Proactively install LSP servers for common languages (fire-and-forget, non-blocking)
 const lspBootPromise = ensureLspServers();
 
+/**
+ * Ensure .hive/ is in .gitignore. Called on every plugin init.
+ * Safe to call multiple times — no-ops if already present.
+ */
+function ensureHiveGitignore(projectDir: string): void {
+  try {
+    const gitignorePath = path.join(projectDir, '.gitignore');
+    const entries = ['.hive/', '.hive2/'];
+    let content = '';
+    let modified = false;
+
+    if (fs.existsSync(gitignorePath)) {
+      content = fs.readFileSync(gitignorePath, 'utf-8');
+    }
+
+    for (const entry of entries) {
+      if (!content.includes(entry)) {
+        content += content.endsWith('\n') ? `${entry}\n` : `\n${entry}\n`;
+        modified = true;
+      }
+    }
+
+    if (modified) {
+      fs.writeFileSync(gitignorePath, content, 'utf-8');
+    }
+  } catch {
+    // Silently ignore — .gitignore is best-effort
+  }
+}
+
 const plugin: Plugin = async (ctx) => {
   const { directory, client } = ctx;
+
+  // Auto-add .hive/ to .gitignore on every init
+  ensureHiveGitignore(directory);
 
   const featureService = new FeatureService(directory);
   const planService = new PlanService(directory);
