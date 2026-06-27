@@ -6,7 +6,7 @@ import * as os from 'os';
 /**
  * LSP Server Database with installation commands and fallbacks
  */
-interface LspServerConfig {
+export interface LspServerConfig {
   extensions: string[];
   primary: {
     command: string;
