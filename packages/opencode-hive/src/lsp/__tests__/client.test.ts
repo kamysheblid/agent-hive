@@ -2,57 +2,6 @@ import { describe, test, expect, beforeEach, vi } from 'bun:test';
 import { LspClient } from '../client.js';
 import type { LspTransport } from '../transport.js';
 
-// Create a mock transport that resolves responses from a queue
-function createMockTransport() {
-  const responseQueue: Map<number, any> = new Map();
-  const requests: Array<{ id: number; method: string; params: any }> = [];
-  const notifications: Array<{ method: string; params: any }> = [];
-  let nextId = 1;
-
-  const transport = {
-    nextId: () => nextId++,
-    send: vi.fn(async (method: string, params: any) => {
-      const id = nextId++;
-      requests.push({ id, method, params });
-      const response = responseQueue.get(id);
-      responseQueue.delete(id);
-      return response;
-    }),
-    formatRequest: (id: number, method: string, params: any) =>
-      JSON.stringify({ jsonrpc: '2.0', id, method, params }),
-    formatNotification: (method: string, params: any) =>
-      JSON.stringify({ jsonrpc: '2.0', method, params }),
-    encodeMessage: (body: string) =>
-      `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
-    registerNotificationHandler: vi.fn(),
-    getNotificationHandler: vi.fn((method: string) => null),
-    onNotification: vi.fn((method: string, handler: any) => {}),
-    close: vi.fn(),
-    closed: false,
-    process: {
-      pid: 12345,
-      stdin: { write: vi.fn() },
-      kill: vi.fn(),
-    },
-    // Test helpers
-    _enqueueResponse: (id: number, result: any) => responseQueue.set(id, result),
-    _getLastRequest: () => requests[requests.length - 1],
-    _getAllRequests: () => [...requests],
-    _getLastNotification: () => notifications[notifications.length - 1],
-    _getAllNotifications: () => [...notifications],
-    _clearRequests: () => { requests.length = 0; },
-  };
-
-  return transport as unknown as LspTransport & {
-    _enqueueResponse: (id: number, result: any) => void;
-    _getLastRequest: () => { id: number; method: string; params: any };
-    _getAllRequests: () => Array<{ id: number; method: string; params: any }>;
-    _getLastNotification: () => { method: string; params: any } | undefined;
-    _getAllNotifications: () => Array<{ method: string; params: any }>;
-    _clearRequests: () => void;
-  };
-}
-
 /**
  * Parse a Content-Length framed LSP message from raw stdin.write data.
  * Returns the JSON-RPC message body.
@@ -62,6 +11,70 @@ function parseLspWireMessage(raw: string): any {
   if (headerEnd === -1) return null;
   const body = raw.substring(headerEnd + 4);
   return JSON.parse(body);
+}
+
+/**
+ * Create a mock transport that resolves responses from a queue.
+ *
+ * Uses vi.fn() mock tracking for request verification instead of a
+ * separate closure-based array, which is more reliable across environments.
+ */
+function createMockTransport() {
+  const responseQueue = new Map<number, any>();
+  let nextId = 1;
+
+  const sendMock = vi.fn(async (method: string, params: any) => {
+    const id = nextId++;
+    const response = responseQueue.get(id);
+    responseQueue.delete(id);
+    return response;
+  });
+
+  const stdinWriteMock = vi.fn();
+
+  const transport = {
+    send: sendMock,
+    formatRequest: (id: number, method: string, params: any) =>
+      JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+    formatNotification: (method: string, params: any) =>
+      JSON.stringify({ jsonrpc: '2.0', method, params }),
+    encodeMessage: (body: string) =>
+      `Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`,
+    registerNotificationHandler: vi.fn(),
+    getNotificationHandler: vi.fn((_method: string) => null),
+    onNotification: vi.fn(),
+    close: vi.fn(),
+    closed: false,
+    process: {
+      pid: 12345,
+      stdin: { write: stdinWriteMock },
+      kill: vi.fn(),
+    },
+    // Test helpers
+    _enqueueResponse: (id: number, result: any) => responseQueue.set(id, result),
+    _getLastRequest: () => {
+      const calls = sendMock.mock.calls;
+      if (calls.length === 0) return undefined;
+      const last = calls[calls.length - 1];
+      return { method: last[0], params: last[1] };
+    },
+    _getAllRequests: () => {
+      return sendMock.mock.calls.map((call) => ({
+        method: call[0],
+        params: call[1],
+      }));
+    },
+    _sendMock: sendMock,
+    _stdinWriteMock: stdinWriteMock,
+  };
+
+  return transport as unknown as LspTransport & {
+    _enqueueResponse: (id: number, result: any) => void;
+    _getLastRequest: () => { method: string; params: any } | undefined;
+    _getAllRequests: () => Array<{ method: string; params: any }>;
+    _sendMock: typeof sendMock;
+    _stdinWriteMock: typeof stdinWriteMock;
+  };
 }
 
 describe('LspClient', () => {
@@ -82,8 +95,9 @@ describe('LspClient', () => {
       await client.initialize('/test/workspace');
 
       const req = mockTransport._getLastRequest();
-      expect(req.method).toBe('initialize');
-      expect(req.params).toEqual({
+      expect(req).toBeDefined();
+      expect(req!.method).toBe('initialize');
+      expect(req!.params).toEqual({
         processId: expect.any(Number),
         rootUri: 'file:///test/workspace',
         capabilities: expect.objectContaining({
@@ -110,7 +124,6 @@ describe('LspClient', () => {
       await client.initialize('/test/workspace');
 
       // The initialized notification should be sent after the response
-      // In a real implementation, this is sent via transport.sendNotification
       expect(client.initialized).toBe(true);
     });
   });
@@ -123,7 +136,7 @@ describe('LspClient', () => {
       client.openFile('/test/file.ts', 'const x = 1;');
 
       // Notifications are written to stdin, not via send()
-      const stdinWrite = (mockTransport.process as any).stdin.write;
+      const stdinWrite = mockTransport._stdinWriteMock;
       expect(stdinWrite).toHaveBeenCalled();
       const lastCall = stdinWrite.mock.calls[stdinWrite.mock.calls.length - 1][0];
       const parsed = parseLspWireMessage(lastCall);
@@ -143,7 +156,7 @@ describe('LspClient', () => {
       client.openFile('/test/file.ts', 'const x = 1;');
       client.openFile('/test/file.ts', 'const x = 2;');
 
-      const stdinWrite = (mockTransport.process as any).stdin.write;
+      const stdinWrite = mockTransport._stdinWriteMock;
       const lastCall = stdinWrite.mock.calls[stdinWrite.mock.calls.length - 1][0];
       const parsed = parseLspWireMessage(lastCall);
       expect(parsed.params.textDocument.version).toBe(2);
@@ -155,7 +168,7 @@ describe('LspClient', () => {
 
       client.openFile('/test/file.py', 'x = 1');
 
-      const stdinWrite = (mockTransport.process as any).stdin.write;
+      const stdinWrite = mockTransport._stdinWriteMock;
       const lastCall = stdinWrite.mock.calls[stdinWrite.mock.calls.length - 1][0];
       const parsed = parseLspWireMessage(lastCall);
       expect(parsed.params.textDocument.languageId).toBe('python');
@@ -169,7 +182,7 @@ describe('LspClient', () => {
 
       client.closeFile('/test/file.ts');
 
-      const stdinWrite = (mockTransport.process as any).stdin.write;
+      const stdinWrite = mockTransport._stdinWriteMock;
       const lastCall = stdinWrite.mock.calls[stdinWrite.mock.calls.length - 1][0];
       const parsed = parseLspWireMessage(lastCall);
       expect(parsed.method).toBe('textDocument/didClose');
@@ -192,8 +205,9 @@ describe('LspClient', () => {
       const locations = await client.gotoDefinition('/test/file.ts', 5, 3);
 
       const req = mockTransport._getLastRequest();
-      expect(req.method).toBe('textDocument/definition');
-      expect(req.params).toEqual({
+      expect(req).toBeDefined();
+      expect(req!.method).toBe('textDocument/definition');
+      expect(req!.params).toEqual({
         textDocument: { uri: 'file:///test/file.ts' },
         position: { line: 4, character: 3 }, // 0-based internally
       });
@@ -224,8 +238,9 @@ describe('LspClient', () => {
       const refs = await client.findReferences('/test/file.ts', 10, 5);
 
       const req = mockTransport._getLastRequest();
-      expect(req.method).toBe('textDocument/references');
-      expect(req.params).toEqual({
+      expect(req).toBeDefined();
+      expect(req!.method).toBe('textDocument/references');
+      expect(req!.params).toEqual({
         textDocument: { uri: 'file:///test/file.ts' },
         position: { line: 9, character: 5 },
         context: { includeDeclaration: true },
@@ -247,7 +262,8 @@ describe('LspClient', () => {
       const hoverInfo = await client.hover('/test/file.ts', 5, 3);
 
       const req = mockTransport._getLastRequest();
-      expect(req.method).toBe('textDocument/hover');
+      expect(req).toBeDefined();
+      expect(req!.method).toBe('textDocument/hover');
       expect(hoverInfo).not.toBeNull();
       expect(hoverInfo?.contents).toContain('number');
     });
@@ -277,8 +293,9 @@ describe('LspClient', () => {
       const edit = await client.rename('/test/file.ts', 1, 0, 'newName');
 
       const req = mockTransport._getLastRequest();
-      expect(req.method).toBe('textDocument/rename');
-      expect(req.params).toEqual({
+      expect(req).toBeDefined();
+      expect(req!.method).toBe('textDocument/rename');
+      expect(req!.params).toEqual({
         textDocument: { uri: 'file:///test/file.ts' },
         position: { line: 0, character: 0 }, // 1-based input → 0-based in LSP
         newName: 'newName',
