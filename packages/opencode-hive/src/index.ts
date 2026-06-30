@@ -94,6 +94,7 @@ import { buildCustomSubagents } from './agents/custom-agents.js';
 import { createBuiltinMcps } from './mcp/index.js';
 import { ensureSnipInstalled, isSnipOnPath } from './utils/snip-installer.js';
 import { ensureToolsInstalled, getHiveBinPath } from './utils/tool-installer.js';
+import { ensureHivePathInShellConfig } from './utils/shell-path.js';
 // $ns Mode & Session Continuation hooks
 import { createNsModeState, detectNsMode, getNsDirective } from './hooks/ns-mode.js';
 import { createContinuationState, getPendingTaskCount, buildContinuationContext } from './hooks/session-continuation.js';
@@ -398,6 +399,12 @@ const plugin: Plugin = async (ctx) => {
 
   // Auto-add .hive/ to .gitignore on every init
   ensureHiveGitignore(directory);
+
+  // Auto-add hive bin to shell config PATH (bash, zsh, fish, etc.)
+  const pathResult = ensureHivePathInShellConfig();
+  if (pathResult.added.length > 0) {
+    console.log(`[hive:shell-path] Added PATH to: ${pathResult.added.join(', ')}`);
+  }
 
   const featureService = new FeatureService(directory);
   const planService = new PlanService(directory);
@@ -1492,12 +1499,12 @@ ${snapshot}
           const snipAvailable = snipBinary !== '';
           const isSnipEnabled = snipConfig?.enabled ?? snipAvailable;
           const snipCmd = snipConfig?.command || (snipBinary || 'snip');
-          const hiveBinPath = getHiveBinPath();
           let finalCommand = command;
           if (isSnipEnabled && snipAvailable) {
             finalCommand = prefixWithSnip(command, snipCmd);
           }
-          finalCommand = `PATH="${hiveBinPath}:$PATH" ${finalCommand}`;
+          // PATH is now set in shell config (~/.bashrc, ~/.zshrc, etc.)
+          // by ensureHivePathInShellConfig() on plugin init
           
           const sandboxConfig = configService.getSandboxConfig();
           if (sandboxConfig.mode !== 'none') {
