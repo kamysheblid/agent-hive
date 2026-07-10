@@ -1843,12 +1843,13 @@ Expand your Discovery section and try again.`;
       }),
 
       hive_worktree_batch: tool({
-        description: 'Start multiple independent tasks in parallel. Use when tasks have no dependencies on each other. Check hive_status first to find runnable tasks.',
+        description: 'Start multiple independent tasks. In parallel mode (default) all workers launch concurrently; in sequential mode (executionMode: "sequential") workers launch one at a time. Check hive_status first to find runnable tasks.',
         args: {
-          tasks: tool.schema.array(tool.schema.string()).describe('Array of task folder names to start in parallel'),
+          tasks: tool.schema.array(tool.schema.string()).optional().describe('Array of task folder names to start. Required for the initial call; may be omitted when resuming sequential dispatch.'),
           feature: tool.schema.string().optional().describe('Feature name (defaults to detection or single feature)'),
+          resume: tool.schema.boolean().optional().describe('Resume sequential dispatch: returns the next pending delegation instead of re-initializing the batch'),
         },
-        async execute({ tasks, feature: explicitFeature }) {
+        async execute({ tasks, feature: explicitFeature, resume }) {
           const resolvedFeature = resolveFeature(explicitFeature);
           if (!resolvedFeature) {
             return respond({
@@ -1862,84 +1863,193 @@ Expand your Discovery section and try again.`;
               ],
             });
           }
-          
-          const results: Array<{
-            task: string;
-            success: boolean;
-            response?: string;
-            error?: string;
-          }> = [];
-          const openDelegations: Array<{
-            task: string;
-            taskToolCall: {
-              subagent_type: string;
-              description: string;
-              prompt: string;
-            };
-            instructions?: string;
-          }> = [];
-          
-          // Start each task
-          for (const task of tasks) {
+
+          // Read execution mode once at dispatch time (defaults to 'parallel').
+          const mode = configService.get().executionMode ?? 'parallel';
+
+          // Helper: start a single task's worktree and return a normalized result.
+          const startOneTask = async (task: string): Promise<{ task: string; success: boolean; error?: string; parsed?: any }> => {
             try {
               const result = await executeWorktreeStart({ task, feature: resolvedFeature });
               const parsed = JSON.parse(result);
-              const entry: {
-                task: string;
-                success: boolean;
-                response?: string;
-                error?: string;
-              } = {
+              return {
                 task,
                 success: parsed.success,
+                error: parsed.success ? undefined : (parsed.error || 'Unknown error'),
+                parsed,
               };
-              if (parsed.success) {
-                // Collect delegation info if the worktree launch needs it
-                if (parsed.delegationRequired && parsed.taskToolCall) {
-                  openDelegations.push({
-                    task,
-                    taskToolCall: parsed.taskToolCall,
-                    instructions: parsed.instructions,
-                  });
-                }
-              } else {
-                entry.error = parsed.error || 'Unknown error';
-              }
-              results.push(entry);
             } catch (e) {
-              results.push({
-                task,
-                success: false,
-                error: String(e),
+              return { task, success: false, error: String(e) };
+            }
+          };
+
+          if (mode !== 'sequential') {
+            // ---- PARALLEL MODE (default, unchanged contract) ----
+            if (!tasks || tasks.length === 0) {
+              return respond({
+                success: true,
+                terminal: true,
+                batch: true,
+                feature: resolvedFeature,
+                mode: 'delegate-batch',
+                summary: 'No tasks provided.',
               });
             }
+
+            // Start all worktrees concurrently, then collect delegations.
+            const entries = await Promise.all(tasks.map((task) => startOneTask(task)));
+            const results = entries.map((e) => ({
+              task: e.task,
+              success: e.success,
+              ...(e.error ? { error: e.error } : {}),
+            }));
+            const openDelegations = entries
+              .filter((e) => e.success && e.parsed?.delegationRequired && e.parsed?.taskToolCall)
+              .map((e) => ({
+                task: e.task,
+                taskToolCall: e.parsed!.taskToolCall,
+                instructions: e.parsed!.instructions,
+              }));
+
+            const succeeded = results.filter((r) => r.success).length;
+            const failed = results.filter((r) => !r.success).length;
+            const hasDelegations = openDelegations.length > 0;
+
+            const base: Record<string, unknown> = {
+              success: failed === 0,
+              terminal: !hasDelegations,
+              batch: true,
+              feature: resolvedFeature,
+              total: tasks.length,
+              succeeded,
+              failed,
+              results,
+              summary: `Batch dispatch: ${succeeded}/${tasks.length} tasks started${failed > 0 ? `, ${failed} failed` : ''}${hasDelegations ? `. ${openDelegations.length} task(s) need worker delegation.` : ''}`,
+            };
+
+            if (hasDelegations) {
+              base.openDelegations = openDelegations;
+              base.mode = 'delegate-batch';
+              base.delegationRequired = true;
+              base.delegationHint = `Call task() for each open delegation to spawn workers. Use the taskToolCall from each entry.`;
+            }
+
+            return respond(base);
           }
-          
-          // Summary
-          const succeeded = results.filter(r => r.success).length;
-          const failed = results.filter(r => !r.success).length;
-          const hasDelegations = openDelegations.length > 0;
-          
-          const base: Record<string, unknown> = {
-            success: failed === 0,
-            terminal: !hasDelegations,
+
+          // ---- SEQUENTIAL MODE: one worker at a time ----
+          console.warn('[hive] executionMode=sequential: dispatching workers one at a time to reduce resource usage');
+
+          const cursorPath = path.join(directory, '.hive', 'features', resolvedFeature, 'SEQUENTIAL_BATCH.json');
+          const readCursor = (): { pending: string[]; started: string[] } | null => {
+            try {
+              if (!fs.existsSync(cursorPath)) return null;
+              const data = JSON.parse(fs.readFileSync(cursorPath, 'utf-8'));
+              if (data && Array.isArray(data.pending) && Array.isArray(data.started)) {
+                return data as { pending: string[]; started: string[] };
+              }
+              return null;
+            } catch {
+              return null;
+            }
+          };
+          const writeCursor = (cursor: { pending: string[]; started: string[] }) => {
+            fs.mkdirSync(path.dirname(cursorPath), { recursive: true });
+            fs.writeFileSync(cursorPath, JSON.stringify(cursor, null, 2));
+          };
+          const clearCursor = () => {
+            try { fs.rmSync(cursorPath, { force: true }); } catch { /* ignore */ }
+          };
+
+          // Initialize (or resume) the sequential cursor.
+          let cursor: { pending: string[]; started: string[] };
+          if (resume) {
+            const existing = readCursor();
+            if (!existing) {
+              return respond({
+                success: true,
+                terminal: true,
+                batch: true,
+                feature: resolvedFeature,
+                mode: 'delegate-sequential',
+                executionMode: 'sequential',
+                summary: 'Sequential batch complete: no pending delegations (nothing to resume).',
+              });
+            }
+            cursor = existing;
+          } else {
+            if (!tasks || tasks.length === 0) {
+              return respond({
+                success: true,
+                terminal: true,
+                batch: true,
+                feature: resolvedFeature,
+                mode: 'delegate-sequential',
+                executionMode: 'sequential',
+                summary: 'Sequential batch: no tasks provided.',
+              });
+            }
+            cursor = { pending: [...tasks], started: [] };
+            writeCursor(cursor);
+          }
+
+          // All tasks dispatched?
+          if (cursor.pending.length === 0) {
+            clearCursor();
+            return respond({
+              success: true,
+              terminal: true,
+              batch: true,
+              feature: resolvedFeature,
+              mode: 'delegate-sequential',
+              executionMode: 'sequential',
+              started: cursor.started,
+              summary: `Sequential batch complete: ${cursor.started.length} task(s) dispatched, no delegations pending.`,
+            });
+          }
+
+          // Start exactly ONE task, await it, then return a single delegation.
+          const nextTask = cursor.pending[0];
+          const started = await startOneTask(nextTask);
+
+          if (!started.success) {
+            // Stop execution immediately. Do NOT advance the cursor; propagate the error.
+            return respond({
+              success: false,
+              terminal: true,
+              batch: true,
+              feature: resolvedFeature,
+              mode: 'delegate-sequential',
+              executionMode: 'sequential',
+              task: nextTask,
+              error: started.error || 'Failed to start task',
+              summary: `Sequential dispatch stopped: task '${nextTask}' failed to start.`,
+            });
+          }
+
+          // Advance cursor and persist before returning the delegation.
+          cursor.pending = cursor.pending.slice(1);
+          cursor.started.push(nextTask);
+          writeCursor(cursor);
+
+          const openDelegations = started.parsed?.delegationRequired && started.parsed?.taskToolCall
+            ? [{ task: nextTask, taskToolCall: started.parsed.taskToolCall, instructions: started.parsed.instructions }]
+            : [];
+          const morePending = cursor.pending.length;
+
+          return respond({
+            success: true,
+            terminal: false,
             batch: true,
             feature: resolvedFeature,
-            total: tasks.length,
-            succeeded,
-            failed,
-            results,
-            summary: `Batch dispatch: ${succeeded}/${tasks.length} tasks started${failed > 0 ? `, ${failed} failed` : ''}${hasDelegations ? `. ${openDelegations.length} task(s) need worker delegation.` : ''}`,
-          };
-          
-          if (hasDelegations) {
-            base.openDelegations = openDelegations;
-            base.mode = 'delegate-batch';
-            base.delegationRequired = true;
-            base.delegationHint = `Call task() for each open delegation to spawn workers. Use the taskToolCall from each entry.`;
-          }
-          
-          return respond(base);
+            mode: 'delegate-sequential',
+            executionMode: 'sequential',
+            morePending,
+            openDelegations,
+            delegationRequired: openDelegations.length > 0,
+            delegationHint: `SEQUENTIAL MODE: spawn ONLY this single worker via task() using openDelegations[0].taskToolCall. Await its completion (including hive_worktree_commit). Then call hive_worktree_batch({ feature: '${resolvedFeature}', resume: true }) to receive the next delegation. Do NOT spawn workers concurrently. If this worker fails, STOP — do not resume.`,
+            summary: `Sequential dispatch: started '${nextTask}' (${morePending} remaining).`,
+          });
         },
       }),
 

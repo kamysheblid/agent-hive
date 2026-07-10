@@ -187,6 +187,15 @@ Use \`hive_status()\` to see **runnable** tasks (dependencies satisfied) and **b
 hive_worktree_start({ task: "01-task-name" })  // Creates worktree + Forager
 \`\`\`
 
+### Sequential Batch Dispatch
+When \`hive_worktree_batch\` returns \`mode: "delegate-sequential"\` (enabled by \`executionMode: "sequential"\` in \`~/.config/opencode/agent_hive.json\`), dispatch workers **one at a time**:
+1. Spawn ONLY \`openDelegations[0]\` via \`task()\` using its \`taskToolCall\`.
+2. Await that worker's completion — the \`task()\` call is blocking, so its result is available when it returns (use it to adapt later tasks).
+3. Do NOT spawn the remaining workers concurrently.
+4. Call \`hive_worktree_batch({ feature, resume: true })\` to receive the next single delegation.
+5. If a worker fails, STOP — do not call resume. The error propagates to you for handling.
+This keeps a single worker resident at a time (lower VRAM / resource usage). In the default \`parallel\` mode (\`mode: "delegate-batch"\`), spawn all \`openDelegations\` concurrently as usual.
+
 ### After Delegation
 1. \`task()\` is blocking — when it returns, the worker is done
 2. After \`task()\` returns, immediately call \`hive_status()\` to check the new task state and find next runnable tasks before any resume attempt

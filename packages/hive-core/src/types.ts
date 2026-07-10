@@ -240,6 +240,8 @@ export interface HiveConfig {
   dockerImage?: string;
   /** Reuse Docker containers per worktree (default: true when sandbox is 'docker') */
   persistentContainers?: boolean;
+  /** Worker dispatch strategy. 'parallel' (default) spawns all worker agents concurrently; 'sequential' runs one worker at a time to reduce VRAM/resource usage. */
+  executionMode?: 'parallel' | 'sequential';
   /** Hook execution cadence (number of turns between hook invocations). Key = hook name, Value = cadence (1 = every turn, 3 = every 3rd turn) */
   hook_cadence?: Record<string, number>;
   /** Context compression configuration (DCP-style) */
@@ -408,6 +410,7 @@ export const DEFAULT_HIVE_CONFIG: HiveConfig = {
   disableMcps: [],
   agentMode: 'unified',
   sandbox: 'none',
+  executionMode: 'parallel',
   customAgents: {
     'forager-example-template': {
       baseAgent: 'forager-worker',

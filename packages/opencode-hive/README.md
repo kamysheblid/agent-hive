@@ -28,22 +28,44 @@ All tools fall back gracefully if installation fails — nothing breaks.
 
 ## Configuration
 
-Auto-generated at `~/.config/opencode/agent_hive.json`:
+Auto-generated at `~/.config/opencode/agent_hive.json`. A complete config looks like this — copy it as a starting point:
 
 ```json
 {
   "agentMode": "unified",
+  "executionMode": "parallel",
   "agents": {
     "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 }
   }
 }
 ```
 
+### Sequential Execution Mode (run workers one at a time)
+
+By default (`"parallel"`) `hive_worktree_batch` launches every worker agent at once. On machines with limited VRAM — or when you want each worker's result before the next starts — set `"sequential"` instead.
+
+**To enable it, set the file to:**
+
+```json
+{
+  "executionMode": "sequential"
+}
+```
+
+That is the entire file if none exists yet. If you already have a config, just add the `"executionMode"` line. After saving, restart OpenCode — no install or build step needed.
+
+**Behavior in sequential mode:**
+- Only **one** worker starts at a time.
+- After it finishes, the orchestrator automatically starts the next.
+- If a worker fails, everything stops — no further workers launch.
+- Switch back anytime by changing `"sequential"` to `"parallel"` (or deleting the line).
+
 | Option | Default | Description |
 |---|---|---|
 | `agentMode` | `unified` | `dedicated` splits planner + orchestrator into separate agents |
 | `disableSkills` | `[]` | Globally hide skills from `hive_skill()` |
 | `disableMcps` | `[]` | Globally disable MCP servers |
+| `executionMode` | `parallel` | `sequential` runs `hive_worktree_batch` worker agents one at a time (lower VRAM); `parallel` spawns all at once |
 
 ### Agent Models & Variants
 
@@ -138,7 +160,7 @@ Resolution order: Hive builtin → Project OpenCode → Global OpenCode → Proj
 | **Feature** | `hive_feature_create`, `hive_feature_complete` |
 | **Plan** | `hive_plan_write`, `hive_plan_read`, `hive_plan_approve` |
 | **Task** | `hive_tasks_sync`, `hive_task_create`, `hive_task_update` |
-| **Worktree** | `hive_worktree_start`, `hive_worktree_create`, `hive_worktree_commit`, `hive_worktree_discard` |
+| **Worktree** | `hive_worktree_batch`, `hive_worktree_start`, `hive_worktree_create`, `hive_worktree_commit`, `hive_worktree_discard` |
 | **Merge** | `hive_merge` |
 | **Context** | `hive_context_write` |
 | **Memory** | `hive_memory_*`, `hive_vector_*` |

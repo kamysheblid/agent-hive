@@ -49,11 +49,12 @@ to build      refine, approve  in parallel     for next time
 
 ## Core Configuration
 
-Auto-generated at `~/.config/opencode/agent_hive.json` after first run:
+Auto-generated at `~/.config/opencode/agent_hive.json` after first run. A complete config looks like this — copy it as a starting point:
 
 ```json
 {
   "agentMode": "unified",
+  "executionMode": "parallel",
   "agents": {
     "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 }
   }
@@ -65,6 +66,7 @@ Auto-generated at `~/.config/opencode/agent_hive.json` after first run:
 | `agentMode` | `unified`, `dedicated` | Single agent or separate planner + orchestrator |
 | `disableSkills` | `string[]` | Globally disable skills |
 | `disableMcps` | `string[]` | Globally disable MCP servers |
+| `executionMode` | `parallel`, `sequential` | `sequential` runs `hive_worktree_batch` worker agents one at a time (lower VRAM); `parallel` spawns all at once |
 
 ---
 
