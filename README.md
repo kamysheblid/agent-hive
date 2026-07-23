@@ -56,7 +56,7 @@ Auto-generated at `~/.config/opencode/agent_hive.json` after first run. A comple
   "agentMode": "unified",
   "executionMode": "parallel",
   "agents": {
-    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 }
+    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5, "top_p": 0.95, "top_k": 40 }
   }
 }
 ```
@@ -67,6 +67,8 @@ Auto-generated at `~/.config/opencode/agent_hive.json` after first run. A comple
 | `disableSkills` | `string[]` | Globally disable skills |
 | `disableMcps` | `string[]` | Globally disable MCP servers |
 | `executionMode` | `parallel`, `sequential` | `sequential` runs `hive_worktree_batch` worker agents one at a time (lower VRAM); `parallel` spawns all at once |
+| `top_p` | 0–1 | Nucleus sampling threshold per agent (omit for provider default) |
+| `top_k` | integer ≥ 0 | Top-k token limit per agent (omit for provider default) |
 
 ---
 

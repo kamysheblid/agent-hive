@@ -35,10 +35,12 @@ Auto-generated at `~/.config/opencode/agent_hive.json`. A complete config looks 
   "agentMode": "unified",
   "executionMode": "parallel",
   "agents": {
-    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 }
+    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5, "top_p": 0.95, "top_k": 40 }
   }
 }
 ```
+
+> **New:** `top_p` (0–1) and `top_k` (integer) control nucleus and top-k sampling per agent. Omit either to use the provider default — existing configs are unaffected.
 
 ### Sequential Execution Mode (run workers one at a time)
 
@@ -66,13 +68,15 @@ That is the entire file if none exists yet. If you already have a config, just a
 | `disableSkills` | `[]` | Globally hide skills from `hive_skill()` |
 | `disableMcps` | `[]` | Globally disable MCP servers |
 | `executionMode` | `parallel` | `sequential` runs `hive_worktree_batch` worker agents one at a time (lower VRAM); `parallel` spawns all at once |
+| `top_p` | — | Nucleus sampling threshold (0–1) — only tokens in the top probability mass are considered (per agent) |
+| `top_k` | — | Limits token selection to the top K most likely candidates (per agent) |
 
 ### Agent Models & Variants
 
 ```json
 {
   "agents": {
-    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "variant": "high" },
+    "hive": { "model": "anthropic/claude-sonnet-4-20250514", "variant": "high", "top_p": 0.95, "top_k": 40 },
     "scout-researcher": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.5 },
     "forager-worker": { "model": "anthropic/claude-sonnet-4-20250514", "variant": "medium" },
     "hygienic-reviewer": { "model": "anthropic/claude-sonnet-4-20250514", "temperature": 0.3 }
@@ -80,7 +84,7 @@ That is the entire file if none exists yet. If you already have a config, just a
 }
 ```
 
-Variants map to model-specific settings in your `opencode.json` (e.g., Anthropic thinking budgets).
+Variants map to model-specific settings in your `opencode.json` (e.g., Anthropic thinking budgets). Use `top_p` and `top_k` to fine-tune sampling per agent; they are omitted when not set.
 
 ### Custom Derived Subagents
 
@@ -102,6 +106,7 @@ Define derived agents from `forager-worker` or `hygienic-reviewer`:
       "description": "Use for UI-heavy implementation tasks.",
       "model": "anthropic/claude-sonnet-4-20250514",
       "temperature": 0.2,
+      "top_p": 0.9,
       "variant": "high"
     },
     "reviewer-security": {
@@ -112,7 +117,7 @@ Define derived agents from `forager-worker` or `hygienic-reviewer`:
 }
 ```
 
-Omitted fields (`model`, `variant`, `temperature`) inherit from the base agent. `autoLoadSkills` merges with base defaults, de-duplicates, and applies global `disableSkills`. Custom agent IDs cannot reuse built-in Hive names or reserved plugin IDs.
+Omitted fields (`model`, `variant`, `temperature`, `top_p`, `top_k`) inherit from the base agent. `autoLoadSkills` merges with base defaults, de-duplicates, and applies global `disableSkills`. Custom agent IDs cannot reuse built-in Hive names or reserved plugin IDs.
 
 ### Skills
 
