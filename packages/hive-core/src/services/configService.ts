@@ -86,18 +86,26 @@ export class ConfigService {
         },
       };
 
-      // Map snake_case JSON keys (top_p, top_k) to camelCase AgentModelConfig (topP, topK)
+      // Map snake_case JSON keys (top_p, top_k, min_p, repeat_penalty, frequency_penalty, presence_penalty)
+      // to camelCase AgentModelConfig (topP, topK, minP, repeatPenalty, frequencyPenalty, presencePenalty)
       const storedAgents = (stored as Record<string, unknown>).agents as Record<string, Record<string, unknown>> | undefined;
       if (storedAgents && merged.agents) {
         for (const agentName of BUILT_IN_AGENT_NAMES) {
           const storedAgent = storedAgents[agentName];
           const mergedAgent = merged.agents[agentName];
           if (storedAgent && mergedAgent) {
-            if (typeof storedAgent['top_p'] === 'number') {
-              (mergedAgent as Record<string, unknown>)['topP'] = storedAgent['top_p'];
-            }
-            if (typeof storedAgent['top_k'] === 'number') {
-              (mergedAgent as Record<string, unknown>)['topK'] = storedAgent['top_k'];
+            const snakeToCamel: Record<string, string> = {
+              'top_p': 'topP',
+              'top_k': 'topK',
+              'min_p': 'minP',
+              'repeat_penalty': 'repeatPenalty',
+              'frequency_penalty': 'frequencyPenalty',
+              'presence_penalty': 'presencePenalty',
+            };
+            for (const [snakeKey, camelKey] of Object.entries(snakeToCamel)) {
+              if (typeof storedAgent[snakeKey] === 'number') {
+                (mergedAgent as Record<string, unknown>)[camelKey] = storedAgent[snakeKey];
+              }
             }
           }
         }
@@ -251,6 +259,10 @@ export class ConfigService {
       const temperatureValue = declaration['temperature'];
       const topPValue = declaration['top_p'];
       const topKValue = declaration['top_k'];
+      const minPValue = declaration['min_p'];
+      const repeatPenaltyValue = declaration['repeat_penalty'];
+      const frequencyPenaltyValue = declaration['frequency_penalty'];
+      const presencePenaltyValue = declaration['presence_penalty'];
       const variantValue = declaration['variant'];
       const model = typeof modelValue === 'string'
         ? modelValue.trim() || ''
@@ -272,6 +284,18 @@ export class ConfigService {
         topK: typeof topKValue === 'number'
           ? topKValue
           : baseAgentConfig.topK,
+        minP: typeof minPValue === 'number'
+          ? minPValue
+          : baseAgentConfig.minP,
+        repeatPenalty: typeof repeatPenaltyValue === 'number'
+          ? repeatPenaltyValue
+          : baseAgentConfig.repeatPenalty,
+        frequencyPenalty: typeof frequencyPenaltyValue === 'number'
+          ? frequencyPenaltyValue
+          : baseAgentConfig.frequencyPenalty,
+        presencePenalty: typeof presencePenaltyValue === 'number'
+          ? presencePenaltyValue
+          : baseAgentConfig.presencePenalty,
         variant,
         autoLoadSkills: effectiveAutoLoadSkills,
       };

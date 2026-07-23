@@ -6,6 +6,10 @@ export type RuntimeSubagentConfig = {
   temperature?: number;
   topP?: number;
   topK?: number;
+  minP?: number;
+  repeatPenalty?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   mode: 'subagent';
   description: string;
   prompt: string;
@@ -40,6 +44,10 @@ export function buildCustomSubagents({
       temperature: customConfig.temperature ?? baseAgent.temperature,
       topP: customConfig.topP ?? baseAgent.topP,
       topK: customConfig.topK ?? baseAgent.topK,
+      minP: customConfig.minP ?? baseAgent.minP,
+      repeatPenalty: customConfig.repeatPenalty ?? baseAgent.repeatPenalty,
+      frequencyPenalty: customConfig.frequencyPenalty ?? baseAgent.frequencyPenalty,
+      presencePenalty: customConfig.presencePenalty ?? baseAgent.presencePenalty,
       mode: 'subagent',
       description: customConfig.description,
       prompt: baseAgent.prompt + autoLoadedSkillsContent,

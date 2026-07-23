@@ -2456,6 +2456,10 @@ Expand your Discovery section and try again.`;
         temperature: zettaUserConfig.temperature ?? 0.5,
         ...(zettaUserConfig.topP !== undefined && { topP: zettaUserConfig.topP }),
         ...(zettaUserConfig.topK !== undefined && { topK: zettaUserConfig.topK }),
+        ...(zettaUserConfig.minP !== undefined && { minP: zettaUserConfig.minP }),
+        ...(zettaUserConfig.repeatPenalty !== undefined && { repeatPenalty: zettaUserConfig.repeatPenalty }),
+        ...(zettaUserConfig.frequencyPenalty !== undefined && { frequencyPenalty: zettaUserConfig.frequencyPenalty }),
+        ...(zettaUserConfig.presencePenalty !== undefined && { presencePenalty: zettaUserConfig.presencePenalty }),
         description: 'Zetta (Hybrid) - Plans + orchestrates. Detects phase, loads skills on-demand.',
         prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + customSubagentAppendix,
         permission: {
@@ -2483,6 +2487,10 @@ Expand your Discovery section and try again.`;
         temperature: scoutUserConfig.temperature ?? 0.5,
         ...(scoutUserConfig.topP !== undefined && { topP: scoutUserConfig.topP }),
         ...(scoutUserConfig.topK !== undefined && { topK: scoutUserConfig.topK }),
+        ...(scoutUserConfig.minP !== undefined && { minP: scoutUserConfig.minP }),
+        ...(scoutUserConfig.repeatPenalty !== undefined && { repeatPenalty: scoutUserConfig.repeatPenalty }),
+        ...(scoutUserConfig.frequencyPenalty !== undefined && { frequencyPenalty: scoutUserConfig.frequencyPenalty }),
+        ...(scoutUserConfig.presencePenalty !== undefined && { presencePenalty: scoutUserConfig.presencePenalty }),
         mode: 'subagent' as const,
         description: 'Scout (Explorer/Researcher/Retrieval) - Researches codebase + external docs/data.',
         prompt: SCOUT_BEE_PROMPT + scoutAutoLoadedSkills + (scoutUserConfig.customPrompt ? '\n\n' + scoutUserConfig.customPrompt : ''),
@@ -2507,6 +2515,10 @@ Expand your Discovery section and try again.`;
         temperature: foragerUserConfig.temperature ?? 0.3,
         ...(foragerUserConfig.topP !== undefined && { topP: foragerUserConfig.topP }),
         ...(foragerUserConfig.topK !== undefined && { topK: foragerUserConfig.topK }),
+        ...(foragerUserConfig.minP !== undefined && { minP: foragerUserConfig.minP }),
+        ...(foragerUserConfig.repeatPenalty !== undefined && { repeatPenalty: foragerUserConfig.repeatPenalty }),
+        ...(foragerUserConfig.frequencyPenalty !== undefined && { frequencyPenalty: foragerUserConfig.frequencyPenalty }),
+        ...(foragerUserConfig.presencePenalty !== undefined && { presencePenalty: foragerUserConfig.presencePenalty }),
         mode: 'subagent' as const,
         description: 'Forager (Worker/Coder) - Executes tasks directly in isolated worktrees. Never delegates.',
         prompt: FORAGER_BEE_PROMPT + foragerAutoLoadedSkills + (foragerUserConfig.customPrompt ? '\n\n' + foragerUserConfig.customPrompt : ''),
@@ -2530,6 +2542,10 @@ Expand your Discovery section and try again.`;
         temperature: hygienicUserConfig.temperature ?? 0.3,
         ...(hygienicUserConfig.topP !== undefined && { topP: hygienicUserConfig.topP }),
         ...(hygienicUserConfig.topK !== undefined && { topK: hygienicUserConfig.topK }),
+        ...(hygienicUserConfig.minP !== undefined && { minP: hygienicUserConfig.minP }),
+        ...(hygienicUserConfig.repeatPenalty !== undefined && { repeatPenalty: hygienicUserConfig.repeatPenalty }),
+        ...(hygienicUserConfig.frequencyPenalty !== undefined && { frequencyPenalty: hygienicUserConfig.frequencyPenalty }),
+        ...(hygienicUserConfig.presencePenalty !== undefined && { presencePenalty: hygienicUserConfig.presencePenalty }),
         mode: 'subagent' as const,
         description: 'Hygienic (Consultant/Reviewer/Debugger) - Reviews plan documentation quality. OKAY/REJECT verdict.',
         prompt: HYGIENIC_BEE_PROMPT + hygienicAutoLoadedSkills + (hygienicUserConfig.customPrompt ? '\n\n' + hygienicUserConfig.customPrompt : ''),
@@ -2545,16 +2561,20 @@ Expand your Discovery section and try again.`;
 
       // Micode agents (from micode plugin)
       const micodeUserConfig = configService.getAgentConfig('codebase-locator');
-      const micodeTopConfig = {
+      const micodeSamplingConfig = {
         ...(micodeUserConfig.topP !== undefined && { topP: micodeUserConfig.topP }),
         ...(micodeUserConfig.topK !== undefined && { topK: micodeUserConfig.topK }),
+        ...(micodeUserConfig.minP !== undefined && { minP: micodeUserConfig.minP }),
+        ...(micodeUserConfig.repeatPenalty !== undefined && { repeatPenalty: micodeUserConfig.repeatPenalty }),
+        ...(micodeUserConfig.frequencyPenalty !== undefined && { frequencyPenalty: micodeUserConfig.frequencyPenalty }),
+        ...(micodeUserConfig.presencePenalty !== undefined && { presencePenalty: micodeUserConfig.presencePenalty }),
       };
 
       const codebaseLocatorConfig = {
         model: micodeUserConfig.model,
         variant: micodeUserConfig.variant,
         temperature: micodeUserConfig.temperature ?? 0.3,
-        ...micodeTopConfig,
+        ...micodeSamplingConfig,
         mode: 'subagent' as const,
         description: 'Codebase Locator - Finds WHERE files live in the codebase. No analysis, just locations.',
         prompt: CODEBASE_LOCATOR_PROMPT,
@@ -2572,7 +2592,7 @@ Expand your Discovery section and try again.`;
         model: micodeUserConfig.model,
         variant: micodeUserConfig.variant,
         temperature: micodeUserConfig.temperature ?? 0.3,
-        ...micodeTopConfig,
+        ...micodeSamplingConfig,
         mode: 'subagent' as const,
         description: 'Codebase Analyzer - Explains HOW code works. Deep module analysis.',
         prompt: CODEBASE_ANALYZER_PROMPT,

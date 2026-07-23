@@ -234,6 +234,29 @@
           "minimum": 0,
           "description": "Top-k sampling — limits to top K most likely tokens (positive integer)"
         },
+        "min_p": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum probability mass — only tokens with cumulative probability ≥ this threshold are considered (0–1)"
+        },
+        "repeat_penalty": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Repeat penalty — penalizes tokens that have already appeared in the prompt (≥ 0)"
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 2,
+          "description": "Frequency penalty — reduces likelihood of tokens already present in the completion (-2 to 2)"
+        },
+        "presence_penalty": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 2,
+          "description": "Presence penalty — increases likelihood of tokens already present in the prompt (-2 to 2)"
+        },
         "skills": {
           "type": "array",
           "items": {
@@ -299,6 +322,29 @@
           "type": "integer",
           "minimum": 0,
           "description": "Top-k sampling override — limits to top K most likely tokens (positive integer)"
+        },
+        "min_p": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Minimum probability mass override — only tokens with cumulative probability ≥ this threshold are considered (0–1)"
+        },
+        "repeat_penalty": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Repeat penalty override — penalizes tokens that have already appeared in the prompt (≥ 0)"
+        },
+        "frequency_penalty": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 2,
+          "description": "Frequency penalty override — reduces likelihood of tokens already present in the completion (-2 to 2)"
+        },
+        "presence_penalty": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 2,
+          "description": "Presence penalty override — increases likelihood of tokens already present in the prompt (-2 to 2)"
         },
         "variant": {
           "type": "string",
