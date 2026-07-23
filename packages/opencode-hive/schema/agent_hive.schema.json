@@ -25,6 +25,15 @@
       "default": true,
       "description": "Reuse Docker containers per worktree (docker exec) instead of creating new ones per command (docker run --rm). Default: true when sandbox is 'docker'."
     },
+    "executionMode": {
+      "type": "string",
+      "enum": [
+        "parallel",
+        "sequential"
+      ],
+      "default": "parallel",
+      "description": "Worker dispatch strategy. 'parallel' (default) spawns all worker agents concurrently; 'sequential' runs one worker at a time to reduce VRAM/resource usage. Read once at dispatch time by hive_worktree_batch."
+    },
     "enableToolsFor": {
       "type": "array",
       "items": {
