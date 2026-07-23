@@ -156,6 +156,14 @@ export interface AgentModelConfig {
   topP?: number;
   /** Top-k sampling — limits to top K most likely tokens (positive integer). Maps from JSON config key `top_k`. */
   topK?: number;
+  /** Minimum probability mass — only tokens with cumulative probability ≥ this threshold are considered (0–1). Maps from JSON config key `min_p`. */
+  minP?: number;
+  /** Repeat penalty — penalizes tokens based on their appearance in the prompt so far (≥ 0). Maps from JSON config key `repeat_penalty`. */
+  repeatPenalty?: number;
+  /** Frequency penalty — reduces likelihood of tokens that have appeared in the completion so far (-2 to 2). Maps from JSON config key `frequency_penalty`. */
+  frequencyPenalty?: number;
+  /** Presence penalty — increases likelihood of tokens that have appeared in the prompt so far (-2 to 2). Maps from JSON config key `presence_penalty`. */
+  presencePenalty?: number;
   /** Skills to enable for this agent */
   skills?: string[];
   /** Skills to auto-load for this agent */
@@ -202,6 +210,10 @@ export interface CustomAgentConfig {
   temperature?: number;
   topP?: number;
   topK?: number;
+  minP?: number;
+  repeatPenalty?: number;
+  frequencyPenalty?: number;
+  presencePenalty?: number;
   variant?: string;
   autoLoadSkills?: string[];
 }
