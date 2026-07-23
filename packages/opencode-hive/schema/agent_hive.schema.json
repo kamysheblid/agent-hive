@@ -223,6 +223,17 @@
           "maximum": 2,
           "description": "Sampling temperature"
         },
+        "top_p": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Top-p (nucleus) sampling — cumulative probability threshold (0–1)"
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Top-k sampling — limits to top K most likely tokens (positive integer)"
+        },
         "skills": {
           "type": "array",
           "items": {
@@ -277,6 +288,17 @@
           "minimum": 0,
           "maximum": 2,
           "description": "Sampling temperature override"
+        },
+        "top_p": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Top-p (nucleus) sampling override — cumulative probability threshold (0–1)"
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Top-k sampling override — limits to top K most likely tokens (positive integer)"
         },
         "variant": {
           "type": "string",

@@ -152,6 +152,10 @@ export interface AgentModelConfig {
   model?: string;
   /** Temperature for generation (0-2) */
   temperature?: number;
+  /** Top-p (nucleus) sampling — limits to top tokens whose cumulative probability reaches this threshold (0–1). Maps from JSON config key `top_p`. */
+  topP?: number;
+  /** Top-k sampling — limits to top K most likely tokens (positive integer). Maps from JSON config key `top_k`. */
+  topK?: number;
   /** Skills to enable for this agent */
   skills?: string[];
   /** Skills to auto-load for this agent */
@@ -196,6 +200,8 @@ export interface CustomAgentConfig {
   description: string;
   model?: string;
   temperature?: number;
+  topP?: number;
+  topK?: number;
   variant?: string;
   autoLoadSkills?: string[];
 }

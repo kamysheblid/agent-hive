@@ -4,6 +4,8 @@ export type RuntimeSubagentConfig = {
   model?: string;
   variant?: string;
   temperature?: number;
+  topP?: number;
+  topK?: number;
   mode: 'subagent';
   description: string;
   prompt: string;
@@ -36,6 +38,8 @@ export function buildCustomSubagents({
       ...(agentModel ? { model: agentModel } : {}),
       variant: customConfig.variant ?? baseAgent.variant,
       temperature: customConfig.temperature ?? baseAgent.temperature,
+      topP: customConfig.topP ?? baseAgent.topP,
+      topK: customConfig.topK ?? baseAgent.topK,
       mode: 'subagent',
       description: customConfig.description,
       prompt: baseAgent.prompt + autoLoadedSkillsContent,

@@ -85,6 +85,24 @@ export class ConfigService {
           ...storedCustomAgents,
         },
       };
+
+      // Map snake_case JSON keys (top_p, top_k) to camelCase AgentModelConfig (topP, topK)
+      const storedAgents = (stored as Record<string, unknown>).agents as Record<string, Record<string, unknown>> | undefined;
+      if (storedAgents && merged.agents) {
+        for (const agentName of BUILT_IN_AGENT_NAMES) {
+          const storedAgent = storedAgents[agentName];
+          const mergedAgent = merged.agents[agentName];
+          if (storedAgent && mergedAgent) {
+            if (typeof storedAgent['top_p'] === 'number') {
+              (mergedAgent as Record<string, unknown>)['topP'] = storedAgent['top_p'];
+            }
+            if (typeof storedAgent['top_k'] === 'number') {
+              (mergedAgent as Record<string, unknown>)['topK'] = storedAgent['top_k'];
+            }
+          }
+        }
+      }
+
       this.cachedConfig = merged;
       this.cachedCustomAgentConfigs = null;
       return this.cachedConfig;
@@ -231,6 +249,8 @@ export class ConfigService {
 
       const modelValue = declaration['model'];
       const temperatureValue = declaration['temperature'];
+      const topPValue = declaration['top_p'];
+      const topKValue = declaration['top_k'];
       const variantValue = declaration['variant'];
       const model = typeof modelValue === 'string'
         ? modelValue.trim() || ''
@@ -246,6 +266,12 @@ export class ConfigService {
         temperature: typeof temperatureValue === 'number'
           ? temperatureValue
           : baseAgentConfig.temperature,
+        topP: typeof topPValue === 'number'
+          ? topPValue
+          : baseAgentConfig.topP,
+        topK: typeof topKValue === 'number'
+          ? topKValue
+          : baseAgentConfig.topK,
         variant,
         autoLoadSkills: effectiveAutoLoadSkills,
       };
