@@ -486,11 +486,11 @@ function requireZettaDelegation(toolContext: { agent?: string; sessionID?: strin
   return null;
 }
 
-export function setSessionAgent(sessionId: string, agentName: string): void {
+function setSessionAgent(sessionId: string, agentName: string): void {
   delegationTracker.sessionAgents.set(sessionId, agentName);
 }
 
-export function getSessionAgent(sessionId: string): string | undefined {
+function getSessionAgent(sessionId: string): string | undefined {
   return delegationTracker.sessionAgents.get(sessionId);
 }
 
