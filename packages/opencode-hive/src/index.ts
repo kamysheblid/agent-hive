@@ -1300,6 +1300,15 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
 
         // Delegation compliance injection for zetta
         const chatInput = input as { agent?: string; sessionID?: string };
+
+        // Track agent identity at session level (once per turn, stable source)
+        if (chatInput.agent) {
+          setSessionAgent(chatInput.sessionID || '', chatInput.agent);
+        }
+
+        // Clear stale blocking state at session start (recovery mechanism)
+        delegationTracker.sessionIsBlocked.delete(chatInput.sessionID || '');
+
         if (chatInput.agent === 'zetta') {
           try {
             const sessionId = chatInput.sessionID || '';
@@ -1738,8 +1747,6 @@ ${snapshot}
 
         // Delegation compliance tracking
         const agentName = input.agent || 'unknown';
-        // Track agent identity at session level for gate fallback
-        setSessionAgent(input.sessionID, agentName);
         if (agentName === 'zetta') {
           const toolName = input.tool;
           const isTaskCall = toolName === 'task';
@@ -1757,6 +1764,8 @@ ${snapshot}
             // Successful delegation — reset non-delegation counter
             delegationTracker.taskCallCount++;
             delegationTracker.nonTaskToolCallCount = 0;
+            // Clear blocking state — delegation has been successfully re-established
+            delegationTracker.sessionIsBlocked.delete(input.sessionID);
             const subagentType = input.args?.subagent_type || 'unknown';
             delegationTracker.lastTaskCallAgent = String(subagentType);
             incSessionCount(delegationTracker.sessionTaskCalls, input.sessionID);
@@ -1916,8 +1925,11 @@ ${snapshot}
          async execute({ subagent_type, prompt, description }, toolContext) {
            const sessionId = (toolContext as { sessionID?: string })?.sessionID || '';
            delegationTracker.taskCallCount++;
+           delegationTracker.nonTaskToolCallCount = 0;
            delegationTracker.lastTaskCallAgent = subagent_type;
            incSessionCount(delegationTracker.sessionTaskCalls, sessionId);
+           // Clear blocking state — delegation has been successfully re-established
+           delegationTracker.sessionIsBlocked.delete(sessionId);
            delegationTracker.complianceLog.push({
              timestamp: new Date().toISOString(),
              agent: 'zetta',
