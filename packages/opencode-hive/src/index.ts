@@ -394,6 +394,174 @@ function autoSaveProjectMemory(
   }
 }
 
+// ============================================================================
+// Delegation Compliance Tracker
+// Tracks task() calls per agent and enforces delegation parity for zetta.
+// ============================================================================
+
+interface DelegationTracker {
+  taskCallCount: number;
+  nonTaskToolCallCount: number;
+  lastTaskCallAgent: string | null;
+  violations: number;
+  sessionViolations: Map<string, number>;
+  complianceLog: Array<{ timestamp: string; agent: string; tool: string; sessionId: string }>;
+  sessionTaskCalls: Map<string, number>;
+  sessionNonTaskCalls: Map<string, number>;
+  sessionAgents: Map<string, string>;
+  sessionIsBlocked: Map<string, boolean>;
+}
+
+const delegationTracker: DelegationTracker = {
+  taskCallCount: 0,
+  nonTaskToolCallCount: 0,
+  lastTaskCallAgent: null,
+  violations: 0,
+  sessionViolations: new Map(),
+  complianceLog: [],
+  sessionTaskCalls: new Map(),
+  sessionNonTaskCalls: new Map(),
+  sessionAgents: new Map(),
+  sessionIsBlocked: new Map(),
+};
+
+const ZETTA_READONLY_TOOLS = new Set([
+  'hive_status',
+  'hive_skill',
+  'hive_plan_read',
+  'hive_context_write',
+  'hive_vector_search',
+  'hive_memory_recall',
+  'hive_memory_list',
+  'hive_memory_set',
+  'hive_journal_search',
+  'hive_memory_update',
+  'hive_memory_replace',
+  'hive_memory_forget',
+]);
+
+function buildDelegationGateBlock(toolName: string, suggestedAgent: string): string {
+  return [
+    `DELEGATION BLOCKED: zetta cannot use ${toolName} directly.`,
+    ``,
+    `You must first delegate to a specialist agent via task():`,
+    ``,
+    `Required first delegation:`,
+    `  task({ subagent_type: "${suggestedAgent}", prompt: "..." })`,
+    ``,
+    `Until you have made at least one specialist delegation this session,`,
+    `${toolName} remains disabled.`,
+  ].join('\n');
+}
+
+function requireZettaDelegation(toolContext: { agent?: string; sessionID?: string } | unknown, toolName: string, suggestedAgent: string): string | null {
+  const ctx = toolContext as { agent?: string; sessionID?: string } | undefined;
+  const sessionId = ctx?.sessionID || '';
+
+  // Check if session is blocked from self-execution
+  if (delegationTracker.sessionIsBlocked.get(sessionId)) {
+    return `[DELEGATION ENFORCEMENT ACTIVE] This session has been blocked from direct execution after repeated violations. You MUST delegate all work to specialist agents using task(). First delegation required: task({ subagent_type: "${suggestedAgent}", prompt: "..." })`;
+  }
+
+  // Try toolContext first
+  let agentName = ctx?.agent;
+
+  // Fallback to session-level tracking
+  if (!agentName) {
+    agentName = getSessionAgent(sessionId);
+  }
+
+  // Fail-closed: if we still can't identify the agent, block by default
+  if (!agentName || agentName === 'unknown') {
+    return buildDelegationGateBlock(toolName, suggestedAgent);
+  }
+
+  if (agentName !== 'zetta') return null;
+
+  const taskCalls = getSessionCount(delegationTracker.sessionTaskCalls, sessionId);
+  if (taskCalls === 0) {
+    return buildDelegationGateBlock(toolName, suggestedAgent);
+  }
+
+  return null;
+}
+
+export function setSessionAgent(sessionId: string, agentName: string): void {
+  delegationTracker.sessionAgents.set(sessionId, agentName);
+}
+
+export function getSessionAgent(sessionId: string): string | undefined {
+  return delegationTracker.sessionAgents.get(sessionId);
+}
+
+function isZettaReadonlyTool(tool: string): boolean {
+  // Only explicitly listed tools are readonly for zetta (allowed without delegation).
+  // All other hive_* tools are gate-protected and require delegation.
+  return ZETTA_READONLY_TOOLS.has(tool);
+}
+
+function getSessionCount(map: Map<string, number>, sessionId: string): number {
+  return map.get(sessionId || '') || 0;
+}
+
+function incSessionCount(map: Map<string, number>, sessionId: string): void {
+  const key = sessionId || '';
+  map.set(key, (map.get(key) || 0) + 1);
+}
+
+function checkDelegationParity(sessionId: string): boolean {
+  const taskCalls = getSessionCount(delegationTracker.sessionTaskCalls, sessionId);
+  const nonTaskCalls = getSessionCount(delegationTracker.sessionNonTaskCalls, sessionId);
+  return !(nonTaskCalls > 0 && taskCalls === 0);
+}
+
+function buildDelegationParityBlock(sessionId: string): string {
+  const taskCalls = getSessionCount(delegationTracker.sessionTaskCalls, sessionId);
+  const nonTaskCalls = getSessionCount(delegationTracker.sessionNonTaskCalls, sessionId);
+  const blocked = !checkDelegationParity(sessionId);
+
+  return [
+    '## Delegation Parity Check',
+    '',
+    `- Session task() delegations: ${taskCalls}`,
+    `- Session direct tool calls: ${nonTaskCalls}`,
+    '',
+    blocked
+      ? 'DELEGATION BLOCKED: You have made direct tool calls without any specialist delegation this session. Stop self-execution and delegate immediately.'
+      : 'Delegation parity: OK',
+    '',
+    '**Enforcement rules in effect:**',
+    '1. Hive tools (`hive_*`) are allowed for orchestration only.',
+    '2. Direct implementation/review/research tool calls by zetta must be replaced by `task()` delegation.',
+    '3. Self-execution without delegation is a violation and will be blocked.',
+  ].join('\n');
+}
+
+function persistDelegationCompliance(directory: string): void {
+  try {
+    const complianceDir = path.join(directory, '.hive');
+    fs.mkdirSync(complianceDir, { recursive: true });
+
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      totalTaskCalls: delegationTracker.taskCallCount,
+      totalNonTaskToolCalls: delegationTracker.nonTaskToolCallCount,
+      totalViolations: delegationTracker.violations,
+      lastDelegatedAgent: delegationTracker.lastTaskCallAgent,
+      sessionViolations: Object.fromEntries(delegationTracker.sessionViolations),
+      recentLog: delegationTracker.complianceLog.slice(-200),
+    };
+
+    fs.writeFileSync(
+      path.join(complianceDir, 'delegation-compliance.json'),
+      JSON.stringify(payload, null, 2),
+      'utf-8',
+    );
+  } catch {
+    // 0-risk: compliance persistence should not break the session
+  }
+}
+
 const plugin: Plugin = async (ctx) => {
   const { directory, client } = ctx;
 
@@ -1130,6 +1298,36 @@ Use the \`@path\` attachment syntax in the prompt to reference the file. Do not 
           // 0-risk: diagnostics failure should not block the chat
         }
 
+        // Delegation compliance injection for zetta
+        const chatInput = input as { agent?: string; sessionID?: string };
+        if (chatInput.agent === 'zetta') {
+          try {
+            const sessionId = chatInput.sessionID || '';
+            const sessionViolations = delegationTracker.sessionViolations.get(sessionId) || 0;
+            const complianceBlock = `
+## Delegation Compliance Audit
+
+**Your delegation status this session:**
+- task() calls made: ${delegationTracker.taskCallCount}
+- Last delegated to: ${delegationTracker.lastTaskCallAgent || 'NONE'}
+- Direct tool calls without delegation: ${delegationTracker.nonTaskToolCallCount}
+- Compliance violations: ${sessionViolations}
+
+${sessionViolations > 0 ? `**WARNING**: You have ${sessionViolations} delegation violation(s) this session. Continued self-execution will result in session termination.` : ''}
+${delegationTracker.nonTaskToolCallCount >= 3 && delegationTracker.taskCallCount === 0 ? '**CRITICAL**: You have made multiple direct tool calls without ANY delegation. STOP and delegate immediately to the appropriate specialist agent.' : ''}
+
+${buildDelegationParityBlock(sessionId)}
+
+**Enforcement rules in effect:**
+1. Hive tools (hive_*): allowed for orchestration only
+2. write/edit/bash: FORBIDDEN — use task() to delegate
+3. Self-execution = VIOLATION = session termination`;
+            output.system.push(complianceBlock);
+          } catch {
+            // 0-risk: compliance tracking failure
+          }
+        }
+
         // $ns mode: inject directive if active (one-shot per trigger)
         try {
           if (nsModeState.active) {
@@ -1346,6 +1544,9 @@ ${snapshot}
         autoSaveProjectMemory(directory, featureService);
       }
 
+      // Persist delegation compliance log for post-run evaluation
+      persistDelegationCompliance(directory);
+
       // Session continuation: check for remaining tasks on compaction
       // Injects context so the agent auto-continues instead of stopping.
       try {
@@ -1528,12 +1729,76 @@ ${snapshot}
       },
     ),
 
-    // LSP file tracking + token truncation hook
+    // LSP file tracking + delegation compliance + token truncation hook
     "tool.execute.after": safeHook(
       'tool.execute.after',
-      async (input: { tool: string; sessionID: string; callID: string; args: any }, output: { title: string; output: string; metadata: any }) => {
+      async (input: { tool: string; sessionID: string; callID: string; args: any; agent?: string }, output: { title: string; output: string; metadata: any }) => {
         // Track files modified by Write/Edit tools for LSP auto-diagnostics
         trackFileModification(lspState, input.tool, input.args);
+
+        // Delegation compliance tracking
+        const agentName = input.agent || 'unknown';
+        // Track agent identity at session level for gate fallback
+        setSessionAgent(input.sessionID, agentName);
+        if (agentName === 'zetta') {
+          const toolName = input.tool;
+          const isTaskCall = toolName === 'task';
+          const isZettaReadonly = isZettaReadonlyTool(toolName);
+
+          // Log every tool call for compliance auditing
+          delegationTracker.complianceLog.push({
+            timestamp: new Date().toISOString(),
+            agent: agentName,
+            tool: toolName,
+            sessionId: input.sessionID,
+          });
+
+          if (isTaskCall) {
+            // Successful delegation — reset non-delegation counter
+            delegationTracker.taskCallCount++;
+            delegationTracker.nonTaskToolCallCount = 0;
+            const subagentType = input.args?.subagent_type || 'unknown';
+            delegationTracker.lastTaskCallAgent = String(subagentType);
+            incSessionCount(delegationTracker.sessionTaskCalls, input.sessionID);
+            console.log(`[delegation-tracker] zetta delegated to ${subagentType}`);
+          } else if (!isZettaReadonly) {
+            // Non-delegation, non-readonly tool call by zetta
+            delegationTracker.nonTaskToolCallCount++;
+            incSessionCount(delegationTracker.sessionNonTaskCalls, input.sessionID);
+
+            if (delegationTracker.nonTaskToolCallCount >= 3 && delegationTracker.taskCallCount === 0) {
+              // VIOLATION: zetta has made 3+ direct tool calls without delegating
+              delegationTracker.violations++;
+              const sessionViolations = delegationTracker.sessionViolations.get(input.sessionID) || 0;
+              delegationTracker.sessionViolations.set(input.sessionID, sessionViolations + 1);
+
+              // Block further self-execution in this session
+              delegationTracker.sessionIsBlocked.set(input.sessionID, true);
+
+              console.warn(
+                `[delegation-tracker] VIOLATION: zetta made ${delegationTracker.nonTaskToolCallCount} direct tool calls ` +
+                `(${toolName}) without delegating to a specialist agent in session ${input.sessionID}. ` +
+                `Total violations this session: ${sessionViolations + 1}`
+              );
+
+              // Inject compliance warning into tool output
+              const warning = `[DELEGATION COMPLIANCE WARNING]\n\n` +
+                `You have made ${delegationTracker.nonTaskToolCallCount} direct tool calls (${toolName}) ` +
+                `without delegating to a specialist agent.\n\n` +
+                `This is a VIOLATION of your mandatory delegation rules.\n\n` +
+                `IMMEDIATE ACTION REQUIRED:\n` +
+                `1. Stop all direct execution\n` +
+                `2. Delegate to the appropriate specialist via task():\n` +
+                `   - Planning → hive-planning\n` +
+                `   - Implementation → code-generation\n` +
+                `   - Review → code-reviewer or hive-approval\n` +
+                `   - Analysis → codebase-analyzer or scout-researcher\n\n` +
+                `This session is now BLOCKED from further direct execution.\n\n`;
+
+              output.output = warning + (output.output || '');
+            }
+          }
+        }
 
         const truncationConfig = configService.get().tokenTruncation;
         if (!truncationConfig?.enabled) return;
@@ -1547,8 +1812,8 @@ ${snapshot}
         const keepFirst = truncationConfig.keepFirstPercent ?? 40;
         const keepLast = truncationConfig.keepLastPercent ?? 40;
         
-        const firstChars = Math.floor((result.length * keepFirst) / 100);
-        const lastChars = Math.floor((result.length * keepLast) / 100);
+        const firstChars = Math.round(result.length * keepFirst / 100);
+        const lastChars = Math.round(result.length * keepLast / 100);
         
         const truncated = result.slice(0, firstChars) + 
           `\n\n[... ${result.length - firstChars - lastChars} characters truncated ...]\n\n` + 
@@ -1639,15 +1904,47 @@ ${snapshot}
       call_graph_path: callGraphPathTool,
       call_graph_extract: callGraphExtractTool,
 
-      hive_skill: createHiveSkillTool(filteredSkills),
+       hive_skill: createHiveSkillTool(filteredSkills),
 
-      hive_feature_create: tool({
+       hive_delegate: tool({
+         description: 'Delegate work to a specialist agent',
+         args: {
+           subagent_type: tool.schema.string().describe('The specialist agent to delegate to'),
+           prompt: tool.schema.string().describe('The task prompt for the specialist agent'),
+           description: tool.schema.string().optional().describe('Brief description of the task'),
+         },
+         async execute({ subagent_type, prompt, description }, toolContext) {
+           const sessionId = (toolContext as { sessionID?: string })?.sessionID || '';
+           delegationTracker.taskCallCount++;
+           delegationTracker.lastTaskCallAgent = subagent_type;
+           incSessionCount(delegationTracker.sessionTaskCalls, sessionId);
+           delegationTracker.complianceLog.push({
+             timestamp: new Date().toISOString(),
+             agent: 'zetta',
+             tool: 'hive_delegate',
+             sessionId,
+           });
+           return JSON.stringify({
+             action: 'DELEGATE',
+             subagent_type,
+             prompt,
+             description,
+             instruction: 'Use OpenCode task() with the provided subagent_type and prompt to delegate work to a specialist agent.',
+           });
+         },
+       }),
+
+       hive_feature_create: tool({
         description: 'Create a new feature and set it as active',
         args: {
           name: tool.schema.string().describe('Feature name'),
           ticket: tool.schema.string().optional().describe('Ticket reference'),
         },
-        async execute({ name, ticket }) {
+        async execute({ name, ticket }, toolContext) {
+          // GATE: zetta must delegate before creating features
+          const featureGate = requireZettaDelegation(toolContext, 'hive_feature_create', 'hive-planning');
+          if (featureGate) return featureGate;
+
           const feature = featureService.create(name, ticket);
           return `Feature "${name}" created.
 
@@ -1706,6 +2003,10 @@ NEXT: Ask your first clarifying question about this feature.`;
         async execute({ content, feature: explicitFeature }, toolContext) {
           const feature = resolveFeature(explicitFeature);
           if (!feature) return "Error: No feature specified. Create a feature or provide feature param.";
+
+          // GATE: zetta must have delegated before writing a plan
+          const planGate = requireZettaDelegation(toolContext, 'hive_plan_write', 'hive-planning');
+          if (planGate) return planGate;
 
           // GATE: Check for discovery section with substantive content
           const discoveryMatch = content.match(/^##\s+Discovery\s*$/im);
@@ -1837,7 +2138,9 @@ Expand your Discovery section and try again.`;
           task: tool.schema.string().describe('Task folder name'),
           feature: tool.schema.string().optional().describe('Feature name (defaults to detection or single feature)'),
         },
-        async execute({ task, feature: explicitFeature }) {
+        async execute({ task, feature: explicitFeature }, toolContext) {
+          const treeGate = requireZettaDelegation(toolContext, 'hive_worktree_start', 'code-generation');
+          if (treeGate) return treeGate;
           return executeWorktreeStart({ task, feature: explicitFeature });
         },
       }),
@@ -1849,7 +2152,10 @@ Expand your Discovery section and try again.`;
           feature: tool.schema.string().optional().describe('Feature name (defaults to detection or single feature)'),
           resume: tool.schema.boolean().optional().describe('Resume sequential dispatch: returns the next pending delegation instead of re-initializing the batch'),
         },
-        async execute({ tasks, feature: explicitFeature, resume }) {
+        async execute({ tasks, feature: explicitFeature, resume }, toolContext) {
+          const batchGate = requireZettaDelegation(toolContext, 'hive_worktree_batch', 'code-generation');
+          if (batchGate) return batchGate;
+
           const resolvedFeature = resolveFeature(explicitFeature);
           if (!resolvedFeature) {
             return respond({
@@ -2571,22 +2877,38 @@ Expand your Discovery section and try again.`;
         ...(zettaUserConfig.frequencyPenalty !== undefined && { frequencyPenalty: zettaUserConfig.frequencyPenalty }),
         ...(zettaUserConfig.presencePenalty !== undefined && { presencePenalty: zettaUserConfig.presencePenalty }),
         description: 'Zetta (Hybrid) - Plans + orchestrates. Detects phase, loads skills on-demand.',
-        prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + customSubagentAppendix,
-        permission: {
-          read: "allow",
-          write: "allow",
-          edit: "allow",
-          task: "allow",
-          delegate: "allow",
-          question: "allow",
-          skill: "allow",
-          todowrite: "allow",
-          todoread: "allow",
-          webfetch: "allow",
-          ask: "allow",
-          bash: "allow",
-          external_directory: "allow",
-        },
+        prompt: QUEEN_BEE_PROMPT + zettaAutoLoadedSkills + (zettaUserConfig.customPrompt ? '\n\n' + zettaUserConfig.customPrompt : '') + customSubagentAppendix,
+        permission: agentMode === 'dedicated'
+          ? {
+              read: "allow",
+              write: "deny",
+              edit: "deny",
+              bash: "deny",
+              external_directory: "deny",
+              task: "allow",
+              delegate: "allow",
+              question: "allow",
+              skill: "allow",
+              todowrite: "allow",
+              todoread: "allow",
+              webfetch: "allow",
+              ask: "allow",
+            }
+          : {
+              read: "allow",
+              write: "allow",
+              edit: "allow",
+              bash: "allow",
+              external_directory: "allow",
+              task: "allow",
+              delegate: "allow",
+              question: "allow",
+              skill: "allow",
+              todowrite: "allow",
+              todoread: "allow",
+              webfetch: "allow",
+              ask: "allow",
+            },
             };
 
       const scoutUserConfig = configService.getAgentConfig('scout-researcher');
